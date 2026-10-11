@@ -1,7 +1,7 @@
 /**
- * Every bead in the tracker stands on its own: it names where its work lands, an open bead a run
- * filed `discovered-from` another names the kinds of file its work would change, an open bead's type
- * is one the rubric describes, and every identifier it cites resolves from THIS checkout.
+ * Every bead in the tracker stands on its own: an open bead a run filed `discovered-from` another
+ * names the kinds of file its work would change, an open bead's type is one the rubric describes,
+ * and every identifier it cites resolves from THIS checkout.
  *
  * THE FAILURE THIS EXISTS TO PREVENT. A bead is a set of instructions an agent executes months
  * after a human wrote it, and the tracker is the only thing that travels with it. When a bead cites
@@ -22,13 +22,13 @@
  * label: both were filed `discovered-from` on 2026-09-23, the day before the labels were decided,
  * and nothing had asked for the label since.
  * The count left both out and read the same as a complete one. The sweep labelled them by hand, and
- * rule 4 below refuses the next one.
+ * rule 3 below refuses the next one.
  *
  * A TYPE NO ROW DESCRIBES IS ONE NO FILER WAS TOLD WHEN TO USE. Until 2026-10-03 nothing said which
  * type an issue takes, and every filer but two took `bd`'s default. The tracker drifted: three
  * tasks filed from 2026-10-01 to 2026-10-03 carry the `## Steps to Reproduce` that `bd lint` asks of
  * a bug. The answer was a rubric, `issueTypes`, rows tried in
- * order, and rule 5 holds only its vocabulary: it refuses an open bead whose type no row names, so a
+ * order, and rule 4 holds only its vocabulary: it refuses an open bead whose type no row names, so a
  * filer who reaches for `story` or `milestone`, which `bd create --help` also lists, finds the
  * rubric. Wrong, it would pass a type the rubric never describes, and `bd count --by-type` would
  * split what no one chose to split. It cannot catch the drift itself: whether the row a filer chose
@@ -58,30 +58,28 @@
  * A green run prints the bead count it read and which `bd` it read
  * through, so it cannot be mistaken for the skip in a pre-push log.
  *
- * FIVE HARD FAILURES:
+ * FOUR HARD FAILURES:
  *
  *   1. An unregistered id carrying PREDECESSOR_PREFIX in any bead field: an id from the predecessor
  *      repository's tracker. Register it below with a reason, or copy the fact in. With no
  *      predecessor, PREDECESSOR_PREFIX stays null and this rule goes.
- *   2. An open bead with no `repo:` label. A bead that does not say where its work lands is not
- *      self-describing, and the reader has to guess which checkout it means.
- *   3. A bead whose work lands in a foreign repository and which does not cite its context bead.
+ *   2. A bead whose work lands in a foreign repository and which does not cite its context bead.
  *      Those beads carry the copied bundle facts; a cross-repo bead that does not point at one is
  *      asking the reader to go and open another checkout.
- *   4. An open bead with a `discovered-from` dependency and no label that `assetLabels` in
+ *   3. An open bead with a `discovered-from` dependency and no label that `assetLabels` in
  *      `policy/vocabulary.json` lists. The list is read from the policy on every run and
  *      spelled nowhere here, so a label added there is accepted at once, and a label renamed there
  *      strands every issue that carries the old spelling, as `assetLabelsMeans` warns. A closed bead
  *      is exempt: the count is read for what is still to fix. A policy with no such list, or an
  *      empty one, is a failure, never a pass over nothing.
- *   5. An open bead whose type no row of `issueTypes` in `policy/vocabulary.json` names. The
+ *   4. An open bead whose type no row of `issueTypes` in `policy/vocabulary.json` names. The
  *      types are read from the policy on every run and spelled nowhere here, so a row added there is
  *      accepted at once, and a row renamed or removed there refuses every open bead of the old type,
  *      as `issueTypesMeans` warns. A closed bead keeps the type it closed with. A policy with no
  *      such array, an empty one, or a row with no type is a failure, never a pass over nothing.
  *
- * "Open" is every status but `closed`, for rules 2 to 5. Plus one consistency check: a context bead
- * cited by rule 3 must itself exist in the export, so this gate cannot be satisfied by pointing at an
+ * "Open" is every status but `closed`, for rules 2 to 4. Plus one consistency check: a context bead
+ * cited by rule 2 must itself exist in the export, so this gate cannot be satisfied by pointing at an
  * id that is as dead as the ones it forbids.
  *
  * INVOCATION.
@@ -99,9 +97,9 @@
  * `os.tmpdir()`, doctors ONE thing per case, runs this gate on it as a child process through
  * `BEADS_CHECK_ROOT`, and asserts the run fails FOR THAT REASON. Its undoctored control must pass and
  * must print the fixture's bead count and the override, so neither a skip nor a read of the live
- * tracker can pass for it. Rules 1 and 3 have nothing configured yet (PREDECESSOR_PREFIX is null and
+ * tracker can pass for it. Rules 1 and 2 have nothing configured yet (PREDECESSOR_PREFIX is null and
  * CONTEXT_BEAD is empty), so no case breaks them; the case for each lands with its first entry.
- * Fourteen gate runs, one Node process each: 1.94 s wall for `node scripts/check-beads.mjs
+ * Thirteen gate runs, one Node process each: 1.31 to 1.40 s wall for `node scripts/check-beads.mjs
  * --selftest` (`/usr/bin/time -p`, two runs) on a macOS 26.7.1 laptop (Apple M3 Max) with Node
  * 26.11.1, 2026-10-11.
  *
@@ -280,7 +278,7 @@ function loadPolicy(root) {
   } catch (err) {
     return {
       error:
-        `${POLICY_DIR}/ cannot be read under ${root} (${err.message}). Rules 4 and 5 read their lists ` +
+        `${POLICY_DIR}/ cannot be read under ${root} (${err.message}). Rules 3 and 4 read their lists ` +
         'from it, and with none they would pass every issue without looking.',
     }
   }
@@ -311,14 +309,14 @@ function loadIssueTypes(policy) {
     return {
       error:
         `${POLICY} has no \`${TYPES_KEY}\` array whose every row names a \`type\`: each row is a type and ` +
-        'when it applies. Rule 5 reads the types from it, and with none it would pass every type without looking.',
+        'when it applies. Rule 4 reads the types from it, and with none it would pass every type without looking.',
     }
   }
   return { types: new Set(types) }
 }
 
 /**
- * Every rule over `beads`. `assetLabels` and `issueTypes` are the sets rules 4 and 5 read; each is
+ * Every rule over `beads`. `assetLabels` and `issueTypes` are the sets rules 3 and 4 read; each is
  * null when the policy gave none, which the caller has already reported, so no rule repeats it once
  * per bead.
  */
@@ -350,15 +348,7 @@ function runCheck(beads, assetLabels, issueTypes) {
       )
     }
 
-    // 2. Every open bead says where its work lands.
-    if (!closed && !labels.some((l) => l.startsWith('repo:'))) {
-      failures.push(
-        `${bead.id}: no \`repo:\` label. A bead that does not say which checkout its work lands in\n` +
-          `    leaves the reader guessing between this repository and every other one its work could land in.`,
-      )
-    }
-
-    // 3. Cross-repo beads cite their context bead.
+    // 2. Cross-repo beads cite their context bead.
     for (const [label, ctx] of Object.entries(CONTEXT_BEAD)) {
       if (closed) continue
       if (!labels.includes(label)) continue
@@ -371,7 +361,7 @@ function runCheck(beads, assetLabels, issueTypes) {
       )
     }
 
-    // 4. An open bead a run filed discovered-from another names what its work would change.
+    // 3. An open bead a run filed discovered-from another names what its work would change.
     const from = (bead.dependencies ?? [])
       .filter((d) => d.type === 'discovered-from' && (d.issue_id ?? bead.id) === bead.id)
       .map((d) => d.depends_on_id)
@@ -385,7 +375,7 @@ function runCheck(beads, assetLabels, issueTypes) {
       )
     }
 
-    // 5. An open bead's type is one a row of the rubric names.
+    // 4. An open bead's type is one a row of the rubric names.
     if (!closed && issueTypes && !issueTypes.has(bead.issue_type)) {
       const named = [...issueTypes].map((t) => `\`${t}\``).join(', ')
       failures.push(
@@ -436,7 +426,7 @@ function main() {
 
   const { beads } = loaded
   const read = loadPolicy(ROOT)
-  const assets = read.error ? {} : loadLabels(read.policy, POLICY_KEY, 4, 'what it covers')
+  const assets = read.error ? {} : loadLabels(read.policy, POLICY_KEY, 3, 'what it covers')
   const types = read.error ? {} : loadIssueTypes(read.policy)
   const failures = [read.error, assets.error, types.error].filter(Boolean)
   failures.push(...runCheck(beads, assets.labels ?? null, types.types ?? null))
@@ -454,8 +444,8 @@ function main() {
   }
 
   console.log(
-    `beads:check -- ${beads.length} beads: every identifier resolves here, every open bead names its\n` +
-      `  repository, every open bead filed discovered-from another carries a label \`${POLICY_KEY}\` lists,\n` +
+    `beads:check -- ${beads.length} beads: every identifier resolves here, every open bead filed\n` +
+      `  discovered-from another carries a label \`${POLICY_KEY}\` lists,\n` +
       `  every open bead's type is one \`${TYPES_KEY}\` names, and every cross-repo bead cites its context bead.\n` +
       `  (read from ${loaded.through})\n`,
   )
@@ -463,12 +453,11 @@ function main() {
 
 /* --------------------------------------------------------------------------------- selftest ----- */
 
-const REPO = 'repo:fixture'
-
 /**
  * The undoctored fixture: every exemption the rules make appears in it, so the control passing proves
- * none of them refuses. `asset` is a label and `type` a type the live policy lists, each read from it,
- * so the fixture spells no value either.
+ * none of them refuses. No bead carries a `repo:` label, so the control passing also proves an open
+ * bead needs none. `asset` is a label and `type` a type the live policy lists, each read from it, so
+ * the fixture spells no value either.
  */
 function fixture(policy, asset, type) {
   const discoveredFrom = (id) => [
@@ -479,14 +468,14 @@ function fixture(policy, asset, type) {
     exportTail: '',
     writeExport: true,
     beads: [
-      { _type: 'issue', id: 'fx-parent', status: 'open', issue_type: type, labels: [REPO] },
-      // Found, open, labelled: what rule 4 asks for.
+      { _type: 'issue', id: 'fx-parent', status: 'open', issue_type: type, labels: [] },
+      // Found, open, labelled: what rule 3 asks for.
       {
         _type: 'issue',
         id: 'fx-found',
         status: 'open',
         issue_type: type,
-        labels: [asset, REPO],
+        labels: [asset],
         dependencies: discoveredFrom('fx-found'),
       },
       // Found, in progress, labelled: "open" is every status but closed.
@@ -495,17 +484,17 @@ function fixture(policy, asset, type) {
         id: 'fx-working',
         status: 'in_progress',
         issue_type: type,
-        labels: [asset, REPO],
+        labels: [asset],
         dependencies: discoveredFrom('fx-working'),
       },
-      // Found, closed, unlabelled, of a type no row names: exempt from rules 4 and 5, the count and
+      // Found, closed, unlabelled, of a type no row names: exempt from rules 3 and 4, the count and
       // the rubric are read for what is still to do.
       {
         _type: 'issue',
         id: 'fx-closed',
         status: 'closed',
         issue_type: `${type}-retired`,
-        labels: [REPO],
+        labels: [],
         dependencies: discoveredFrom('fx-closed'),
       },
       // Not found: a child and a blocker carry no asset label and are not asked for one.
@@ -514,7 +503,7 @@ function fixture(policy, asset, type) {
         id: 'fx-child',
         status: 'open',
         issue_type: type,
-        labels: [REPO],
+        labels: [],
         dependencies: [
           { issue_id: 'fx-child', depends_on_id: 'fx-parent', type: 'parent-child', metadata: '{}' },
           { issue_id: 'fx-child', depends_on_id: 'fx-found', type: 'blocks', metadata: '{}' },
@@ -617,13 +606,6 @@ function cases(asset, type) {
         delete fx.policy[TYPES_KEY][0].type
       },
       expect: noTypes,
-    },
-    {
-      name: 'an open issue with no repo: label',
-      doctor: (fx) => {
-        beadOf(fx, 'fx-child').labels = without(beadOf(fx, 'fx-child').labels, REPO)
-      },
-      expect: /^ {2}fx-child: no `repo:` label/m,
     },
     {
       name: `the override names a copy with no ${OVERRIDE_EXPORT}`,
