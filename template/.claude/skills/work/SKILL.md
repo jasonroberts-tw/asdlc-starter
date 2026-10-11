@@ -1,9 +1,9 @@
 ---
-name: bead
-description: Work one or more issues from the task store end to end - verify the premise, claim, implement, gate, open the pull request, close once it merges. Use when asked to work, pick up or finish an issue.
+name: work
+description: Work one or more issues from the task store end to end - verify the premise, claim, implement and validate. Use when asked to work, pick up or finish an issue. Specify 'via-pr' to automatically create a PR when work is complete; specify 'via-merge' to automatically merge to local main when work is complete
 ---
 
-# Work an issue
+# Work an issue with beads
 
 The argument is one issue id, several, or nothing (then take the top of
 `bd ready`. Work agreed in conversation that no issue
@@ -79,26 +79,20 @@ opens, so the pull request's body names the new id. File it with `foundIssueComm
 
 As `AGENTS.md` § The gate ladder says.
 
-## 6. Open the pull request and watch its checks
+## 6. Integrating with main
 
-Before writing the body, hold the branch to each criterion as worded and to itself: a gap the body
-admits merges anyway off the high-risk floor. Fix one the body would disclose, or make the
-tree say what is true and file its follow-up (step 4). A criterion the work will not meet as worded
-is changed by the user before the push, as step 1 says.
+If `via-pr` use `open-pr` skill and wait for it to finish
+If `via-merge` merge to local main. Don't push to remote main
+If neither ask the operator what they want
 
-Open it with the `open-pr` skill.
+## 7. Close with a reason
 
-## 7. Close on the merge, with a reason
+Once integration is complete (PR merged or local main merged), close the issue with a reason that names the pull request or commit SHA, passed with `bd close <id> --reason-file <file>`. 
 
-Once `open-pr` reports the merge, close the issue with a reason that names the pull request, passed
-with `bd close <id> --reason-file <file>`. Handed back unmerged, the issue stays open, with a note
-naming the pull request and any issue it waits on, until it merges: closed sooner, it claims an
-unmet criterion. Whoever sees
-the merge closes it. An acceptance criterion that acts outside the repository is not performed: it
-becomes a follow-up issue labelled `human`, created with its label at creation.
+If you stopped for any other reason (e.g. failure, blocked) the issue stays open, with a note
+naming the commit(s), pull request if one was created, and any issue it waits on.
 
 ## 8. Report
 
 Keep it short. It says what step 1 verified and where, what changed and what was
-regenerated. It gives both gate runs as measured, and the pull request, with why it waits when it
-waits for a person or on an issue. It ends with the issue's final state and every follow-up filed.
+regenerated. It ends with the issue's final state and every follow-up filed.
