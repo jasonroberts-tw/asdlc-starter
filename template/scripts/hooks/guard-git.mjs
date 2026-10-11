@@ -556,7 +556,7 @@ const PR_BASE =
   `branch, a setting outside this repository that need not be the trunk.`
 const PR_MERGE =
   `a merge now is the orchestrator's call, not a task agent's. From a worktree, ask GitHub to merge ` +
-  `once \`verify\` has passed and the reviewer has approved, with \`prReviewMergeMethod\` in policy/pr-review.json: ` +
+  `once \`verify\` has passed and the reviewer has approved: ` +
   `\`gh pr merge <number> --auto --rebase\`.`
 const PR_ADMIN =
   `\`--admin\` merges past the checks the trunk's ruleset requires, with the maintainer's bypass: ` +

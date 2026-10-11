@@ -151,16 +151,16 @@ function cases() {
     { name: 'control: the live records, undoctored', doctor: () => {}, expect: 'pass' },
     { name: 'a record without a header field', doctor: editRecord(V, (d) => delete d.gatedBy), expect: /^policy\/vocabulary\.json has no `gatedBy`, a non-empty string/ },
     { name: 'a record with an empty header field', doctor: editRecord(T, (d) => { d.provenance = ' ' }), expect: /^policy\/tool-settings\.json has no `provenance`, a non-empty string/ },
-    { name: 'a constant without its Means', doctor: editRecord(V, (d) => delete d.specChangeLabelMeans), expect: /^`specChangeLabel` in policy\/vocabulary\.json has no `specChangeLabelMeans` sibling/ },
-    { name: 'a constant with an empty Means', doctor: editRecord(V, (d) => { d.specChangeLabelMeans = '' }), expect: /^`specChangeLabel` in policy\/vocabulary\.json has no `specChangeLabelMeans` sibling/ },
-    { name: 'a Means with no constant', doctor: editRecord(V, (d) => delete d.specChangeLabel), expect: /^`specChangeLabelMeans` in policy\/vocabulary\.json names no constant/ },
+    { name: 'a constant without its Means', doctor: editRecord(V, (d) => delete d.seenLabelPrefixMeans), expect: /^`seenLabelPrefix` in policy\/vocabulary\.json has no `seenLabelPrefixMeans` sibling/ },
+    { name: 'a constant with an empty Means', doctor: editRecord(V, (d) => { d.seenLabelPrefixMeans = '' }), expect: /^`seenLabelPrefix` in policy\/vocabulary\.json has no `seenLabelPrefixMeans` sibling/ },
+    { name: 'a Means with no constant', doctor: editRecord(V, (d) => delete d.seenLabelPrefix), expect: /^`seenLabelPrefixMeans` in policy\/vocabulary\.json names no constant/ },
     {
       name: 'a key defined in two records',
       doctor: editRecord(T, (d) => {
-        d.specChangeLabel = 'spec-change'
-        d.specChangeLabelMeans = 'a second home'
+        d.seenLabelPrefix = 'seen:'
+        d.seenLabelPrefixMeans = 'a second home'
       }),
-      expect: /^`specChangeLabel` is defined in both policy\/tool-settings\.json and policy\/vocabulary\.json/,
+      expect: /^`seenLabelPrefix` is defined in both policy\/tool-settings\.json and policy\/vocabulary\.json/,
     },
     { name: 'a record that is not JSON', doctor: write(`${POLICY_DIR}/${V}`, '{\n'), expect: /^policy\/vocabulary\.json does not parse as JSON/ },
     { name: 'a record that is not an object', doctor: write(`${POLICY_DIR}/${V}`, '[]\n'), expect: /^policy\/vocabulary\.json holds no JSON object/ },
@@ -196,19 +196,19 @@ function ran(run, status, { out, err } = {}) {
  */
 function loaderCases() {
   const live = readPolicy(REPO_ROOT)
-  const verifyTrace = Object.fromEntries(Object.entries(live).filter(([k]) => k.startsWith('verifyTrace') && !k.endsWith('Means')))
+  const githubApp = Object.fromEntries(Object.entries(live).filter(([k]) => k.startsWith('githubApp') && !k.endsWith('Means')))
   return [
     {
       name: 'loader: prints the keys it is named, from two records, in the merged order and nothing else',
       check: (dir) => {
-        const named = ['specChangeLabel', 'prReviewMergeMethod']
+        const named = ['seenLabelPrefix', 'gitHooksFailedOutputBytes']
         const out = JSON.stringify(Object.fromEntries(Object.entries(live).filter(([k]) => named.includes(k))))
         return ran(loader(dir, ...named), 0, { out })
       },
     },
     {
       name: 'loader: a prefix prints its constants and none of their Means',
-      check: (dir) => (Object.keys(verifyTrace).length === 0 ? 'cannot be exercised: no verifyTrace key' : ran(loader(dir, '--prefix', 'verifyTrace'), 0, { out: JSON.stringify(verifyTrace) })),
+      check: (dir) => (Object.keys(githubApp).length === 0 ? 'cannot be exercised: no githubApp key' : ran(loader(dir, '--prefix', 'githubApp'), 0, { out: JSON.stringify(githubApp) })),
     },
     { name: 'loader: a key no record holds is refused, by its name', check: (dir) => ran(loader(dir, 'noSuchKey'), 1, { err: /^policy: no record under policy\/ holds `noSuchKey`/ }) },
     { name: 'loader: a prefix with no value is refused', check: (dir) => ran(loader(dir, '--prefix'), 2, { err: /^policy: --prefix needs a value/ }) },
@@ -216,21 +216,21 @@ function loaderCases() {
     {
       name: 'loader: a key two records define is refused for every reader, naming both',
       doctor: editRecord('tool-settings.json', (d) => {
-        d.specChangeLabel = 'spec-change'
+        d.seenLabelPrefix = 'seen:'
       }),
-      check: (dir) => ran(loader(dir, 'typesafeModel'), 1, { err: /^policy: `specChangeLabel` is defined in both policy\/tool-settings\.json and policy\/vocabulary\.json/ }),
+      check: (dir) => ran(loader(dir, 'githubAppId'), 1, { err: /^policy: `seenLabelPrefix` is defined in both policy\/tool-settings\.json and policy\/vocabulary\.json/ }),
     },
     {
       name: "loader: a fixture's edit goes back to the record that held each key, and a new Means beside its constant",
-      doctor: editRecord('vocabulary.json', (d) => delete d.specChangeLabelMeans),
+      doctor: editRecord('vocabulary.json', (d) => delete d.seenLabelPrefixMeans),
       check: (dir) => {
         editPolicy(dir, (p) => {
-          p.couplingMinTogether = 999
-          p.specChangeLabelMeans = 'a fixture reason'
+          p.gitHooksFailedOutputBytes = 999
+          p.seenLabelPrefixMeans = 'a fixture reason'
         })
         const records = Object.fromEntries(readRecords(dir).map((r) => [r.path, r.data]))
-        if (records['policy/tool-settings.json'].couplingMinTogether !== 999) return 'the changed key did not go back to tool-settings.json'
-        if (records['policy/vocabulary.json'].specChangeLabelMeans !== 'a fixture reason') return 'the new Means did not go beside its constant'
+        if (records['policy/tool-settings.json'].gitHooksFailedOutputBytes !== 999) return 'the changed key did not go back to tool-settings.json'
+        if (records['policy/vocabulary.json'].seenLabelPrefixMeans !== 'a fixture reason') return 'the new Means did not go beside its constant'
         try {
           editPolicy(dir, () => {})
           return 'an edit that changed nothing was not refused'

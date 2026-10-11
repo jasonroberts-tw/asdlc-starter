@@ -21,8 +21,8 @@ work lands. An issue's type and priority are the first rows of `issueTypes` and 
 a session works or notes it. Otherwise `bd ready` ranks by who filed it, and when.
 
 An issue a run files `discovered-from` the issue or epic it ran on also carries, from
-`policy/vocabulary.json`, the `foundAtLabels` label for the stage that found it and one `assetLabels`
-label for each kind of file it would change. Those pairs are what `bd count` reads across runs.
+`policy/vocabulary.json`, one `assetLabels` label for each kind of file it would change. Those
+labels are what `bd count` reads across runs.
 
 Before filing an issue other than a change's epic or its tasks, search for it: titles with
 `bd search "<words>"` and descriptions with `bd list --all --desc-contains "<words>"`, closed issues

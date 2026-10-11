@@ -64,9 +64,7 @@ that matters.
 7. **The commands a session would run:** which `scripts/hooks/guard-git.mjs` or the permission
    classifier refuse, and which of its own must never run here, each needing a guard.
 8. **Dependencies and platforms:** `package.json`, `package-lock.json`, a new runtime, Git and Node
-   versions, macOS, Linux and the dev container (`.devcontainer/Dockerfile`). A path in
-   `prReviewHighRiskPaths` (`policy/pr-review.json`) sends every pull request touching it to a
-   person.
+   versions, macOS, Linux and the dev container (`.devcontainer/Dockerfile`).
 9. **Cost:** money or tokens per run and who pays, words added to prompts every session loads, CI
    minutes and job time.
 10. **Health:** the version assessed, release dates and breaking changes, open issues touching the

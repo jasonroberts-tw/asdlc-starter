@@ -2,13 +2,11 @@
 ["beads:check"]
 description = '''
 Refuses an open issue with no label naming where its work lands; an open issue filed
-`discovered-from` another with no label `assetLabels` in `policy/vocabulary.json` lists or, if
-created since the instant `foundAtLabelsSince` there names, none that `foundAtLabels` lists; an open
+`discovered-from` another with no label `assetLabels` in `policy/vocabulary.json` lists; an open
 issue whose type no row of `issueTypes` there names; and an issue citing an identifier that does not
-resolve here. Without the second, a found issue drops out of `bd count --by-label`, or out of the
-count by the stage that found it, and the count still reads as complete. Without the third, an issue
-takes a type no filer was told when to use. It reads the tracker's database, which a fresh clone in
-CI does not have.'''
+resolve here. Without the second, a found issue drops out of `bd count --by-label`, and the count
+still reads as complete. Without the third, an issue takes a type no filer was told when to use. It
+reads the tracker's database, which a fresh clone in CI does not have.'''
 run = "node scripts/check-beads.mjs"
 
 ["beads:selftest"]

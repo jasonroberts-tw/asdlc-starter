@@ -1,8 +1,7 @@
 /**
  * Every bead in the tracker stands on its own: it names where its work lands, an open bead a run
- * filed `discovered-from` another names the kinds of file its work would change and, if filed since
- * the cut-off `foundAtLabelsSince` names, the stage that found it, an open bead's type is one the
- * rubric describes, and every identifier it cites resolves from THIS checkout.
+ * filed `discovered-from` another names the kinds of file its work would change, an open bead's type
+ * is one the rubric describes, and every identifier it cites resolves from THIS checkout.
  *
  * THE FAILURE THIS EXISTS TO PREVENT. A bead is a set of instructions an agent executes months
  * after a human wrote it, and the tracker is the only thing that travels with it. When a bead cites
@@ -24,17 +23,6 @@
  * and nothing had asked for the label since.
  * The count left both out and read the same as a complete one. The sweep labelled them by hand, and
  * rule 4 below refuses the next one.
- *
- * THE OTHER HALF OF THE PAIR NEEDS A CUT-OFF, AND IT IS READ, NOT WRITTEN HERE. The count reads an
- * asset label beside a `foundAtLabels` label, the stage that found the issue, and rule 4 held only
- * the first. On 2026-09-26 a measurement found five open issues filed `discovered-from` with no
- * found-at label, every one filed before the labels were decided, which `foundAtLabelsMeans`
- * exempts: such an issue carries one only where its own text says which stage found it. On 2026-10-04 no open issue filed
- * since lacked one, so there is no incident yet. Were rule 6 wrong one way, it would pass a found issue
- * filed since the cut-off with no stage, and `bd count -l <a found-at label> --by-label` would leave it out
- * and read as complete; the other way, with no cut-off, it would refuse the issues the maintainer
- * exempted until someone guessed their stage. So it reads the cut-off, `foundAtLabelsSince`, from the
- * policy, and only a `created_at` that reads as before it exempts an issue.
  *
  * A TYPE NO ROW DESCRIBES IS ONE NO FILER WAS TOLD WHEN TO USE. Until 2026-10-03 nothing said which
  * type an issue takes, and every filer but two took `bd`'s default. The tracker drifted: three
@@ -70,7 +58,7 @@
  * A green run prints the bead count it read and which `bd` it read
  * through, so it cannot be mistaken for the skip in a pre-push log.
  *
- * SIX HARD FAILURES:
+ * FIVE HARD FAILURES:
  *
  *   1. An unregistered id carrying PREDECESSOR_PREFIX in any bead field: an id from the predecessor
  *      repository's tracker. Register it below with a reason, or copy the fact in. With no
@@ -91,14 +79,8 @@
  *      accepted at once, and a row renamed or removed there refuses every open bead of the old type,
  *      as `issueTypesMeans` warns. A closed bead keeps the type it closed with. A policy with no
  *      such array, an empty one, or a row with no type is a failure, never a pass over nothing.
- *   6. An open bead with a `discovered-from` dependency, whose `created_at` is not before the instant
- *      `foundAtLabelsSince` in `policy/vocabulary.json` names, and no label `foundAtLabels`
- *      there lists. Both are read from the policy on every run and spelled nowhere here, so the
- *      refusal names the bead and the keys and spells no value. A bead whose `created_at` cannot be
- *      read is held, not exempted. A policy with no such list, an empty one, or a cut-off that is not
- *      an instant in UTC ending in `Z` is a failure, never a pass over nothing.
  *
- * "Open" is every status but `closed`, for rules 2 to 6. Plus one consistency check: a context bead
+ * "Open" is every status but `closed`, for rules 2 to 5. Plus one consistency check: a context bead
  * cited by rule 3 must itself exist in the export, so this gate cannot be satisfied by pointing at an
  * id that is as dead as the ones it forbids.
  *
@@ -119,9 +101,9 @@
  * must print the fixture's bead count and the override, so neither a skip nor a read of the live
  * tracker can pass for it. Rules 1 and 3 have nothing configured yet (PREDECESSOR_PREFIX is null and
  * CONTEXT_BEAD is empty), so no case breaks them; the case for each lands with its first entry.
- * Twenty-one gate runs, one Node process each: 1.52 s wall for `node scripts/check-beads.mjs
+ * Fourteen gate runs, one Node process each: 1.94 s wall for `node scripts/check-beads.mjs
  * --selftest` (`/usr/bin/time -p`, two runs) on a macOS 26.7.1 laptop (Apple M3 Max) with Node
- * 26.8.1, 2026-10-04.
+ * 26.11.1, 2026-10-11.
  *
  * NEEDS `bd` on PATH for the live run, and skips clean without it. The override and the selftest
  * need nothing but Node: no `bd`, no network.
@@ -146,10 +128,6 @@ const ROOT = OVERRIDE ?? REPO_ROOT
 const POLICY = `${POLICY_DIR}/vocabulary.json`
 const POLICY_KEY = 'assetLabels'
 const TYPES_KEY = 'issueTypes'
-const FOUND_KEY = 'foundAtLabels'
-const SINCE_KEY = 'foundAtLabelsSince'
-/** The one form of instant `SINCE_KEY` may take: UTC, with its `Z`, as `bd export` writes `created_at`. */
-const UTC_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/
 /** Under the override, the export sits here, where `bd export` would have written it. */
 const OVERRIDE_EXPORT = 'export.jsonl'
 
@@ -302,7 +280,7 @@ function loadPolicy(root) {
   } catch (err) {
     return {
       error:
-        `${POLICY_DIR}/ cannot be read under ${root} (${err.message}). Rules 4 to 6 read their lists ` +
+        `${POLICY_DIR}/ cannot be read under ${root} (${err.message}). Rules 4 and 5 read their lists ` +
         'from it, and with none they would pass every issue without looking.',
     }
   }
@@ -325,20 +303,6 @@ function loadLabels(policy, key, rule, values) {
   return { labels: new Set(Object.keys(value)) }
 }
 
-/** The instant `foundAtLabelsSince` names, in milliseconds, or the reason there is none to read. */
-function loadSince(policy) {
-  const value = policy?.[SINCE_KEY]
-  if (typeof value !== 'string' || !UTC_INSTANT.test(value) || !Number.isFinite(Date.parse(value))) {
-    return {
-      error:
-        `${POLICY} has no \`${SINCE_KEY}\` that is an instant in UTC ending in \`Z\`, the form \`bd export\` ` +
-        'writes `created_at` in. Rule 6 exempts a found issue created before it, and without one it cannot ' +
-        'tell which issues it holds; with no zone, it would read the instant in the local time of whoever runs it.',
-    }
-  }
-  return { since: Date.parse(value) }
-}
-
 /** The types the rows of `issueTypes` name, in their order, or the reason there are none to read. */
 function loadIssueTypes(policy) {
   const rows = policy?.[TYPES_KEY]
@@ -354,11 +318,11 @@ function loadIssueTypes(policy) {
 }
 
 /**
- * Every rule over `beads`. `assetLabels` and `issueTypes` are the sets rules 4 and 5 read, and
- * `foundAt` the labels and the cut-off rule 6 reads, as `{ labels, since }`; each is null when the
- * policy gave none, which the caller has already reported, so no rule repeats it once per bead.
+ * Every rule over `beads`. `assetLabels` and `issueTypes` are the sets rules 4 and 5 read; each is
+ * null when the policy gave none, which the caller has already reported, so no rule repeats it once
+ * per bead.
  */
-function runCheck(beads, assetLabels, issueTypes, foundAt) {
+function runCheck(beads, assetLabels, issueTypes) {
   const failures = []
   const isQuoted = (bead, id) =>
     QUOTED_IDS.some((q) => q.bead === bead && q.id.toLowerCase() === id.toLowerCase())
@@ -430,20 +394,6 @@ function runCheck(beads, assetLabels, issueTypes, foundAt) {
           `    a type no row describes is one no filer was told when to use.`,
       )
     }
-
-    // 6. An open bead a run filed discovered-from another since the cut-off names the stage that found
-    // it. Only a creation time that reads as before the cut-off exempts it: one that cannot be read is held.
-    const exempt = foundAt && Date.parse(bead.created_at) < foundAt.since
-    if (!closed && foundAt && !exempt && from.length > 0 && !labels.some((l) => foundAt.labels.has(l))) {
-      const carried = labels.length ? labels.map((l) => `\`${l}\``).join(', ') : 'no label at all'
-      const at = typeof bead.created_at === 'string' ? bead.created_at : 'no creation time it records'
-      failures.push(
-        `${bead.id}: filed \`discovered-from\` ${from.join(', ')} at ${at}, not before \`${SINCE_KEY}\`,\n` +
-          `    and carries no label that \`${FOUND_KEY}\` in ${POLICY} lists (it carries ${carried}).\n` +
-          `    Add the one for the stage that found it: without it\n` +
-          `    \`bd count -l <a found-at label> --by-label\` leaves the issue out and still reads as complete.`,
-      )
-    }
   }
 
   // Consistency: the context beads this gate points people at must themselves exist.
@@ -488,11 +438,8 @@ function main() {
   const read = loadPolicy(ROOT)
   const assets = read.error ? {} : loadLabels(read.policy, POLICY_KEY, 4, 'what it covers')
   const types = read.error ? {} : loadIssueTypes(read.policy)
-  const stages = read.error ? {} : loadLabels(read.policy, FOUND_KEY, 6, 'when it applies')
-  const since = read.error ? {} : loadSince(read.policy)
-  const failures = [read.error, assets.error, types.error, stages.error, since.error].filter(Boolean)
-  const foundAt = stages.labels && since.since !== undefined ? { labels: stages.labels, since: since.since } : null
-  failures.push(...runCheck(beads, assets.labels ?? null, types.types ?? null, foundAt))
+  const failures = [read.error, assets.error, types.error].filter(Boolean)
+  failures.push(...runCheck(beads, assets.labels ?? null, types.types ?? null))
 
   if (failures.length) {
     console.error('beads:check FAILED\n')
@@ -509,8 +456,7 @@ function main() {
   console.log(
     `beads:check -- ${beads.length} beads: every identifier resolves here, every open bead names its\n` +
       `  repository, every open bead filed discovered-from another carries a label \`${POLICY_KEY}\` lists,\n` +
-      `  and since \`${SINCE_KEY}\` one \`${FOUND_KEY}\` lists, every open bead's type is one \`${TYPES_KEY}\`\n` +
-      `  names, and every cross-repo bead cites its context bead.\n` +
+      `  every open bead's type is one \`${TYPES_KEY}\` names, and every cross-repo bead cites its context bead.\n` +
       `  (read from ${loaded.through})\n`,
   )
 }
@@ -519,17 +465,12 @@ function main() {
 
 const REPO = 'repo:fixture'
 
-/** `instant` moved by `seconds`, in the form `bd export` writes `created_at`. */
-const shifted = (instant, seconds) => new Date(Date.parse(instant) + seconds * 1000).toISOString().replace(/\.000Z$/, 'Z')
-
 /**
  * The undoctored fixture: every exemption the rules make appears in it, so the control passing proves
- * none of them refuses. `asset` and `found` are labels and `type` a type the live policy lists, and
- * `since` its cut-off, each read from it, so the fixture spells no value either: each issue's
- * `created_at` is set against `since`, one of them on it and one a second before it.
+ * none of them refuses. `asset` is a label and `type` a type the live policy lists, each read from it,
+ * so the fixture spells no value either.
  */
-function fixture(policy, asset, type, found, since) {
-  const after = shifted(since, 86400)
+function fixture(policy, asset, type) {
   const discoveredFrom = (id) => [
     { issue_id: id, depends_on_id: 'fx-parent', type: 'discovered-from', metadata: '{}' },
   ]
@@ -538,15 +479,14 @@ function fixture(policy, asset, type, found, since) {
     exportTail: '',
     writeExport: true,
     beads: [
-      { _type: 'issue', id: 'fx-parent', status: 'open', issue_type: type, created_at: after, labels: [REPO] },
-      // Found, open, labelled, filed on the cut-off: what rules 4 and 6 ask for.
+      { _type: 'issue', id: 'fx-parent', status: 'open', issue_type: type, labels: [REPO] },
+      // Found, open, labelled: what rule 4 asks for.
       {
         _type: 'issue',
         id: 'fx-found',
         status: 'open',
         issue_type: type,
-        created_at: since,
-        labels: [asset, found, REPO],
+        labels: [asset, REPO],
         dependencies: discoveredFrom('fx-found'),
       },
       // Found, in progress, labelled: "open" is every status but closed.
@@ -555,39 +495,25 @@ function fixture(policy, asset, type, found, since) {
         id: 'fx-working',
         status: 'in_progress',
         issue_type: type,
-        created_at: after,
-        labels: [asset, found, REPO],
+        labels: [asset, REPO],
         dependencies: discoveredFrom('fx-working'),
       },
-      // Found, open, filed a second before the cut-off, with no found-at label: exempt from rule 6,
-      // as `foundAtLabelsMeans` exempts an issue filed before the cut-off.
-      {
-        _type: 'issue',
-        id: 'fx-early',
-        status: 'open',
-        issue_type: type,
-        created_at: shifted(since, -1),
-        labels: [asset, REPO],
-        dependencies: discoveredFrom('fx-early'),
-      },
-      // Found, closed, unlabelled, of a type no row names: exempt from rules 4 to 6, the count and
+      // Found, closed, unlabelled, of a type no row names: exempt from rules 4 and 5, the count and
       // the rubric are read for what is still to do.
       {
         _type: 'issue',
         id: 'fx-closed',
         status: 'closed',
         issue_type: `${type}-retired`,
-        created_at: after,
         labels: [REPO],
         dependencies: discoveredFrom('fx-closed'),
       },
-      // Not found: a child and a blocker carry no asset or found-at label and are not asked for one.
+      // Not found: a child and a blocker carry no asset label and are not asked for one.
       {
         _type: 'issue',
         id: 'fx-child',
         status: 'open',
         issue_type: type,
-        created_at: after,
         labels: [REPO],
         dependencies: [
           { issue_id: 'fx-child', depends_on_id: 'fx-parent', type: 'parent-child', metadata: '{}' },
@@ -606,16 +532,13 @@ function beadOf(fx, id) {
 
 const without = (list, value) => list.filter((v) => v !== value)
 
-function cases(asset, type, foundAt, since) {
+function cases(asset, type) {
   const found = 'fx-found'
   const refusedFound = (id) =>
     new RegExp(`^  ${id}: filed \`discovered-from\` fx-parent and carries no label that \`${POLICY_KEY}\``, 'm')
   const refusedType = (id, carried) =>
     new RegExp(`^  ${id}: its type is \`${carried}\`, which no row of \`${TYPES_KEY}\``, 'm')
   const noTypes = new RegExp(`^  policy/vocabulary\\.json has no \`${TYPES_KEY}\` array whose every row names a \`type\``, 'm')
-  const refusedFoundAt = (id) =>
-    new RegExp(`^  ${id}: filed \`discovered-from\` fx-parent at .*, not before \`${SINCE_KEY}\`,\\n {4}and carries no label that \`${FOUND_KEY}\``, 'm')
-  const noSince = new RegExp(`^  policy/vocabulary\\.json has no \`${SINCE_KEY}\` that is an instant in UTC ending in \`Z\``, 'm')
   return [
     {
       name: 'control: the undoctored fixture passes',
@@ -658,57 +581,6 @@ function cases(asset, type, foundAt, since) {
         delete fx.policy[POLICY_KEY]
       },
       expect: new RegExp(`^  policy/vocabulary\\.json has no \`${POLICY_KEY}\` object with at least one label`, 'm'),
-    },
-    {
-      name: `an open issue filed discovered-from on the cut-off with no label ${FOUND_KEY} lists`,
-      doctor: (fx) => {
-        beadOf(fx, found).labels = without(beadOf(fx, found).labels, foundAt)
-      },
-      expect: refusedFoundAt(found),
-    },
-    {
-      name: 'the policy renames the found-at label the issues carry',
-      doctor: (fx) => {
-        const list = fx.policy[FOUND_KEY]
-        list[`${foundAt}-renamed`] = list[foundAt]
-        delete list[foundAt]
-      },
-      expect: refusedFoundAt(found),
-    },
-    {
-      name: 'the policy moves the cut-off back onto an issue it exempted',
-      doctor: (fx) => {
-        fx.policy[SINCE_KEY] = beadOf(fx, 'fx-early').created_at
-      },
-      expect: refusedFoundAt('fx-early'),
-    },
-    {
-      name: 'an issue the cut-off exempted, with no creation time to read',
-      doctor: (fx) => {
-        delete beadOf(fx, 'fx-early').created_at
-      },
-      expect: refusedFoundAt('fx-early'),
-    },
-    {
-      name: `the policy has no ${FOUND_KEY}`,
-      doctor: (fx) => {
-        delete fx.policy[FOUND_KEY]
-      },
-      expect: new RegExp(`^  policy/vocabulary\\.json has no \`${FOUND_KEY}\` object with at least one label`, 'm'),
-    },
-    {
-      name: `the policy has no ${SINCE_KEY}`,
-      doctor: (fx) => {
-        delete fx.policy[SINCE_KEY]
-      },
-      expect: noSince,
-    },
-    {
-      name: `a ${SINCE_KEY} with no zone, which would be read in local time`,
-      doctor: (fx) => {
-        fx.policy[SINCE_KEY] = since.replace(/Z$/, '')
-      },
-      expect: noSince,
     },
     {
       name: `an open issue whose type no row of ${TYPES_KEY} names`,
@@ -808,23 +680,12 @@ function selftest() {
     process.exit(1)
   }
   const type = types[0]
-  const stages = Object.keys(committed?.[FOUND_KEY] ?? {}).sort(byCodePoint)
-  const since = committed?.[SINCE_KEY]
-  if (stages.length === 0 || typeof since !== 'string' || !UTC_INSTANT.test(since)) {
-    console.error(
-      `beads selftest: the committed ${POLICY} lists no label under \`${FOUND_KEY}\` or has no instant in UTC ` +
-        `under \`${SINCE_KEY}\`, so no fixture can carry one or be dated against it. \`mise run beads:check\` ` +
-        'refuses that policy too.',
-    )
-    process.exit(1)
-  }
-  const foundAt = stages[0]
 
   const base = mkdtempSync(join(tmpdir(), 'check-beads-'))
   const results = []
   try {
-    for (const { name, doctor, expect } of cases(asset, type, foundAt, since)) {
-      const fx = fixture(structuredClone(committed), asset, type, foundAt, since)
+    for (const { name, doctor, expect } of cases(asset, type)) {
+      const fx = fixture(structuredClone(committed), asset, type)
       const before = JSON.stringify(fx)
       doctor(fx)
       if (expect !== 'pass' && JSON.stringify(fx) === before) {

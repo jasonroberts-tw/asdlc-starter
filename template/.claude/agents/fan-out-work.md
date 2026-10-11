@@ -16,8 +16,7 @@ is red, stop and report the failing gate.
 
 ## 2. Partition the ready work into lanes
 
-Read the queue (`bd ready --exclude-label spec-change`, `specChangeLabel` in
-`policy/vocabulary.json`) and, for every pair of issues, decide the overlap by reading the
+Read the queue (`bd ready`) and, for every pair of issues, decide the overlap by reading the
 files each will touch, not the titles:
 
 | Overlap kind | What it looks like | What to do |
@@ -57,8 +56,8 @@ gives: its final message may not arrive (not verified against the CLI).
 ## 5. Integrate on your own branch
 
 As each lane reports green, cherry-pick its commits onto your branch. Resolve any conflict there,
-not in a merge commit: GitHub's rebase merge (`prReviewMergeMethod` in
-`policy/pr-review.json`) cannot carry one. Never rebase a branch that has been pushed. After
+not in a merge commit: GitHub's rebase merge cannot carry
+one. Never rebase a branch that has been pushed. After
 each lane, regenerate every generated file more than one lane touched, re-derive each figure a lane
 measured without the others' work, then run
 `mise run gates`.

@@ -73,7 +73,7 @@ A defect found on the way is fixed in this branch only when it sits in a file th
 changes or causes an existing gate to fail. 
 One left unfixed is filed as its own issue, never folded in, and before the pull request
 opens, so the pull request's body names the new id. File it with `foundIssueCommand` in
-`policy/vocabulary.json`; here the found-at label is bead's.
+`policy/vocabulary.json`.
 
 ## 5. Rebase and gate again
 

@@ -51,13 +51,9 @@
  * primary checkout after `EnterWorktree`; and git with no inherited `GIT_*` variable (`gitEnv` in
  * `_shared.mjs`), which would point git at another checkout.
  *
- * A FILE OF ITS OWN, OFF THE HIGH-RISK FLOOR. Until 2026-10-08 this check lived in `guard-git.mjs`,
- * which the floor holds for its approval and merge rules (`prReviewHighRiskPaths` in
- * `policy/pr-review.json`), so a change to this check alone waited for a person though it
- * decides nothing about an approval or a merge: a pull request that changed only this check's
- * reason and message was held for `guard-git.mjs`. Here a change to it merges as
- * `worktree-create.mjs`'s does, but for one that moves the word count
- * of its literals, whose budget row in `policy/prompt-budgets.json` is on the floor.
+ * A FILE OF ITS OWN. Until 2026-10-08 this check lived in `guard-git.mjs`, beside its approval and
+ * merge rules, so a change to this check alone was reviewed as a change to those rules, though it
+ * decides nothing about an approval or a merge.
  * Where that loses: a change that weakens this check merges without a
  * person, and `scripts/hooks/worktree-hooks.selftest.mjs` is what holds it. It costs one
  * more Node process and three git calls on every Bash command, beside the guard's: a median of 84 ms

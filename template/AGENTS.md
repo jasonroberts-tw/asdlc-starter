@@ -74,15 +74,11 @@ parent's (not verified against the CLI). Refused again, it takes the cases above
 A refusal saying you are isolated in a worktree is not the classifier's
 (verified against the CLI, 2.1.292): redo the work once in a form the isolation can check.
 
-## Decisions live in the register
+## Decisions records
 
-The register holds the decisions and risks that no agent re-litigates. Each one after D-59 is a file
-of its own, `docs/decisions/<id>.md` (`docs/decisions.md` § How an entry is written), cited with
-`§ Decision`, the form the citations gate checks. `docs/decisions.md` is frozen, and only a pointer to
-a numbered entry, `D-NN` or `R-NN`, or to its rules for writing and changing an entry names it. An
-entry is never rewritten. A later decision adds a dated amendment under each entry it changes. When
-a document and the register disagree, the register wins. Retiring a file is a register decision
-with a checklist, not a tidy-up.
+Decisions are recorded in markdown files and stored in `docs/decisions`
+The `should-i-adopt` skill is the current primary method for adopting a decision,
+which defines the format of the decision record.
 
 ## Every directory and document says what it is, and who wins
 
