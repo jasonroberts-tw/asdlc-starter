@@ -1,8 +1,8 @@
 /**
  * Memory citations: pointers into a store this repository does not use.
  *
- * CLAUDE.md § *Rules for agents live in tracked files, and nowhere else* gives every rule an agent
- * has to follow exactly one home, a tracked file, and names the two stores that are NOT it: the
+ * AGENTS.md § *Rules for agents live in tracked files, and nowhere else* gives every rule an agent
+ * has to follow exactly one home, a tracked file, so two stores are NOT it: the
  * `bd remember` / `bd recall` / `bd memories` store and the harness's per-project auto-memory
  * directory. A prompt that says "see memory `some-key`" or tells its reader to `bd recall` one
  * points at a store that is empty here by rule, and it fails in the worst direction: the pointer
@@ -27,32 +27,32 @@
  * when one appears, with the review that found it.
  *
  * WHERE IT LOOKS. The prompt files an agent reads its instructions from, and only those: `.claude/`,
- * a workflow's own directory once one exists, `.beads/formulas/`, `.beads/PRIME.md`, `CLAUDE.md` and
- * `README.md` (`MEMORY_SCOPE`). `.beads/PRIME.md` is what `bd prime` prints, in place of its own text,
+ * a workflow's own directory once one exists, `.beads/formulas/`, `.beads/PRIME.md`, `AGENTS.md`,
+ * `CLAUDE.md` and `README.md` (`MEMORY_SCOPE`). `.beads/PRIME.md` is what `bd prime` prints, in place of its own text,
  * whenever the tracker's plugin runs it at a session's start or before a compaction; on 2026-10-03
  * that built-in text, which this repository had no file to replace, told every session "Use
- * `bd remember` for persistent knowledge across sessions" (asdlc-openspec-z5gy). Every tracked
+ * `bd remember` for persistent knowledge across sessions". Every tracked
  * file under them regardless of extension, because the plugin's tools carry their prompts in `.ps1`
  * headers, which `scan.ts`'s `SCANNED_EXTENSIONS` does not cover; it covered no `.toml` formula
- * either until 2026-10-04 (asdlc-openspec-8juz.11).
+ * either until 2026-10-04.
  * A roster rather than the whole tree, unlike `scan.ts`, on purpose: the word `memory` before a
  * code span is ordinary prose in a tool's comment and a defect only where an agent reads it as an
  * instruction, and a whole-tree scan would begin by exempting this file.
  *
- * WHAT IS EXEMPT, and the design problem it answers. CLAUDE.md names the forbidden commands in the
- * section that forbids them, and would name them again in the Beads block `bd`'s set-up can write
- * into it, which says "Use `bd remember` for persistent knowledge", is regenerated from the hash in
+ * WHAT IS EXEMPT, and the design problem it answers. A section of AGENTS.md that forbids the store
+ * has to name the commands it forbids, and the Beads block `bd`'s set-up can write into the file
+ * would name them again: it says "Use `bd remember` for persistent knowledge", is regenerated from the hash in
  * its marker, and cannot be edited. No such block is written here: the tracker's text reaches a
  * session through `bd prime` and `.beads/PRIME.md`, which is in scope. Three ways to exempt those
  * mentions; this takes the third.
  *
- *   - NOT the whole of CLAUDE.md. It is the most-read prompt in the repository and the bead puts
+ *   - NOT the whole of AGENTS.md. It is the most-read prompt in the repository and the roster puts
  *     it in scope by name; exempting it wholesale is the hole dressed as an exemption every list in
  *     `scan.ts` warns about.
  *   - NOT a line that also carries a negation. That is a semantic rule: it passes the generated
  *     line for the wrong reason (its negation is about `MEMORY.md`, not about `bd remember`) and it
  *     passes "never skip `bd remember`" too.
- *   - TWO REGIONS OF CLAUDE.md, each keyed on its own delimiter (`MEMORY_EXEMPT_REGIONS`). The
+ *   - TWO REGIONS OF AGENTS.md, each keyed on its own delimiter (`MEMORY_EXEMPT_REGIONS`). The
  *     forbidding section by its `## ` heading text, from the heading to the next level-1 or level-2
  *     heading, on the argument `HISTORY` in `scan.ts` already makes for `tools/citations/`: it
  *     quotes the thing it exists to forbid. The generated block by `bd`'s own
@@ -63,9 +63,9 @@
  *     found in its file is a FINDING, not a silent pass: rename the heading or lose the markers and
  *     the gate says so on the next run, rather than going quietly green over the whole file.
  *
- * NOTHING IS EXEMPT AS HISTORY. The rule once exempted `docs/prompt-reviews/`, whose reviews quoted
- * the memory keys a skill cited in order to record that none resolved. `docs/decisions.md` § D-05
- * deleted the directory, and the exemption went with it. Widen the roster to `docs/` and
+ * NOTHING IS EXEMPT AS HISTORY. The rule once exempted a directory of prompt reviews, which quoted
+ * the memory keys a skill cited in order to record that none resolved. The directory was deleted,
+ * and the exemption went with it. Widen the roster to `docs/` and
  * `docs/retired/` needs one, on the argument `HISTORY` in `scan.ts` makes for it.
  *
  * Reads only this repository, needs no `../sibling` checkout and no network.
@@ -76,6 +76,7 @@ export const MEMORY_SCOPE: ReadonlyArray<string> = [
   '.claude/',
   '.beads/formulas/',
   '.beads/PRIME.md',
+  'AGENTS.md',
   'CLAUDE.md',
   'README.md',
 ]
@@ -98,7 +99,7 @@ export type ExemptRegion =
 
 export const MEMORY_EXEMPT_REGIONS: ReadonlyArray<ExemptRegion> = [
   {
-    file: 'CLAUDE.md',
+    file: 'AGENTS.md',
     section: 'Rules for agents live in tracked files, and nowhere else',
     why:
       'The section that forbids the store names the commands it forbids, exactly as' +
@@ -108,9 +109,9 @@ export const MEMORY_EXEMPT_REGIONS: ReadonlyArray<ExemptRegion> = [
   },
   // NO TRACKER BLOCK IS REGISTERED. The tracker's plugin reaches a session through `bd prime`, which
   // prints `.beads/PRIME.md`, a file in `MEMORY_SCOPE` held to this rule like any prompt, and nothing
-  // writes a block into CLAUDE.md. Should `bd`'s set-up ever write one, which tells its reader to use
+  // writes a block into AGENTS.md. Should `bd`'s set-up ever write one, which tells its reader to use
   // the memory commands and cannot be edited, register it keyed on its own markers:
-  //   { file: 'CLAUDE.md', between: ['<!-- BEGIN BEADS INTEGRATION', '<!-- END BEADS INTEGRATION -->'], why: '...' },
+  //   { file: 'AGENTS.md', between: ['<!-- BEGIN BEADS INTEGRATION', '<!-- END BEADS INTEGRATION -->'], why: '...' },
   // Registered BEFORE the block exists it is a finding, by the rule in the header: a region that is
   // not found is reported, never silently passed.
 ]
@@ -255,7 +256,7 @@ export interface MemoryScan {
   exempted: number
 }
 
-const RULE = 'CLAUDE.md § *Rules for agents live in tracked files, and nowhere else*'
+const RULE = 'AGENTS.md § *Rules for agents live in tracked files, and nowhere else*'
 
 /**
  * Scope, registered regions and the two shapes, in that order, over one file's text.
@@ -309,7 +310,7 @@ export function memoryProblemsIn(
             ' this file, or cite the tracked file that carries it.'
           : `tells its reader to \`${c.text}\`. The store is not used here (${RULE}); a prompt that` +
             ' names the command sends its reader to an empty store. Name the tracked file that' +
-            ' holds the fact instead, or cite the CLAUDE.md section if the sentence is the rule.',
+            ' holds the fact instead, or cite the AGENTS.md section if the sentence is the rule.',
       context: c.context,
     })
   }

@@ -14,8 +14,8 @@ check green and leave the cause in place, where the next run meets it with less 
 
 ## 1. Reproduce it alone
 
-Run the failing command as a call of its own, as `AGENTS.md` § Bash command style says: what it
-prints is what each later run is compared with. A failure that does not reproduce is reported as not
+Run the failing command as a call of its own: what it prints is what each later run is compared
+with. A failure that does not reproduce is reported as not
 reproduced, with the command and what it printed, never as fixed: nothing changed, so nothing was
 fixed.
 
@@ -58,7 +58,7 @@ its evidence goes where § 3 records a hypothesis, and its fix where it lives.
 ## 6. Stop after `rootCauseMaxFixes` fixes that failed
 
 A fix failed when the failure is still there once it is made, or is gone and something else broke.
-After `rootCauseMaxFixes` of them (`tools/policy/agent-workflows.json`), make no further fix: report
+After `rootCauseMaxFixes` of them (`policy/agent-workflows.json`), make no further fix: report
 to the user each hypothesis tested, what refuted or confirmed it, and each fix made and what it
 did. Fixes that each uncover a new failure elsewhere say the design may be what is wrong, which
 is the user's call. With no user, the report goes where § 3 records a hypothesis, and the issue stays open.

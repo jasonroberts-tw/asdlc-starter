@@ -12,7 +12,7 @@
  * sandbox fallback actually deletes a directory `git worktree remove` will not touch. It deliberately
  * does NOT provision a real worktree: `git worktree add` needs the primary checkout, and a
  * worktree-isolated session is refused it by scripts/hooks/guard-git.mjs. That one round trip is
- * verified by running the create hook from the primary checkout; see the PR body. The new-worktree
+ * verified by running the create hook from the primary checkout. The new-worktree
  * case runs the script only in a scratch repository of its own.
  *
  * THE PRUNE CASES ARE DIFFERENT IN KIND from everything else here, and the difference is the point:
@@ -22,7 +22,7 @@
  * mere survival -- the checked-out case passed with the guard deleted, because `git branch -D`
  * refuses a checked-out branch by itself, which made the check vacuous; `git worktree remove` refuses
  * a dirty or locked tree by itself in exactly the same way. Second, nothing in this file may run the
- * sweep against THIS repository: `worktree:selftest` is a pre-push job, and an earlier version of the
+ * sweep against THIS repository: this suite has run as a pre-push job, and an earlier version of the
  * remove hook swept the real repo on every invocation, deleting 104 local branches. The scratch
  * repository below and the hook's own ownership check are what keep that separated.
  *
@@ -130,7 +130,7 @@ check('stdout stays empty', removed.stdout.trim() === '', JSON.stringify(removed
 // THE CHECK WHOSE ABSENCE COST 104 BRANCHES. The hook runs prune-worktree-branches.mjs after a
 // removal, and that sweep mutates branches and `.git/config` -- shared state, in the REAL
 // repository, since the sweep is keyed off the hook's own location and not off `worktree_path`.
-// This case hands the hook a `/tmp` victim, and `worktree:selftest` is a pre-push job, so without
+// This case hands the hook a `/tmp` victim, and this suite has run as a pre-push job, so without
 // the ownership check in the hook every push swept the real repo. Assert the refusal, by its
 // reason, rather than trusting that a test directory is obviously not a worktree.
 check(
@@ -160,7 +160,7 @@ check('absent path exits zero', absent.code === 0, `code=${absent.code} stderr=$
  * `guard-unprovisioned-worktree.mjs` is a PreToolUse Bash hook, so it fires whether or not that hook
  * is registered -- and this asserts it does. Until 2026-10-08 the check lived in `guard-git.mjs`,
  * which the high-risk floor holds; `guard-git.mjs` must now let the same command through, or the
- * check would still be on the floor (`docs/decisions.md` § D-58).
+ * check would still be on the floor.
  *
  * Unlike the create-hook cases above, this one CAN provision real worktrees, because it builds a
  * throwaway repository in a temp directory. The header's "no real worktree" constraint is about
@@ -223,7 +223,7 @@ git(primary, 'worktree', 'add', '-q', '.claude/worktrees/ours', '-b', 'agent/our
  *
  * Until 2026-09-25 this set `CLAUDE_PROJECT_DIR` to `dir`, which the harness never does, and so it
  * passed over a guard that read that variable, judged the primary checkout, and applied no git rule
- * in any worktree a session had entered (asdlc-openspec-bvf).
+ * in any worktree a session had entered.
  *
  * `payloadDir` moves the payload's `cwd` away from the process's directory, for the cases that show
  * which of the two decides; `null` leaves it out of the payload. `env` is added to the guard's
@@ -269,8 +269,8 @@ check(
   `code=${nativeNoCwd.code} ${JSON.stringify(nativeNoCwd.stderr.slice(0, 200))}`,
 )
 // An inherited `GIT_DIR` naming the primary checkout's `.git` would make git answer for the primary
-// checkout, find no linked worktree and allow the command, as it did the guard until 2026-10-06
-// (asdlc-openspec-hn4x); the hook runs its git with no `GIT_*` variable, as the guard does.
+// checkout, find no linked worktree and allow the command, as it did the guard until 2026-10-06;
+// the hook runs its git with no `GIT_*` variable, as the guard does.
 const nativeGitDir = guardFrom(nativeDir, { hook: PROVISION_GUARD, env: { GIT_DIR: join(primary, '.git') } })
 check(
   'an inherited GIT_DIR naming the primary checkout does not move the checkout judged',
@@ -335,7 +335,7 @@ check(
   why(noCwd),
 )
 
-// A STRAY WORKTREE DIRECTORY (asdlc-openspec-0ga): what a worktree removed under a live session
+// A STRAY WORKTREE DIRECTORY: what a worktree removed under a live session
 // leaves once the session writes a file there, a directory under `.claude/worktrees/<name>/` with no
 // `.git` file, where git walks up to the primary checkout. Every git call there is refused by its
 // reason, which names both paths, reads included. The controls are the same rebase in a registered
@@ -364,8 +364,8 @@ check('control: a command that is not git is allowed there', strayEcho.code === 
  *
  * GitHub merges a pull request once `verify` passes and one approving review stands, which the
  * reviewer gives off the high-risk floor and a person gives on it, and `gh pr merge --admin` merges
- * past the checks with the maintainer's bypass, which is a person's (docs/decisions.md § D-57 and
- * § D-47). So the guard refuses `gh pr review --approve` and `--admin` everywhere, and from a
+ * past the checks with the maintainer's bypass, which is a person's. So the guard refuses
+ * `gh pr review --approve` and `--admin` everywhere, and from a
  * worktree any merge but auto-merge. Each refusal is asserted by its reason. The controls are the
  * merge the primary checkout may make, auto-merge from a worktree in each spelling, a comment and a
  * request for changes, and the approval label, whose rule retired with the label: without them, a
@@ -458,7 +458,7 @@ check(
   why(grouped),
 )
 
-// AN INHERITED GIT_DIR (asdlc-openspec-hn4x): one in the hook's environment outranks the payload's
+// AN INHERITED GIT_DIR: one in the hook's environment outranks the payload's
 // cwd, so the guard judged the checkout it named. Each case runs with it and, as its control,
 // without any GIT_* key, and both must give the same verdict, by its reason: the unfixed guard
 // refused the push from a subdirectory by the stray rule's reason, so asserting the refusal alone
@@ -480,7 +480,7 @@ for (const [label, dir, command, env, reason] of [
   }
 }
 
-// A BARE `git worktree prune`, EVERYWHERE (asdlc-openspec-486e): in a dev container a session works
+// A BARE `git worktree prune`, EVERYWHERE: in a dev container a session works
 // in the primary checkout, where the git rules are off, and a prune there takes every host worktree's
 // record. Refused by its own reason from the primary checkout and from a worktree; the control is its
 // dry run, which only reports.
@@ -504,16 +504,15 @@ for (const [label, dir, command, reason] of [
  *
  * GitHub merges a head once `verify` passes and one approving review stands, so a workflow other
  * than the reviewer's that can write pull requests could approve its own, and one that can write a
- * status or a check, or names a job for the required check, could pass it on its own head
- * (docs/decisions.md § D-57). Each payload names a file under this checkout's `.github/workflows/`,
+ * status or a check, or names a job for the required check, could pass it on its own head.
+ * Each payload names a file under this checkout's `.github/workflows/`,
  * and the hook only reads: an Edit is applied to the file in memory and a Write's content judged, so
  * nothing is written. Each refusal is asserted by its reason. The controls are a routine step added
  * to `verify.yml`, the reviewer's own workflow, the same grant outside the workflows, and an Edit
  * whose `old_string` the file does not hold: without them, a hook that refused every workflow edit
  * would pass. A doctored copy of the policy, with the check respelled, proves the hook reads it
- * from `tools/policy/` rather than writing it in. A new workflow that reads the agents' App key is
- * refused by its reason, and one that reads another secret is a control
- * (`docs/decisions/asdlc-openspec-ic9h.md` § Decision).
+ * from `policy/` rather than writing it in. A new workflow that reads the agents' App key is
+ * refused by its reason, and one that reads another secret is a control.
  * --------------------------------------------------------------------------------------------- */
 console.log('guard-workflow-edit: an edit that would let a workflow approve, or forge the required check')
 const FORGE_HOOK = join(HOOKS, 'guard-workflow-edit.mjs')
@@ -533,7 +532,7 @@ function forgeHook(toolInput, root = null) {
   return { code: r.status ?? 1, stderr: r.stderr ?? '' }
 }
 const GRANT = 'permissions:\n  contents: read\n'
-// The `gates` job's: since D-55 every job of verify.yml has a steps line.
+// The `gates` job's: every job of verify.yml has a steps line.
 const STEPS = '  gates:\n    runs-on: ubuntu-latest\n    timeout-minutes: 15\n    steps:\n'
 const TRIGGER = '  pull_request_target:\n'
 const REVIEW_FILE = join(WORKFLOWS_DIR, 'pr-review.yml')
@@ -596,9 +595,9 @@ check(
  *
  * graphify's `update`, `watch` and `hook install` rebuild the local code graph through the path that
  * erodes its document layer, and `claude install` writes graphify's advice to run `update` into
- * CLAUDE.md (docs/decisions.md § D-20), so the guard refuses each, in the primary checkout as in a
- * worktree. Each refusal is asserted by its reason, which names the command, `mise run code-graph`
- * and D-20, and the module cases hold each way Python reads `-m`. The controls are graphify's
+ * CLAUDE.md, so the guard refuses each, in the primary checkout as in a
+ * worktree. Each refusal is asserted by its reason, which names the command and leaves the
+ * graph to a person, and the module cases hold each way Python reads `-m`. The controls are graphify's
  * reading commands, which must still run, and the near misses: a command that shares a first word
  * with a refused one, a refused word as another command's argument or as graphify's second, and a
  * refused command asking for help, which graphify answers with a line of help alone. Without them, a
@@ -609,8 +608,7 @@ console.log("guard-git: graphify's eroding commands, from any checkout")
 const graphifyRefusal = (words) => (r) =>
   r.code === 2 &&
   r.stderr.includes(`\`graphify ${words}\``) &&
-  r.stderr.includes('mise run code-graph') &&
-  r.stderr.includes('docs/decisions.md § D-20')
+  r.stderr.includes('A person builds and refreshes the graph')
 for (const [label, dir, words, command] of [
   ['graphify update, in the primary checkout', primary, 'update', 'graphify update .'],
   ['graphify watch, in a worktree', oursDir, 'watch', 'graphify watch .'],
@@ -715,7 +713,7 @@ const wt = (name) => {
   git(gcPrimary, 'worktree', 'add', '-q', '-b', `agent/${name}`, path, 'main')
   return path
 }
-// THE AGE RULE holds on every host (asdlc-openspec-m4m): a clean, contained worktree with no process
+// THE AGE RULE holds on every host: a clean, contained worktree with no process
 // in it goes only once HEAD there has sat still for `worktreeGcMinAgeHours`, or at once when the
 // caller names it with `--finished`. `age` sets the mtime of each file the script reads HEAD's last
 // move from, in the scratch repository `primary` names.
@@ -729,7 +727,7 @@ const age = (path, name, hours, primary = gcPrimary) => {
 }
 const abandoned = wt('abandoned') // clean, contained, nobody in it, HEAD still for days: THE ONE THAT GOES
 age(abandoned, 'abandoned', MIN_AGE * 2)
-// The shape asdlc-openspec-m4m lost on 2026-09-30: a workflow agent's worktree, clean, at the trunk,
+// The shape the age rule lost on 2026-09-30: a workflow agent's worktree, clean, at the trunk,
 // with no process in it because the agent is between two calls, each of which starts and ends.
 const betweenCalls = wt('between-calls')
 const finished = wt('finished') // the same, but its caller has finished with it and names it
@@ -747,7 +745,7 @@ const gone = wt('gone') // registered, directory deleted behind git's back: prun
 rmSync(gone, { recursive: true, force: true })
 const busy = wt('busy') // clean and contained, but a process is standing in it
 // `spawn` returns once the child has exec'd, its cwd already set, so `/proc/<pid>/cwd` and `lsof`
-// both see it as soon as it returns. This is the case asdlc-openspec-zlz lost on macOS: a worktree
+// both see it as soon as it returns. This is the case once lost on macOS: a worktree
 // just cut, clean and contained, with a live process in it.
 const sleeper = LIVE_CHECK ? spawn('sleep', ['120'], { cwd: busy, stdio: 'ignore' }) : null
 process.on('exit', () => sleeper?.kill())
@@ -867,7 +865,7 @@ check(
 check('the prunable registration is reconciled', !registered('gone'))
 check('and the branch behind it is collected', !branchExists('agent/gone'))
 
-// THE KEEP asdlc-openspec-m4m asks for, by its reason, where a liveness check works and saw no
+// THE KEEP the age rule asks for, by its reason, where a liveness check works and saw no
 // process: the age rule is read there too. `abandoned` above is its control, still removed; and a
 // worktree its caller names goes at once, which is how a session that has finished with a lane
 // removes it without waiting the threshold out.
@@ -892,8 +890,8 @@ check(
   report.slice(0, 400),
 )
 
-// AN ORCHESTRATED LANE NO PROOF CONTAINS (asdlc-openspec-dss): a prompt review's rejected group, or
-// a fan-out lane whose pick was rewritten, has a commit the trunk will never hold. `--discard` names
+// AN ORCHESTRATED LANE NO PROOF CONTAINS: a fan-out lane whose pick was rewritten, or one the
+// orchestrator drops, has a commit the trunk will never hold. `--discard` names
 // its branch once the run has taken what it wants from it, and the worktree and the branch go at
 // once, the tip logged. `rejected` is that lane, just committed; `discard-dirty` is the same with a
 // file left in it, kept by its reason, since `--discard` waives only containment and the age rule;
@@ -1049,7 +1047,7 @@ check(
   noTrunk.slice(0, 300),
 )
 
-// WHERE NO LIVENESS CHECK WORKS, the age rule is all there is (asdlc-openspec-zlz).
+// WHERE NO LIVENESS CHECK WORKS, the age rule is all there is.
 // `WORKTREE_GC_LIVENESS=none` stands in for such a host. `spare` was just cut, as a lane is at
 // launch; `idle` has had HEAD still for twice the threshold; `rebased` is as old, but HEAD moved a
 // moment ago, as a lane's rebase moves it.
@@ -1109,7 +1107,7 @@ check(
 )
 
 /* --------------------------------------------------------------------------------------------- *
- * A worktree record this checkout cannot see (asdlc-openspec-486e).
+ * A worktree record this checkout cannot see.
  *
  * git cannot tell a worktree that was removed from one whose path it cannot see: both read as
  * `prunable`, and `git worktree prune` deletes both records. In a container on a bind-mounted clone,
@@ -1231,7 +1229,7 @@ check(
 )
 
 /* --------------------------------------------------------------------------------------------- *
- * prune-worktree-branches: containment after a rebase merge (asdlc-openspec-dxf).
+ * prune-worktree-branches: containment after a rebase merge.
  *
  * A rebase merge replays a branch's commits onto a trunk that has moved, and `git cherry`'s patch-id
  * hashes the diff's context lines, so a commit whose neighbouring line changed on the trunk in
@@ -1288,7 +1286,7 @@ const mergedTree = (name) => {
 }
 // `pr-worktree` is a lane long finished: HEAD still past the threshold. `pr-live` is the same shape
 // with HEAD just moved, as an agent's is while it works on after its pull request merged, or after
-// it rebased onto a branch that then merged (asdlc-openspec-zlz): a commit beyond `origin/main`,
+// it rebased onto a branch that then merged: a commit beyond `origin/main`,
 // contained, no process in it between two calls.
 const [prTree, prTreeTip] = mergedTree('pr-worktree')
 age(prTree, 'pr-worktree', MIN_AGE * 2, rmPrimary)
@@ -1422,7 +1420,7 @@ check(
 )
 
 /* --------------------------------------------------------------------------------------------- *
- * prune-worktree-branches: the trunk remote's branches, with --remote (asdlc-openspec-jbi4).
+ * prune-worktree-branches: the trunk remote's branches, with --remote.
  *
  * A pushed agent/* branch whose commits another branch's pull request carried is never a pull
  * request's head, so GitHub never deletes it, and the sweep listed `refs/heads/` alone, so it never
@@ -1531,7 +1529,7 @@ check(
   rbUnreachable.slice(0, 1500),
 )
 
-// THE DISCARD RUN. An orchestrator's `mise run worktree:gc --discard <branch>` carries the task's
+// THE DISCARD RUN. An orchestrator's run with `--discard <branch>` also carries
 // `--remote`, and an agent that runs it was not asked to write to origin, so it deletes no remote
 // branch: `landed`, which the run below deletes, must survive it. `discarded` is the lane it names,
 // with a commit no trunk holds, and its deletion shows the run did not stop short.
@@ -1554,10 +1552,10 @@ check(
   rbDiscardRun.slice(0, 1500),
 )
 
-// THE FINISHED RUN, and the flags with no value (2026-10-05, the push security review of #147).
-// `open-pr` § 8 runs `mise run worktree:gc --finished <worktree>` for real once its dry run
-// names only its own worktree, which a remote line does not contradict, so it too carries the task's
-// `--remote` from an agent: `landed` must survive it. `--discard` or `--finished` with nothing after
+// THE FINISHED RUN, and the flags with no value (2026-10-05, a push security review). A session
+// finished with its worktree runs `--finished <worktree>` for real once its dry run names only its
+// own worktree, which a remote line does not contradict, so it too carries `--remote` from an
+// agent: `landed` must survive it. `--discard` or `--finished` with nothing after
 // it, or with a flag after it, is the caller's name left out, so the run is refused rather than made
 // without it, a bare run that would sweep the remote, or with the flag swallowed as the name.
 const rbFinishedRun = rbRun('--finished', 'no-such-worktree', '--remote')
@@ -1663,10 +1661,10 @@ check(
 /* --------------------------------------------------------------------------------------------- *
  * render-worktree-context: the briefing a new worktree opens with.
  *
- * THE GAP (asdlc-openspec-pb2). This job's glob names the template and its renderer, and until
- * 2026-09-25 no case here read either, so a change to the template ran a selftest that passed without
- * looking at it. Two template changes were proved by a render run by hand into `.scratch/` instead:
- * asdlc-openspec-iy4's on 2026-09-23, and asdlc-openspec-zgh.6's port paragraphs on 2026-09-24.
+ * THE GAP. This suite is the template's and the renderer's selftest, and until 2026-09-25 no case
+ * here read either, so a change to the template ran a selftest that passed without looking at it.
+ * Two template changes were proved by a render run by hand into `.scratch/` instead: one on
+ * 2026-09-23, and the port paragraphs on 2026-09-24.
  *
  * The renderer and the committed template are COPIED into a scratch checkout, because the renderer
  * finds the template beside itself and has no root override: run in place, a write relative to its own
@@ -1756,8 +1754,8 @@ check(
   JSON.stringify(rendered.files) === JSON.stringify([...COPIED, ...WRITTEN].sort()),
   JSON.stringify(rendered.files),
 )
-// The banner once said the file was read by a `vite.config.ts` this repository never had
-// (asdlc-openspec-5pf). It must name its reader, every file it names must exist here, and the pair
+// The banner once said the file was read by a `vite.config.ts` this repository never had.
+// It must name its reader, every file it names must exist here, and the pair
 // must be in the one form that reader parses, or the next worktree is handed the same ports.
 const portsFile = join(rendered.worktree, '.worktree', 'ports.env')
 const portsText = existsSync(portsFile) ? readFileSync(portsFile, 'utf8') : ''
@@ -1792,10 +1790,10 @@ check(
 /* --------------------------------------------------------------------------------------------- *
  * new-worktree.sh: the briefing is the base's template, not the checkout's.
  *
- * THE INCIDENT (asdlc-openspec-kce). The script ran the primary checkout's renderer, which reads the
+ * THE INCIDENT. The script ran the primary checkout's renderer, which reads the
  * template beside itself, so a worktree cut from `origin/main` opened with whatever template the
  * checkout's working tree held. On 2026-09-23 and again on 2026-09-25 that was an older one, and the
- * briefing, which `CLAUDE.md` gives precedence, carried steps the base had already replaced. The
+ * briefing, which `AGENTS.md` gives precedence, carried steps the base had already replaced. The
  * render case above could not see it: it copies one template beside the renderer, so there is no
  * second template to read by mistake.
  *
@@ -1893,11 +1891,11 @@ check(
 /* --------------------------------------------------------------------------------------------- *
  * new-worktree.sh: a worktree gets the primary checkout's Vale styles.
  *
- * THE INCIDENT (asdlc-openspec-hv8). `.vale.ini` names a StylesPath that `.gitignore` ignores,
+ * THE INCIDENT. `.vale.ini` names a StylesPath that `.gitignore` ignores,
  * because `vale sync` downloads it, so `git worktree add` brought no styles across. The
  * vale@agent-tools plugin's hook then answered every Write and Edit in a worktree with "E201: The
  * path '<worktree>/.vale-styles' does not exist", a notice that reads like a check that ran, while
- * no prose written in a worktree was checked. Seen on 2026-09-30 in two worktrees cut at ff2aaad.
+ * no prose written in a worktree was checked. Seen on 2026-09-30 in two worktrees.
  *
  * So this case gives a scratch checkout this checkout's own `.vale.ini` and `.gitignore`, and a
  * styles directory at the StylesPath that `.vale.ini` names, made before `git add .`, as `vale sync`
@@ -1982,7 +1980,7 @@ check(
 )
 
 /*
- * A style the base tracks under the StylesPath, as it tracks `Layout` (asdlc-openspec-m7p). The
+ * A style the base tracks under the StylesPath, as it tracks `Layout`. The
  * worktree then has the StylesPath from its own checkout, and the copy once skipped the StylesPath
  * whole whenever the worktree had it, so the synced styles never arrived and Vale loaded no config.
  * The checkout's own `.gitignore` decides what is tracked, so the case also holds that it tracks
@@ -2068,7 +2066,7 @@ check(
 /* --------------------------------------------------------------------------------------------- *
  * new-worktree.sh: concurrent runs, and the branch a failed run made.
  *
- * THE INCIDENT (asdlc-openspec-686). On 2026-09-26 a fan-out sweep launched eleven lanes in one
+ * THE INCIDENT. On 2026-09-26 a fan-out sweep launched eleven lanes in one
  * message, and two WorktreeCreate hooks failed with "could not lock config file .git/config: File
  * exists": `git worktree add -b ... origin/main` set the new branch's upstream, a write to the
  * shared `.git/config` that concurrent runs race for, and the cleanup trap acted only once the
@@ -2185,12 +2183,12 @@ check(
 /* --------------------------------------------------------------------------------------------- *
  * .claude/settings.json: every registered hook loads whatever the working directory is.
  *
- * THE INCIDENT (asdlc-openspec-7dj). Every hook was registered as `node scripts/hooks/<name>.mjs`,
+ * THE INCIDENT. Every hook was registered as `node scripts/hooks/<name>.mjs`,
  * a path relative to the directory the harness runs a hook in, which is the session's current one.
  * On 2026-09-25, after a Bash `cd docs`, the Stop hook failed with "Cannot find module
  * .../docs/scripts/hooks/gate-summary.mjs" and printed no verdict, and `guard-git.mjs` failed to
  * load the same way; its exit 1 does not block, so the next command ran unguarded. Each command now
- * names its script through `$CLAUDE_PROJECT_DIR` (`.claude/README.md` § The hooks).
+ * names its script through `$CLAUDE_PROJECT_DIR`.
  *
  * Each registered command runs as the harness runs a command hook, through `sh -c` with
  * `CLAUDE_PROJECT_DIR` naming this checkout, from a subdirectory of it (the incident's shape) and

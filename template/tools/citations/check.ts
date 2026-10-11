@@ -4,7 +4,7 @@
  *
  * `tools/citations/scan.ts` carries the reasoning: why this scans everything rather than an
  * allowlist, why quotations are exempt, and why it checks that a pointer resolves and leaves what the
- * passage says to `support.ts`, an advisory. This file is the gate over the real repository.
+ * passage says to a reader. This file is the gate over the real repository.
  *
  * FIVE FAILURES, all of them the silent kind.
  *
@@ -15,16 +15,16 @@
  *   4. The cited SECTION does not exist. Either the heading was renamed, or -- the pathological
  *      version, which has happened -- the file has no headings at all and never did.
  *   5. The cited target is a MEMORY KEY, or the sentence tells its reader to `bd recall` one. The
- *      store is not used here (CLAUDE.md § *Rules for agents live in tracked files, and nowhere
+ *      store is not used here (AGENTS.md § *Rules for agents live in tracked files, and nowhere
  *      else*), so the pointer can never resolve. `tools/citations/memory.ts` carries the rule: its
- *      roster of prompt homes, and the regions of CLAUDE.md registered in `MEMORY_EXEMPT_REGIONS`
+ *      roster of prompt homes, and the regions of AGENTS.md registered in `MEMORY_EXEMPT_REGIONS`
  *      -- the section that forbids the store, and the `bd`-generated block once it exists -- exempt
  *      by heading and by marker rather than the file as a whole.
  *
  *   mise run citations:check                        the gate, over this checkout
  *   CITATIONS_ROOT=<dir> mise run citations:check   the same gate over a doctored copy (a git tree)
- *   CITATIONS_UNTRACKED=1 mise run citations:check  also reads untracked files git does not ignore,
- *                                                  as the Stop hook runs it (`INCLUDE_UNTRACKED`)
+ *   CITATIONS_UNTRACKED=1 mise run citations:check  also reads untracked files git does not ignore
+ *                                                  (`INCLUDE_UNTRACKED`)
  *
  * Needs no `../sibling` checkout and no network; it reads tracked files, and untracked ones when
  * asked, and runs in about a second.
@@ -63,10 +63,10 @@ const problems: Problem[] = []
 const untracked = INCLUDE_UNTRACKED ? untrackedFiles() : []
 const tracked = [...trackedFiles(), ...untracked]
 const trackedSet = new Set(tracked)
-// `isDeliveredPackage` FILTERED THIS UNTIL a later decision, on both sides: a delivered handoff package copied
+// `isDeliveredPackage` ONCE FILTERED THIS, on both sides: a delivered handoff package copied
 // ~60 documents under new paths, so a bare basename could resolve into a copy and five long-standing
-// citations elsewhere in the tree became ambiguous the moment slice 004's package landed. a later decision
-// retired a node and deleted every package, so the whole roster is indexed again -- an exclusion
+// citations elsewhere in the tree became ambiguous the moment slice 004's package landed. Every
+// package was later deleted, so the whole roster is indexed again -- an exclusion
 // matching nothing is a hole in this gate rather than a saving, and a hand-made `handoff/` directory
 // would have inherited it silently.
 const byName = indexByName(tracked)
@@ -186,7 +186,7 @@ for (const file of tracked) {
  * A second pass rather than a fifth branch of the loop above, because that loop is filtered by
  * `SCANNED_EXTENSIONS` and this rule covers every tracked file in its roster whatever the
  * extension: the plugin's tools carry their prompts in `.ps1` headers, which that loop never reads.
- * `tools/citations/memory.ts` is the whole rule -- roster, the registered CLAUDE.md regions and the
+ * `tools/citations/memory.ts` is the whole rule -- roster, the registered AGENTS.md regions and the
  * two shapes -- and `memoryProblemsIn` is the one function the selftest holds to fixtures, so what
  * fails there fails here and nothing in between can drift.
  * ----------------------------------------------------------------------------------------------- */
@@ -222,7 +222,7 @@ console.log(
   `citations:check -- ${checked} line citations and ${sections} section citations across` +
     ` ${scannedFiles} files (${exemptFiles} files and ${quoted} citations exempt as history);` +
     ` memory rule over ${memoryFiles} prompt files (${memoryExempt} mentions exempt inside` +
-    " CLAUDE.md's registered regions" +
+    " AGENTS.md's registered regions" +
     (memorySkipped.length
       ? `; ${memorySkipped.length} files skipped as binary: ${memorySkipped.join(', ')}`
       : '') +

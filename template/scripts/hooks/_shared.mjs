@@ -100,7 +100,7 @@ export function header(absPath) {
  * BOTH SIGNALS ON THE SAME LINE, which is not fussiness. Every real banner in this repository is one
  * shouted line naming the tool and forbidding the edit in the same breath. Testing the two halves
  * against the whole header instead flags any FILE THAT DISCUSSES build products: it flagged
- * scripts/assert-not-hand-edited.mjs, whose entire subject is this check.
+ * a script whose entire subject is this check.
  *
  * The two generated Markdown reports split their banner over two lines and so slip past this. They do
  * not need it -- `generatedFileRedirect` covers them by path and gives a better message anyway. This
@@ -150,8 +150,7 @@ function redirect(rel, what, where, command) {
  *
  * Every row goes in the same change as the emitter it names, and leaves with it: a redirect naming
  * a command that no longer exists is worse than none, because the reader runs it. A row never claims
- * a path that a different emitter owns. The kit's one row, the learning loop's `artifacts/outcomes/`,
- * left with the loop (`docs/decisions.md` § D-06).
+ * a path that a different emitter owns.
  */
 const REDIRECTS = [
   {
@@ -181,7 +180,7 @@ const REDIRECTS = [
   {
     owns: (rel) => rel === 'artifacts/coupling/cochange.json',
     what: 'co-change map of the pull requests merged to main (tools/coupling/coupling.ts)',
-    where: 'tools/coupling/coupling.ts or its `coupling*` keys in tools/policy/tool-settings.json; `mise run coupling:update` moves its baseline',
+    where: 'tools/coupling/coupling.ts or its `coupling*` keys in policy/tool-settings.json; `mise run coupling:update` moves its baseline',
     command: 'mise run coupling',
   },
 ]
@@ -204,12 +203,10 @@ const WINDOWS = process.platform === 'win32'
  * How `runTask` launches the task `name` in the checkout at `cwd`, read from that checkout's own
  * `tasks.toml` through `scripts/lib/tasks.mjs`: `{ command, args, label }`, `mise run --quiet`, or
  * `{ refused }` with why. A checkout with no `tasks.toml`, one cut before the move to mise among them,
- * is refused with the loader's reason (`docs/decisions.md` § D-40). So is a task its `tasks.toml`
+ * is refused with the loader's reason. So is a task its `tasks.toml`
  * lacks, never launched: mise resolves a name a checkout lacks from a checkout above it, so a
- * worktree's gate would run the primary checkout's definition there, and pass on the wrong tree
- * (asdlc-openspec-8juz.1, question 1). The launch itself is `launchFor` in `scripts/lib/tasks.mjs`,
- * which `scripts/fresh-run.mjs` launches through too. Exported so `gate-summary.selftest.mjs` holds
- * the choice without starting a task.
+ * worktree's gate would run the primary checkout's definition there, and pass on the wrong tree.
+ * The launch itself is `launchFor` in `scripts/lib/tasks.mjs`.
  */
 export async function taskLaunch(name, cwd = ROOT) {
   let manifest
@@ -277,8 +274,8 @@ export async function runTask(name, { timeoutMs = 120_000, cwd = ROOT, env = {} 
  * A hook inherits its session's environment, and an inherited `GIT_DIR` outranks `cwd`: with no
  * `GIT_WORK_TREE` git takes `cwd` for the top of the work tree, so `editedCheckout` would place an
  * edit to `artifacts/trace/record.json` in that file's own directory, where no redirect matches, and
- * pass it (a branch review of asdlc-openspec-d2qv found this before it merged). `guard-git.mjs` runs
- * its git through it too (asdlc-openspec-hn4x). The same function is `gitEnv` in
+ * pass it (a branch review found this before it merged). `guard-git.mjs` runs
+ * its git through it too. The same function is `gitEnv` in
  * `tools/lib/git-env.ts`; it is not imported, because this file imports Node's built-ins only and
  * the selftests run a copy of it alone.
  */

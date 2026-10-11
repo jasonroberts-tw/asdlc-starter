@@ -4,7 +4,7 @@ description: Assess whether to bring a tool or a pattern into this repository's 
 argument-hint: "<tool or pattern> [the problem it would solve]"
 ---
 
-Read CLAUDE.md first. Everything below is subordinate to it and points at it rather than restating it.
+Read AGENTS.md first. Everything below is subordinate to it and points at it rather than restating it.
 
 # Should I adopt it?
 
@@ -65,7 +65,7 @@ that matters.
    classifier refuse, and which of its own must never run here, each needing a guard.
 8. **Dependencies and platforms:** `package.json`, `package-lock.json`, a new runtime, Git and Node
    versions, macOS, Linux and the dev container (`.devcontainer/Dockerfile`). A path in
-   `prReviewHighRiskPaths` (`tools/policy/pr-review.json`) sends every pull request touching it to a
+   `prReviewHighRiskPaths` (`policy/pr-review.json`) sends every pull request touching it to a
    person.
 9. **Cost:** money or tokens per run and who pays, words added to prompts every session loads, CI
    minutes and job time.
@@ -112,8 +112,7 @@ keep. An option a **blocks** answer rules out goes under "Ruled out" with that a
 ## 7. Recommend, and say where it loses
 
 Choose **adopt**, **adopt with conditions** (each condition is work an issue can carry), **not now**
-(name what would change the answer) or **do not adopt**. Give the case where it loses
-(`AGENTS.md` § A question shows where its recommendation loses).
+(name what would change the answer) or **do not adopt**. Give the case where it loses.
 
 ## 8. Create the record
 

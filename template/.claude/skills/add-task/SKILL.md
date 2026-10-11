@@ -3,8 +3,6 @@ name: add-task
 description: use this skill when adding, renaming or removing a task in tasks.toml — including a new emitter, gate, check or selftest that will be run as `mise run <name>`.
 ---
 
-Read CLAUDE.md first. Everything below is subordinate to it and points at it rather than restating it.
-
 A task in `tasks.toml` is a public name. Prompts, tool headers, the READMEs and policy files
 cite it as prose, and **nothing in this repository gates those citations** — a renamed task
 leaves dead references behind that stay green forever. Treat the
@@ -75,7 +73,7 @@ Do all three, in any order.
 2. Remove the `git-hooks.yml` job and the `verify.yml` step. 
 3. Search tracked files of every type for the bare name, one call per name:
    `git grep -n -w -F <old-name>`. Fix every live hit. Most citations carry no `mise run`: the
-   READMEs cite the name in backticks, `tools/policy/*.json` in a `gatedBy` string, and a gate keeps
+   READMEs cite the name in backticks, `policy/*.json` in a `gatedBy` string, and a gate keeps
    it as a quoted string in a list. A recursive `grep` also walks `node_modules/` and, from the
    primary checkout, every worktree. Two keep their hits: the
    register, whose entries are never rewritten
@@ -97,5 +95,4 @@ green result.
 One at a time, delete each refusal or check the script makes, rerun its selftest and restore it:
 each deletion must turn a case red, or nothing holds it.
 
-Run each command as a separate Bash call, as `AGENTS.md` § Bash command style asks, so a red
-result names the step that produced it.
+Run each command as a separate Bash call, so a red result names the step that produced it.

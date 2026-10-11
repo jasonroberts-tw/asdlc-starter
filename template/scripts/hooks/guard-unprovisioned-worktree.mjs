@@ -13,20 +13,19 @@
  * checkout whose `.claude/settings.json` predates it, `EnterWorktree` silently falls back to
  * its native behaviour: branch `worktree-<name>`, cut from whatever `worktree.baseRef` names
  * (`fresh`, the default, takes `origin/<default branch>`; `head` takes the local HEAD), and no
- * `.worktree/CONTEXT.md`, so the briefing CLAUDE.md @-imports is absent and the agent never reads
+ * `.worktree/CONTEXT.md`, so the briefing AGENTS.md @-imports is absent and the agent never reads
  * the rules of a shared repository. No `worktree.baseRef` value names `origin/main` itself: the
  * default branch is a GitHub setting outside this repository, `main` when checked on 2026-09-23,
  * which is the same reason `guard-git.mjs`'s PR-base rule will not infer it.
  *
- * Until 2026-10-08 (asdlc-openspec-gm86) this header, then `guard-git.mjs`'s, said Claude Code
+ * Until 2026-10-08 this header, then `guard-git.mjs`'s, said Claude Code
  * snapshots hook configuration at session start, so that any session begun before the hook was
  * added fell back. It does not: a WorktreeCreate hook added to the settings file mid-session took
- * over `EnterWorktree` with no restart, and `.claude/README.md` § The hooks gives that test and the
- * version it ran on. The hooks documentation says such an edit is "normally" picked up, which
+ * over `EnterWorktree` with no restart. The hooks documentation says such an edit is "normally" picked up, which
  * leaves an edit the file watcher missed as the other way a session can lack the hook.
  *
  * No incident here yet. Were this check wrong, it would let an agent do real work in a worktree with
- * no briefing, on a branch CLAUDE.md § Git workflow does not provide for, cut from a base no file in
+ * no briefing, on a branch AGENTS.md § Git workflow does not provide for, cut from a base no file in
  * this repository chose.
  *
  * A WorktreeCreate hook cannot cover this, because the failure is that no WorktreeCreate hook ran.
@@ -54,13 +53,13 @@
  *
  * A FILE OF ITS OWN, OFF THE HIGH-RISK FLOOR. Until 2026-10-08 this check lived in `guard-git.mjs`,
  * which the floor holds for its approval and merge rules (`prReviewHighRiskPaths` in
- * `tools/policy/pr-review.json`), so a change to this check alone waited for a person though it
- * decides nothing about an approval or a merge: pull request #181 changed only this check's reason
- * and message, and the reviewer held it for `guard-git.mjs`. Here a change to it merges as
- * `worktree-create.mjs`'s does (`docs/decisions.md` § D-58), but for one that moves the word count
- * of its literals, whose budget row in `tools/policy/prompt-budgets.json` is on the floor
- * (`docs/decisions.md` § D-59). Where that loses: a change that weakens this check merges without a
- * person, and `worktree:selftest` is what holds it. It costs one
+ * `policy/pr-review.json`), so a change to this check alone waited for a person though it
+ * decides nothing about an approval or a merge: a pull request that changed only this check's
+ * reason and message was held for `guard-git.mjs`. Here a change to it merges as
+ * `worktree-create.mjs`'s does, but for one that moves the word count
+ * of its literals, whose budget row in `policy/prompt-budgets.json` is on the floor.
+ * Where that loses: a change that weakens this check merges without a
+ * person, and `scripts/hooks/worktree-hooks.selftest.mjs` is what holds it. It costs one
  * more Node process and three git calls on every Bash command, beside the guard's: a median of 84 ms
  * against the guard's 69 ms, 20 runs each on a payload from an `agent/*` worktree, Node 24.21.0 on a
  * macOS laptop, 2026-10-08.
@@ -136,7 +135,7 @@ if (unprovisioned !== null) {
       "may not contain what you were sent to see, and nothing in it states this repository's " +
       'rules. Leave with ExitWorktree (action: "remove"), and re-enter once that settings file ' +
       'registers the hook: a running session picks up a hook added to it with no restart ' +
-      '(verified against the CLI, 2.1.294; .claude/README.md § The hooks), and a restart re-reads ' +
+      '(verified against the CLI, 2.1.294), and a restart re-reads ' +
       'it if the edit was missed (not verified against the CLI).\n',
   )
   process.exit(2)

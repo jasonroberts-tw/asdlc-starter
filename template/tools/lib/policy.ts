@@ -1,9 +1,9 @@
 /**
- * policy.ts — the policy read whole: every record under `tools/policy/`, its constants merged into one
+ * policy.ts — the policy read whole: every record under `policy/`, its constants merged into one
  * object, for every tool, gate and prompt that reads a constant of the workflow.
  *
  * The records split the constants by who reads them and who may change them
- * (`tools/policy/README.md`, `docs/decisions.md` § D-27). A reader asks for a key, never for a
+ * (`policy/README.md`). A reader asks for a key, never for a
  * record, so a key can move between records without one of its readers changing. The headers each
  * record carries (`HEADER_FIELDS`) describe that record and are left out of the merge.
  *
@@ -36,9 +36,9 @@ import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 /** Where the records live, relative to a repository root. */
-export const POLICY_DIR = 'tools/policy'
+export const POLICY_DIR = 'policy'
 
-/** The fields that describe a record rather than hold a constant (`CLAUDE.md` § Three kinds of file, and never a fourth). */
+/** The fields that describe a record rather than hold a constant (`AGENTS.md` § Three kinds of file, and never a fourth). */
 export const HEADER_FIELDS = ['describes', 'whyThisFileExists', 'gatedBy', 'whatItDoesNOTDo', 'provenance'] as const
 
 export type Constants = Record<string, unknown>

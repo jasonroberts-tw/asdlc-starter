@@ -4,9 +4,8 @@
  * Prints `KEY=value` lines on stdout for the caller to read, and writes two files into the
  * worktree: `.worktree/CONTEXT.md`, the briefing rendered from `.claude/worktree-CONTEXT.md.tmpl`,
  * and `.worktree/ports.env`, the pair. This script is the one reader of `ports.env`: it reads every
- * sibling worktree's copy, so as not to hand out a pair already promised. The calculator server does
- * not read it; a worktree passes `APP_PORT` to `npm run calculator:serve` as `PORT`
- * (`docs/decisions.md` § D-04).
+ * sibling worktree's copy, so as not to hand out a pair already promised. A server a person starts
+ * in the worktree is given `APP_PORT` as its `PORT`.
  *
  * The failures it exists to prevent. It is a separate Node file rather than more shell because of
  * the first three, each a defect the shell version had:
@@ -21,12 +20,11 @@
  * 4. The template is the one beside this file (`ROOT` below has no override), so the copy of this
  *    script that runs decides which template renders. `scripts/new-worktree.sh` ran the primary
  *    checkout's copy, whose working tree can trail the base a worktree is cut from. On 2026-09-23
- *    `agent/add-calculator-web-app`, cut from `origin/main` at `ac307b6`, opened with the template
- *    the checkout had at `053e51c`, still carrying a sentence `b5d087e` had replaced. On 2026-09-25
- *    `agent/fan-out-lane-stop`, cut at `1ae4734` while the checkout stood at `1862494`, was told to
- *    open its pull request with an inline `gh pr create`, the step `4097416` had replaced with the
- *    `open-pr` skill; `CLAUDE.md` gives the briefing precedence, so the stale step won
- *    (asdlc-openspec-kce). The caller now runs the new worktree's own copy, so the briefing is the
+ *    a worktree cut from `origin/main` opened with the template the checkout had at an older
+ *    commit, still carrying a sentence the base had replaced. On 2026-09-25 another, cut while the
+ *    checkout stood behind the base, was told to open its pull request with an inline
+ *    `gh pr create`, a step the base had replaced with the `open-pr` skill; `AGENTS.md` gives the
+ *    briefing precedence, so the stale step won. The caller now runs the new worktree's own copy, so the briefing is the
  *    base's template, whatever state the primary checkout is in.
  *
  *   node <worktree-path>/scripts/render-worktree-context.mjs \
@@ -57,7 +55,7 @@ const lifetimeHours = Number(hoursArg ?? 2) || 2
  * Ports.
  * ============================================================================================= */
 
-/** Is nothing listening on this port? Probed on the loopback the calculator server binds. */
+/** Is nothing listening on this port? Probed on the loopback, where a dev server binds. */
 function free(port) {
   return new Promise((done) => {
     const s = createServer()
@@ -108,11 +106,11 @@ function hash(text) {
 
 /**
  * Two adjacent free ports, reserved for the worktree. The first, APP_PORT, is the one to pass as
- * `PORT` to `npm run calculator:serve` there (`docs/decisions.md` § D-04); the second is unused.
+ * `PORT` to a server started there; the second is unused.
  *
  * The hash picks where to start looking; availability decides where it stops. 900 blocks of ten in
  * 20000-28990, walked in order from the hashed start, so a collision costs one step here rather
- * than a `calculator:serve` that fails to bind later.
+ * than a server that fails to bind later.
  */
 async function allocate(name) {
   const reserved = reservedBySiblings()
@@ -172,8 +170,8 @@ writeFileSync(join(outDir, 'CONTEXT.md'), rendered, 'utf8')
 writeFileSync(
   join(outDir, 'ports.env'),
   `# Written by scripts/render-worktree-context.mjs, the one reader of this file: it reads every\n` +
-    `# worktree's copy to keep their pairs apart. The calculator server does not read it; pass\n` +
-    `# APP_PORT to it as PORT (docs/decisions.md § D-04).\n` +
+    `# worktree's copy to keep their pairs apart. No server reads it by itself; pass\n` +
+    `# APP_PORT to one as PORT.\n` +
     `APP_PORT=${ports.APP_PORT}\nSB_PORT=${ports.SB_PORT}\n`,
   'utf8',
 )

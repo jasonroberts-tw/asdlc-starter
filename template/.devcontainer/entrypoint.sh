@@ -6,15 +6,12 @@
 #
 #   1. `npm ci`                   -- node_modules holds native binaries, so it belongs to the
 #                                    container's platform, not the host's. This is also why
-#                                    README.md tells people never to share a clone between Windows
-#                                    and WSL.
+#                                    a clone is never shared between Windows and WSL.
 #   2. the git hooks              -- the five `hook.asdlc-*` entries in the repository's config,
 #                                    which run scripts/git-hooks.mjs at each event.
 #   3. the beads issue database   -- a Dolt DB under .beads/embeddeddolt/, not in git.
 #
-# ...a warning when the image's tools lag `mise.toml`, since it installs none, and a warning when Vale
-# cannot load `.vale.ini`. Its styles are what `vale sync` downloads into the
-# repository, once, and a person runs it (.devcontainer/README.md): this script does not...
+# ...a warning when the image's tools lag `mise.toml`, since it installs none...
 #
 # ...and a check that the agents' GitHub App, as which the container's `git` and `gh` act, can mint
 # a token, which is here for the same reason: it depends on the key devcontainer.json mounts from
@@ -96,7 +93,7 @@ setup() {
   # the mount point is the clone's directory name and people clone into whatever they like. The
   # marker is package.json's "name", "asdlc-openspec": a rename there is a rename here. Until
   # 2026-09-25 this matched the placeholder "<package-name>", which no package.json carried, so
-  # every container skipped setup with a warning that read like a mount problem (asdlc-openspec-opg).
+  # every container skipped setup with a warning that read like a mount problem.
   if [ -z "$repo" ]; then
     local candidate
     for candidate in /workspaces/*/; do
@@ -139,11 +136,11 @@ setup() {
     fi
   fi
 
-  # The git hooks (docs/decisions.md § D-19). `npm ci` above runs this install through
+  # The git hooks. `npm ci` above runs this install through
   # package.json's `prepare`; it runs again here because a start that skipped `npm ci` would
   # otherwise leave a clone with no hooks. `bd hooks install` is not run: the tracker's jobs in
   # git-hooks.yml are its git integration, and a section bd wrote into .git/hooks would run bd a
-  # second time after them (docs/decisions.md § D-22).
+  # second time after them.
   if [ -f scripts/git-hooks.mjs ]; then
     node scripts/git-hooks.mjs --install >/dev/null 2>&1 \
       || warn 'installing the git hooks failed -- run `mise run hooks:install` to see why'
@@ -162,7 +159,7 @@ setup() {
 }
 
 # The container's `git` and `gh` act as the agents' GitHub App, through the wrappers the Dockerfile
-# installs (docs/decisions.md § D-51); this checks they can, at start, rather than at a session's
+# installs; this checks they can, at start, rather than at a session's
 # first push. Each check exists because the corresponding failure is silent and looks like something
 # else.
 credentials() {
@@ -175,7 +172,7 @@ credentials() {
   # key, two keys, or GitHub's refusal. A token minted here is kept, so the session's first command
   # does not wait for one.
   if [ -n "$workspace" ] && ! (cd "$workspace" && node scripts/github-app-token.mjs token >/dev/null); then
-    warn 'the GitHub App could not mint a token, so git and gh cannot reach GitHub -- .devcontainer/README.md says how to give the container its key'
+    warn 'the GitHub App could not mint a token, so git and gh cannot reach GitHub -- run `node scripts/github-app-token.mjs token` in the clone to see why'
   fi
 
   commit_identity
@@ -232,11 +229,10 @@ plugins() {
 #
 # Of the `--json` fields read below, a marketplace's `.name` and an installed plugin's `.id` and
 # `.scope` were read from a real `claude`, for a user-scope install of Langfuse's plugin under a
-# throwaway CLAUDE_CONFIG_DIR (verified against the CLI, 2.1.295, asdlc-openspec-ic9h.8). A
-# project-scope record's `.projectPath` is NOT VERIFIED against one: its one source is Claude Code's
-# plugin commands reference (§ plugin list), which asdlc-openspec-xw8z cites. A field misnamed reads
-# as absent, so each start would add the marketplace again or reinstall the plugin and log it, which
-# xw8z's second start would show.
+# throwaway CLAUDE_CONFIG_DIR (verified against the CLI, 2.1.295). A project-scope record's
+# `.projectPath` is NOT VERIFIED against one: its one source is Claude Code's plugin commands
+# reference (§ plugin list). A field misnamed reads as absent, so each start would add the
+# marketplace again or reinstall the plugin and log it, which a second start would show.
 plugin() {
   local market="$1" source="$2" id="$3"
   if ! printf '%s' "$markets" | jq -e --arg m "$market" 'any(.[]; .name == $m)' >/dev/null 2>&1; then

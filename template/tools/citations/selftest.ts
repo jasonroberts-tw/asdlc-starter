@@ -207,7 +207,7 @@ console.log('citation scanner selftest\n')
 
   // NO BACKTICKS ROUND THE FILE NAME. Until 2026-10-03 the pattern required them, so a pointer
   // written `(docs/decisions.md § D-04)` in a shell comment, a JSON string or a refusal message was
-  // read by no gate (asdlc-openspec-tl0). `sections(...)` rather than `only(...)`, as above, so a
+  // read by no gate. `sections(...)` rather than `only(...)`, as above, so a
   // scanner that stops reading them reports every case here instead of throwing at the first.
   const plain = sections('decided in (docs/foo.md § INVARIANTS says so)')
   ok(
@@ -441,7 +441,7 @@ console.log('citation scanner selftest\n')
   ok('a history directory is exempt', historyReason('docs/retired/verify-layout.md') !== null)
   ok('a live file is not', historyReason('tools/journey/model.ts') === null)
 
-  // A DELIVERED-HANDOFF-PACKAGE EXEMPTION was asserted here on both sides, and a later decision removed it with
+  // A DELIVERED-HANDOFF-PACKAGE EXEMPTION was asserted here on both sides, and was removed with
   // the packages. `tools/citations/scan.ts` keeps the argument for why it existed, because the SHAPE
   // recurs the next time a node copies documents under new paths: committing slice 004's package
   // broke five long-standing citations elsewhere in the tree -- none of them touched -- because ~60
@@ -514,7 +514,7 @@ console.log('citation scanner selftest\n')
  * repairs. So the gate now runs over a tree built here, through its `CITATIONS_ROOT` override, and the
  * counts are exact because the answer is known by construction.
  *
- * The tree's CLAUDE.md is derived from the LIVE `MEMORY_EXEMPT_REGIONS`, one mention inside each
+ * The tree's AGENTS.md is derived from the LIVE `MEMORY_EXEMPT_REGIONS`, one mention inside each
  * registered region, because `check.ts` applies the live registry: a hand-written one would break the
  * control the day the tracker block is registered.
  * --------------------------------------------------------------------------------------------- */
@@ -534,14 +534,14 @@ console.log('citation scanner selftest\n')
   const CHECK = join(dirname(fileURLToPath(import.meta.url)), 'check.ts')
   const MENTION = '`bd remember` is not used here.'
 
-  const claudeRegions = MEMORY_EXEMPT_REGIONS.filter((r) => r.file === 'CLAUDE.md')
-  const claude = ['# Fixture', '']
-  for (const r of claudeRegions) {
-    if ('section' in r) claude.push(`## ${r.section}`, MENTION, '')
-    else claude.push(r.between[0], MENTION, r.between[1], '')
+  const agentsRegions = MEMORY_EXEMPT_REGIONS.filter((r) => r.file === 'AGENTS.md')
+  const agents = ['# Fixture', '']
+  for (const r of agentsRegions) {
+    if ('section' in r) agents.push(`## ${r.section}`, MENTION, '')
+    else agents.push(r.between[0], MENTION, r.between[1], '')
   }
-  claude.push('## After the regions', 'prose', '')
-  const liveSection = claudeRegions.find((r) => 'section' in r)
+  agents.push('## After the regions', 'prose', '')
+  const liveSection = agentsRegions.find((r) => 'section' in r)
 
   // Three line citations (two in a markdown file, one in a source comment); eight section citations
   // (two in a markdown file; two in a source comment, one of them split by a line break; two in a
@@ -594,7 +594,7 @@ console.log('citation scanner selftest\n')
       '',
     ].join('\n'),
     'notes.txt': 'docs/target.md:999 is not read here: .txt is not a scanned extension.\n',
-    'CLAUDE.md': claude.join('\n'),
+    'AGENTS.md': agents.join('\n'),
     '.claude/skills/fixture/SKILL.md': ['# Fixture skill', 'Run `bd ready`, then `bd show <id>`.', ''].join('\n'),
   }
 
@@ -647,9 +647,9 @@ console.log('citation scanner selftest\n')
   ok('the dead citation inside a history directory is exempt, and counted', n(4) === 1, `${n(4)} files`)
   ok('the roster has prompt files to scan -- exactly the two the tree holds', n(6) === 2, `${n(6)} files`)
   ok(
-    'a mention inside each registered CLAUDE.md region is exempted rather than absent',
-    n(7) === claudeRegions.length && n(7) > 0,
-    `${n(7)} exempt of ${claudeRegions.length} regions`,
+    'a mention inside each registered AGENTS.md region is exempted rather than absent',
+    n(7) === agentsRegions.length && n(7) > 0,
+    `${n(7)} exempt of ${agentsRegions.length} regions`,
   )
 
   // ONE BREAK PER COPY, and each must fail for the reason it was doctored for and for no other: the
@@ -759,14 +759,14 @@ console.log('citation scanner selftest\n')
     },
     {
       // The renamed heading is one problem and the mention it covered goes live: two.
-      what: 'the registered CLAUDE.md section renamed, so its exemption matches nothing',
+      what: 'the registered AGENTS.md section renamed, so its exemption matches nothing',
       doctor:
         liveSection && 'section' in liveSection
-          ? edit('CLAUDE.md', `## ${liveSection.section}`, '## A heading the registry does not name')
+          ? edit('AGENTS.md', `## ${liveSection.section}`, '## A heading the registry does not name')
           : () => {
-              throw new Error('fixture: the live registry has no CLAUDE.md section region to rename')
+              throw new Error('fixture: the live registry has no AGENTS.md section region to rename')
             },
-      where: 'CLAUDE.md',
+      where: 'AGENTS.md',
       reason: 'but no such region is in the file',
       problems: 2,
     },
@@ -790,7 +790,7 @@ console.log('citation scanner selftest\n')
  * `tools/citations/memory.ts` carries the argument. Every assertion here goes through
  * `memoryProblemsIn`, the one function `check.ts` calls, so a fixture that fails here fails the
  * gate and one that passes here passes it. The DERIVATION is asserted, never a count of the live
- * tree: how many mentions CLAUDE.md's two regions exempt today is whatever `citations:check`
+ * tree: how many mentions AGENTS.md's registered regions exempt today is whatever `citations:check`
  * prints, and written here it would drift like every other numeral.
  * --------------------------------------------------------------------------------------------- */
 
@@ -869,6 +869,7 @@ console.log('citation scanner selftest\n')
     '.claude/settings.json',
     '.beads/formulas/fixture.formula.toml',
     '.beads/PRIME.md',
+    'AGENTS.md',
     'CLAUDE.md',
     'README.md',
   ]) {
@@ -887,8 +888,8 @@ console.log('citation scanner selftest\n')
   )
   ok('`docs/` is outside the roster', !inMemoryScope('docs/decisions.md'))
   ok(
-    'every exempt region states a reason and names CLAUDE.md',
-    MEMORY_EXEMPT_REGIONS.every((r) => r.why.trim().length > 20 && r.file === 'CLAUDE.md'),
+    'every exempt region states a reason and names AGENTS.md',
+    MEMORY_EXEMPT_REGIONS.every((r) => r.why.trim().length > 20 && r.file === 'AGENTS.md'),
   )
 
   // A SYNTHETIC REGISTRY, one region of each shape. These cases once ran against the live
@@ -896,7 +897,7 @@ console.log('citation scanner selftest\n')
   // hold, since no block is written into CLAUDE.md (`memory.ts` says why); on 2026-09-23 they
   // found 3 exempt where they expected 4, and 2 problems where they expected 1. The gate was right and
   // the fixture was not. Held to its own registry, the fixture exercises both shapes whatever the
-  // live one holds; the live registry is held to the live CLAUDE.md at the end of this section.
+  // live one holds; the live registry is held to the live AGENTS.md at the end of this section.
   const REGIONS: ReadonlyArray<ExemptRegion> = [
     {
       file: 'CLAUDE.md',
@@ -954,21 +955,21 @@ console.log('citation scanner selftest\n')
     renamed.problems.map((p) => p.where).join(', '),
   )
 
-  // THE LIVE TREE. Every registered region is present in CLAUDE.md -- an exemption matching
+  // THE LIVE TREE. Every registered region is present in AGENTS.md -- an exemption matching
   // nothing is a hole -- and the roster is clean. No count of the live tree is asserted: this read
   // "with its mentions exempted rather than absent" until 2026-09-23, when the live CLAUDE.md named
   // the store without the forbidden spelling and so had none to exempt, which is a legitimate state.
   // That the registered regions exempt what they cover is asserted on the synthetic tree in § 6.
-  const liveClaude = readFileSync(join(SCAN_ROOT, 'CLAUDE.md'), 'utf8')
-  const regions = exemptRegionsIn('CLAUDE.md', liveClaude.split('\n'))
+  const liveAgents = readFileSync(join(SCAN_ROOT, 'AGENTS.md'), 'utf8')
+  const regions = exemptRegionsIn('AGENTS.md', liveAgents.split('\n'))
   ok(
-    'every registered region is found in the live CLAUDE.md',
+    'every registered region is found in the live AGENTS.md',
     regions.missing.length === 0 && regions.found.length === MEMORY_EXEMPT_REGIONS.length,
     regions.missing.map(describeRegion).join('; '),
   )
-  const live = memoryProblemsIn('CLAUDE.md', liveClaude)
+  const live = memoryProblemsIn('AGENTS.md', liveAgents)
   ok(
-    'the live CLAUDE.md passes the memory rule',
+    'the live AGENTS.md passes the memory rule',
     live.problems.length === 0,
     live.problems.map((p) => p.where).join(', '),
   )

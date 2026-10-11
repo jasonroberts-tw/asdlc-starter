@@ -4,16 +4,11 @@
 # existed that setting was the ONLY thing keeping the index LF. A setting is per-machine and
 # unversioned: a clone on a host configured differently commits CRLF, and nothing in the repository
 # says otherwise. `* text=auto eol=lf` moves the decision into the repository, where it is reviewed
-# with everything else. Prettier already pins `endOfLine: 'lf'` in `prettier.config.js`, which covers
-# the files the formatter writes and nothing else -- this covers the rest.
+# with everything else.
 #
-# IT COST NOTHING TO ADD, AND THAT WAS CHECKED RATHER THAN ASSUMED. The change was deferred for years
-# on the belief that it would renormalise a large part of the working tree. It does not. Measured on
-# the commit that added this file, `git ls-files --eol` reports 11 of 2,133 tracked files as `w/crlf`
-# and ZERO as `w/mixed`; all 11 are `reference/data/*.csv`, and all 11 already carry `attr/-text`
-# from `reference/data/.gitattributes`. Everything else was `i/lf w/lf` before this file and is
-# `i/lf w/lf` after it. `git status` stays clean across the change. Re-measure the same way before
-# widening any pattern below.
+# Measure before widening any pattern below: `git ls-files --eol` shows each tracked file's
+# endings in the index and the working tree, and a file it reports as `w/crlf` or `w/mixed` is one
+# the change would renormalise.
 #
 # `text=auto` and not a blanket `text`: git keeps its own binary heuristic, so a file it reads as
 # binary is left byte-exact; a baseline PNG is `i/-text` and stays untouched. (A plain-ASCII script

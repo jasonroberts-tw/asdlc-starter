@@ -1,5 +1,5 @@
 /**
- * Policy gate. It holds the records under `tools/policy/` to the shape `CLAUDE.md` § Three kinds of
+ * Policy gate. It holds the records under `policy/` to the shape `AGENTS.md` § Three kinds of
  * file, and never a fourth gives a hand-authored decision record, and to each other:
  *
  *   - every record parses as a JSON object, and holds at least one constant;
@@ -8,7 +8,7 @@
  *   - every constant has a `<key>Means` sibling, a non-empty string, in the same record, and every
  *     `<key>Means` has its constant there;
  *   - no key is defined in two records, so every reader of the merged policy reads one value;
- *   - `tools/policy/README.md` names every record and no record that is not there, and the directory
+ *   - `policy/README.md` names every record and no record that is not there, and the directory
  *     holds nothing else, which the loader would read past;
  *   - `tools/policy.json`, the single file the records replaced, has not come back: a key added there
  *     would reach no reader, and its gate would pass.
@@ -18,11 +18,10 @@
  * and a fixture's edit written back to the record that held each key.
  *
  * What a constant's value must be is each reader's to hold, by the gates the record's `gatedBy`
- * names; a table's rows (`promptWordBudgets`) are `check:prompts`'. This gate holds only what every
- * record shares.
+ * names. This gate holds only what every record shares.
  *
- * THE FAILURE IT EXISTS TO PREVENT. No incident yet: the gate came with the split of `tools/policy.json`
- * (`docs/decisions.md` § D-27). Before it, no code read that file's five header fields, and seven gates
+ * THE FAILURE IT EXISTS TO PREVENT. No incident yet: the gate came with the split of
+ * `tools/policy.json`. Before it, no code read that file's five header fields, and seven gates
  * each held the `Means` of their own keys, so a key that no gate read could land with no reason beside
  * it, and a header could go stale or missing with nothing to say so. Were this gate wrong, a record
  * would reach readers with a constant whose reason is gone, or two records would define one key,
@@ -34,12 +33,12 @@
  *   mise run check:policy:selftest                 its fixtures -- every refusal on a doctored copy
  *   POLICY_CHECK_ROOT=<dir> mise run check:policy  the same gate over a doctored copy
  *
- * NEEDS only committed files: the records and `tools/policy/README.md`. No tool, no network.
+ * NEEDS only committed files: the records and `policy/README.md`. No tool, no network.
  * 0.09 s wall for the gate and 0.12 s for its selftest through `node --run` (`/usr/bin/time -p`, one
  * run each) on a macOS 26.7.1 laptop with Node 26.8.1, 2026-10-02.
  */
 import { spawnSync } from 'node:child_process'
-import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -51,7 +50,7 @@ const ROOT = process.env.POLICY_CHECK_ROOT ?? REPO_ROOT
 const README = `${POLICY_DIR}/README.md`
 /** The one file the records replaced; a key added there would reach no reader. */
 const RETIRED = 'tools/policy.json'
-const RULE_HOME = '`CLAUDE.md` § Three kinds of file, and never a fourth'
+const RULE_HOME = '`AGENTS.md` § Three kinds of file, and never a fourth'
 
 const byCodePoint = (a, b) => (a < b ? -1 : a > b ? 1 : 0)
 const isText = (v) => typeof v === 'string' && v.trim() !== ''
@@ -64,7 +63,7 @@ export function runCheck(root) {
   const names = readdirSync(dir).sort(byCodePoint)
   const problems = []
   if (existsSync(join(root, RETIRED))) {
-    problems.push(`${RETIRED} is back, and no reader reads it: it was split into the records under ${POLICY_DIR}/ (\`docs/decisions.md\` § D-27). Move each key to the record that holds its kind.`)
+    problems.push(`${RETIRED} is back, and no reader reads it: it was split into the records under ${POLICY_DIR}/. Move each key to the record that holds its kind.`)
   }
   const recordNames = names.filter((name) => name.endsWith('.json'))
   if (recordNames.length === 0) return [`${POLICY_DIR}/ under ${root} holds no record (no .json file).`]
@@ -109,7 +108,7 @@ export function runCheck(root) {
 
   const readme = join(root, README)
   if (!existsSync(readme)) {
-    problems.push(`${README} is missing: a directory of records has a README with a row per record (\`CLAUDE.md\` § Every directory and document says what it is, and who wins).`)
+    problems.push(`${README} is missing: a directory of records has a README with a row per record (\`AGENTS.md\` § Every directory and document says what it is, and who wins).`)
   } else {
     const text = readFileSync(readme, 'utf8')
     const named = new Set([...text.matchAll(/`([^`/\s]+\.json)`/g)].map((m) => m[1]))
@@ -147,7 +146,10 @@ const editRecord = (name, change) => (dir) => {
   if (after === before) throw new Error(`selftest fixture for ${name} changed nothing -- the doctoring missed its target`)
   writeFileSync(path, after)
 }
-const write = (relative, text) => (dir) => writeFileSync(join(dir, relative), text)
+const write = (relative, text) => (dir) => {
+  mkdirSync(dirname(join(dir, relative)), { recursive: true })
+  writeFileSync(join(dir, relative), text)
+}
 const appendRow = (name) => (dir) => writeFileSync(join(dir, README), `${readFileSync(join(dir, README), 'utf8')}| \`${name}\` | a fixture record |\n`)
 const both = (...doctors) => (dir) => doctors.forEach((doctor) => doctor(dir))
 const header = Object.fromEntries(HEADER_FIELDS.map((field) => [field, `a fixture ${field}`]))
@@ -157,32 +159,32 @@ function cases() {
   const T = 'tool-settings.json'
   return [
     { name: 'control: the live records, undoctored', doctor: () => {}, expect: 'pass' },
-    { name: 'a record without a header field', doctor: editRecord(V, (d) => delete d.gatedBy), expect: /^tools\/policy\/vocabulary\.json has no `gatedBy`, a non-empty string/ },
-    { name: 'a record with an empty header field', doctor: editRecord(T, (d) => { d.provenance = ' ' }), expect: /^tools\/policy\/tool-settings\.json has no `provenance`, a non-empty string/ },
-    { name: 'a constant without its Means', doctor: editRecord(V, (d) => delete d.specChangeLabelMeans), expect: /^`specChangeLabel` in tools\/policy\/vocabulary\.json has no `specChangeLabelMeans` sibling/ },
-    { name: 'a constant with an empty Means', doctor: editRecord(V, (d) => { d.specChangeLabelMeans = '' }), expect: /^`specChangeLabel` in tools\/policy\/vocabulary\.json has no `specChangeLabelMeans` sibling/ },
-    { name: 'a Means with no constant', doctor: editRecord(V, (d) => delete d.specChangeLabel), expect: /^`specChangeLabelMeans` in tools\/policy\/vocabulary\.json names no constant/ },
+    { name: 'a record without a header field', doctor: editRecord(V, (d) => delete d.gatedBy), expect: /^policy\/vocabulary\.json has no `gatedBy`, a non-empty string/ },
+    { name: 'a record with an empty header field', doctor: editRecord(T, (d) => { d.provenance = ' ' }), expect: /^policy\/tool-settings\.json has no `provenance`, a non-empty string/ },
+    { name: 'a constant without its Means', doctor: editRecord(V, (d) => delete d.specChangeLabelMeans), expect: /^`specChangeLabel` in policy\/vocabulary\.json has no `specChangeLabelMeans` sibling/ },
+    { name: 'a constant with an empty Means', doctor: editRecord(V, (d) => { d.specChangeLabelMeans = '' }), expect: /^`specChangeLabel` in policy\/vocabulary\.json has no `specChangeLabelMeans` sibling/ },
+    { name: 'a Means with no constant', doctor: editRecord(V, (d) => delete d.specChangeLabel), expect: /^`specChangeLabelMeans` in policy\/vocabulary\.json names no constant/ },
     {
       name: 'a key defined in two records',
       doctor: editRecord(T, (d) => {
         d.specChangeLabel = 'spec-change'
         d.specChangeLabelMeans = 'a second home'
       }),
-      expect: /^`specChangeLabel` is defined in both tools\/policy\/tool-settings\.json and tools\/policy\/vocabulary\.json/,
+      expect: /^`specChangeLabel` is defined in both policy\/tool-settings\.json and policy\/vocabulary\.json/,
     },
-    { name: 'a record that is not JSON', doctor: write(`${POLICY_DIR}/${V}`, '{\n'), expect: /^tools\/policy\/vocabulary\.json does not parse as JSON/ },
-    { name: 'a record that is not an object', doctor: write(`${POLICY_DIR}/${V}`, '[]\n'), expect: /^tools\/policy\/vocabulary\.json holds no JSON object/ },
-    { name: 'a record with only its header', doctor: both(write(`${POLICY_DIR}/empty.json`, JSON.stringify(header)), appendRow('empty.json')), expect: /^tools\/policy\/empty\.json holds no constant/ },
+    { name: 'a record that is not JSON', doctor: write(`${POLICY_DIR}/${V}`, '{\n'), expect: /^policy\/vocabulary\.json does not parse as JSON/ },
+    { name: 'a record that is not an object', doctor: write(`${POLICY_DIR}/${V}`, '[]\n'), expect: /^policy\/vocabulary\.json holds no JSON object/ },
+    { name: 'a record with only its header', doctor: both(write(`${POLICY_DIR}/empty.json`, JSON.stringify(header)), appendRow('empty.json')), expect: /^policy\/empty\.json holds no constant/ },
     {
       name: 'a record the README does not name',
       doctor: write(`${POLICY_DIR}/extra.json`, JSON.stringify({ ...header, extraKey: 1, extraKeyMeans: 'a fixture constant' })),
-      expect: /^tools\/policy\/extra\.json is not named in tools\/policy\/README\.md/,
+      expect: /^policy\/extra\.json is not named in policy\/README\.md/,
     },
-    { name: 'the README names a record that is not there', doctor: appendRow('gone.json'), expect: /^tools\/policy\/README\.md names `gone\.json`, which is not a record/ },
-    { name: 'a file that is neither a record nor the README', doctor: write(`${POLICY_DIR}/notes.yaml`, 'a: 1\n'), expect: /^tools\/policy\/notes\.yaml is neither a record \(\.json\) nor the README/ },
-    { name: 'no README', doctor: (dir) => rmSync(join(dir, README)), expect: /^tools\/policy\/README\.md is missing/ },
+    { name: 'the README names a record that is not there', doctor: appendRow('gone.json'), expect: /^policy\/README\.md names `gone\.json`, which is not a record/ },
+    { name: 'a file that is neither a record nor the README', doctor: write(`${POLICY_DIR}/notes.yaml`, 'a: 1\n'), expect: /^policy\/notes\.yaml is neither a record \(\.json\) nor the README/ },
+    { name: 'no README', doctor: (dir) => rmSync(join(dir, README)), expect: /^policy\/README\.md is missing/ },
     { name: 'the retired single file back beside the records', doctor: write(RETIRED, '{"specChangeLabel": "spec-change"}\n'), expect: /^tools\/policy\.json is back, and no reader reads it/ },
-    { name: 'no record at all', doctor: (dir) => rmSync(join(dir, POLICY_DIR), { recursive: true }), expect: /^tools\/policy\/ is missing under / },
+    { name: 'no record at all', doctor: (dir) => rmSync(join(dir, POLICY_DIR), { recursive: true }), expect: /^policy\/ is missing under / },
   ]
 }
 
@@ -219,7 +221,7 @@ function loaderCases() {
       name: 'loader: a prefix prints its constants and none of their Means',
       check: (dir) => (Object.keys(verifyTrace).length === 0 ? 'cannot be exercised: no verifyTrace key' : ran(loader(dir, '--prefix', 'verifyTrace'), 0, { out: JSON.stringify(verifyTrace) })),
     },
-    { name: 'loader: a key no record holds is refused, by its name', check: (dir) => ran(loader(dir, 'noSuchKey'), 1, { err: /^policy: no record under tools\/policy\/ holds `noSuchKey`/ }) },
+    { name: 'loader: a key no record holds is refused, by its name', check: (dir) => ran(loader(dir, 'noSuchKey'), 1, { err: /^policy: no record under policy\/ holds `noSuchKey`/ }) },
     { name: 'loader: a prefix with no value is refused', check: (dir) => ran(loader(dir, '--prefix'), 2, { err: /^policy: --prefix needs a value/ }) },
     { name: 'loader: no key and no prefix is refused', check: (dir) => ran(loader(dir), 2, { err: /^policy: name at least one key or --prefix/ }) },
     {
@@ -227,7 +229,7 @@ function loaderCases() {
       doctor: editRecord('tool-settings.json', (d) => {
         d.specChangeLabel = 'spec-change'
       }),
-      check: (dir) => ran(loader(dir, 'typesafeModel'), 1, { err: /^policy: `specChangeLabel` is defined in both tools\/policy\/tool-settings\.json and tools\/policy\/vocabulary\.json/ }),
+      check: (dir) => ran(loader(dir, 'typesafeModel'), 1, { err: /^policy: `specChangeLabel` is defined in both policy\/tool-settings\.json and policy\/vocabulary\.json/ }),
     },
     {
       name: "loader: a fixture's edit goes back to the record that held each key, and a new Means beside its constant",
@@ -238,8 +240,8 @@ function loaderCases() {
           p.specChangeLabelMeans = 'a fixture reason'
         })
         const records = Object.fromEntries(readRecords(dir).map((r) => [r.path, r.data]))
-        if (records['tools/policy/tool-settings.json'].couplingMinTogether !== 999) return 'the changed key did not go back to tool-settings.json'
-        if (records['tools/policy/vocabulary.json'].specChangeLabelMeans !== 'a fixture reason') return 'the new Means did not go beside its constant'
+        if (records['policy/tool-settings.json'].couplingMinTogether !== 999) return 'the changed key did not go back to tool-settings.json'
+        if (records['policy/vocabulary.json'].specChangeLabelMeans !== 'a fixture reason') return 'the new Means did not go beside its constant'
         try {
           editPolicy(dir, () => {})
           return 'an edit that changed nothing was not refused'

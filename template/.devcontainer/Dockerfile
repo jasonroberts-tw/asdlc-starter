@@ -1,25 +1,24 @@
-# The whole "new machine setup" of README.md, baked into an image.
+# The whole "new machine setup", baked into an image.
 #
 # Everything a person would otherwise do by hand -- the toolchain `mise.toml` pins (Node, Python,
-# `bd`, `gh`, Vale, uv and graphify), Claude Code and the marketplaces of the two plugins
-# `.claude/settings.json` enables -- is a layer here rather than a devcontainer.json `feature` or
-# `postCreateCommand`. That is deliberate: features resolve at container-create time over the
-# network and fail differently on every machine, and a `postCreateCommand` re-runs on every
-# rebuild. A layer is built once, cached, and identical for everyone. devcontainer.json next to this
-# file does little but point at it.
+# `bd`, `gh`, Vale, uv and graphify) and Claude Code -- is a layer here rather than a
+# devcontainer.json `feature` or `postCreateCommand`. That is deliberate: features resolve at
+# container-create time over the network and fail differently on every machine, and a
+# `postCreateCommand` re-runs on every rebuild. A layer is built once, cached, and identical for
+# everyone. devcontainer.json next to this file does little but point at it.
 #
 # The only steps NOT in a layer are those that need the repository itself, which does not exist at
 # build time: the container's own clone, in a volume, which entrypoint.sh makes at the first start
-# and no host checkout is mounted over (docs/decisions.md § D-54). They are `npm ci`, the git hooks,
-# hydrating the issue database, installing those two plugins, whose project-scope install record
-# names the clone's path, the App's commit identity, read from the clone's policy, and the status
+# and no host checkout is mounted over. They are `npm ci`, the git hooks, hydrating the issue
+# database, installing the beads and vale plugins, whose project-scope install record names the
+# clone's path, the App's commit identity, read from the clone's policy, and the status
 # line, which runs a script in the clone.
 # Those live in entrypoint.sh, which this file copies in and wires to ENTRYPOINT -- so the setup is
 # still owned by the image, and devcontainer.json still has no lifecycle command in it.
 #
 # Versions are the base tag below, and `mise.toml`, whose every tool installs here through
-# `mise.lock` (docs/decisions.md § D-31), graphify's dependencies through its uv lock under
-# `.mise/locks/` (§ D-35); this file states no tool's version. The build context is the repository's
+# `mise.lock`, graphify's dependencies through its uv lock under
+# `.mise/locks/`; this file states no tool's version. The build context is the repository's
 # root, so the image can read those files, and `Dockerfile.dockerignore` beside this file admits
 # them, the entrypoint and the App's two wrappers, and nothing else. After a pin moves, rebuild:
 # entrypoint.sh warns while the image's tools lag `mise.toml`.
@@ -28,8 +27,8 @@
 # release devcontainers/images publishes and never crosses a major. The codename form is the tag that
 # image's manifest builds (`${VERSION}-${VARIANT}`, in its src/base-ubuntu/manifest.json). Until
 # 2026-10-01 this line named `ubuntu-24.04`, a form upstream renamed (devcontainers/images#1630), and
-# that tag stayed on image 2.0.5 with Git 2.51.1, older than the 2.54 that config-based hooks need
-# (asdlc-openspec-tvy). A major tag stops moving the same way when the next major ships, and nothing
+# that tag stayed on image 2.0.5 with Git 2.51.1, older than the 2.54 that config-based hooks need.
+# A major tag stops moving the same way when the next major ships, and nothing
 # says so: `2-noble` has resolved to 2.1.8 since 3.0.0 shipped. So bump the major here by hand when a
 # new one appears, after reading that release's history file in devcontainers/images for what it
 # changes. List the majors with
@@ -49,7 +48,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 #
 # Set for bd alone, in the interactive shell, where a terminal answers: until 2026-10-06 this was an
 # `ENV NO_COLOR=1` for every process, and Claude Code turns its color off whenever NO_COLOR is set, so
-# the container's sessions had none (asdlc-openspec-ikr3). The gates and git hooks set it on their
+# the container's sessions had none. The gates and git hooks set it on their
 # own bd calls (git-hooks.yml, tools/lib/bd-launcher.ts). A `bd` run on a tty outside an interactive
 # bash, such as `devcontainer exec ... bd ready`, still probes.
 RUN printf '%s\n' "alias bd='NO_COLOR=1 bd'" >>/etc/bash.bashrc
@@ -69,15 +68,15 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # --- mise ---------------------------------------------------------------------------------------
-# mise itself, at the release every workflow's `jdx/mise-action` pins, which `mise run
-# check:toolchain` holds equal to this tag, copied from mise's own image as its documentation does.
+# mise itself, at the release every workflow's `jdx/mise-action` pins, copied from mise's own image
+# as its documentation does.
 # The digest pins the image as the workflows' `sha256` pins their binary: a tag can be moved to
 # another image, and a digest cannot. Read on 2026-10-03 from ghcr.io's manifest for the tag; when
 # the tag moves, read the new one with `docker buildx imagetools inspect ghcr.io/jdx/mise:<tag>`.
 COPY --from=ghcr.io/jdx/mise:2026.10.0@sha256:5253aad873240675097e6229786dff87d54a9ac9d52917e42903de37511f74b3 /usr/local/bin/mise /usr/local/bin/mise
 
 # --- git configuration --------------------------------------------------------------------------
-# safe.directory: the workspace was a bind mount owned by the host user until D-54, and is now a
+# safe.directory: the workspace was once a bind mount owned by the host user, and is now a
 # volume the entrypoint takes ownership of before it clones. It stays, so that git still trusts the
 # clone if that chown failed; otherwise git calls the whole repository untrusted and every hook fails.
 # core.autocrlf input backs .gitattributes' `eol=lf` -- scripts/*.sh must stay LF or bash dies on
@@ -85,9 +84,9 @@ COPY --from=ghcr.io/jdx/mise:2026.10.0@sha256:5253aad873240675097e6229786dff87d5
 # gc.worktreePruneExpire never: on a bind-mounted host checkout, every record of a worktree made on
 # the host names a host path, so git reads each one as stale, and `git gc`, which a commit can
 # start, prunes a stale record once its index is older than this, three months by default. A prune
-# there unregisters the worktree on the host too (asdlc-openspec-486e). Since D-54 the container's
-# clone is its own and holds no host record, but the setting stays, as D-53 records it, and
-# worktree:selftest holds it. The host's own git still prunes the records that are stale there.
+# there unregisters the worktree on the host too. The container's clone is now its own and holds
+# no host record, but the setting stays, and scripts/hooks/worktree-hooks.selftest.mjs holds it.
+# The host's own git still prunes the records that are stale there.
 RUN git config --system --add safe.directory '*' \
     && git config --system core.autocrlf input \
     && git config --system gc.worktreePruneExpire never
@@ -101,8 +100,8 @@ COPY .devcontainer/entrypoint.sh /usr/local/bin/workspace-entrypoint
 RUN chmod 0755 /usr/local/bin/workspace-entrypoint
 
 # --- the agents' GitHub App ---------------------------------------------------------------------
-# The container's `git` and `gh` act as the agents' GitHub App and as nobody else
-# (docs/decisions.md § D-51). git's system config names `git-credential-github-app` as its helper
+# The container's `git` and `gh` act as the agents' GitHub App and as nobody else.
+# git's system config names `git-credential-github-app` as its helper
 # for github.com, as the environment's config scope does again at the end of this file, and reads
 # GitHub's two SSH address forms as HTTPS, so the tracker's Dolt remote, which runs `git` against
 # `ssh://git@github.com/...`, reaches GitHub through the same helper with no SSH key. `gh` here
@@ -132,15 +131,13 @@ USER vscode
 # beside it under /workspaces is not trusted unasked.
 #
 # No global default is set, so a bare `node` in a directory with no `mise.toml` above it fails and
-# says "No version is set for shim: node" (asdlc-openspec-8juz.1, question 6). Every gate runs from
+# says "No version is set for shim: node". Every gate runs from
 # the clone, and a shim hands the real tool directories to what it starts. A selftest whose tasks run
 # in a fixture repository of its own, where mise resolves `node` from the fixture's `mise.toml` and
 # not from the PATH it was handed, takes one of two routes: it gives that `mise.toml` the clone's node
-# pin, as `fixtureMise` in `scripts/fresh-run.mjs` does (asdlc-openspec-locj), or it names node by
-# its path, as `scripts/hooks/gate-summary.selftest.mjs` does. A global default would be a second
-# home for the pin.
+# pin, or it names node by its path. A global default would be a second home for the pin.
 ENV PATH="/home/vscode/.local/share/mise/shims:/home/vscode/.local/bin:${PATH}"
-# `.mise/locks/` beside them: a `pypi:` tool's locked install reads its uv lock there (D-35).
+# `.mise/locks/` beside them: a `pypi:` tool's locked install reads its uv lock there.
 COPY --chown=vscode:vscode mise.toml mise.lock /tmp/toolchain/
 COPY --chown=vscode:vscode .mise/locks /tmp/toolchain/.mise/locks
 RUN MISE_TRUSTED_CONFIG_PATHS=/tmp/toolchain mise -C /tmp/toolchain install --locked \
@@ -178,7 +175,7 @@ ENV GIT_CONFIG_COUNT=2 \
 # (`githubAppRepositoryOwner` and `githubAppTokenRepository`), read from here because the clone that
 # holds it does not exist yet. Last, because the record changes often and a layer above it would
 # rebuild the toolchain each time. A change reaches a container once it is rebuilt.
-COPY tools/policy/tool-settings.json /usr/local/share/workspace-entrypoint/tool-settings.json
+COPY policy/tool-settings.json /usr/local/share/workspace-entrypoint/tool-settings.json
 
 ENTRYPOINT ["/usr/local/bin/workspace-entrypoint"]
 CMD ["sleep", "infinity"]

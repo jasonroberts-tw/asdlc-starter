@@ -2,17 +2,16 @@
 # scripts/new-worktree.sh <task-ref> <slug>
 #
 # Creates one isolated worktree per agent task: a branch off origin/main, a checked pair of
-# ports, a rendered .worktree/CONTEXT.md briefing that the committed CLAUDE.md @-imports, and a copy
+# ports, a rendered .worktree/CONTEXT.md briefing that the committed AGENTS.md @-imports, and a copy
 # of each of the primary checkout's Vale styles the worktree lacks: the synced ones, which git
 # ignores (the block that copies them says why).
 #
 # There is no database, container stack or .env to provision -- this repository is a Node/TypeScript
-# toolchain whose one server is the calculator demo's, which a person starts by hand. An earlier
-# version of this script copied .env, certs and appsettings.Development.json and wrote
-# COMPOSE_PROJECT_NAME/DB_NAME/DB_PORT into .env; none of those files or services exist here, so
-# every line of it was inert. The port pair is reserved so that two worktrees never collide: the
-# first is the PORT to give `npm run calculator:serve` there (docs/decisions.md § D-04), the second
-# is unused. scripts/render-worktree-context.mjs owns the pair.
+# toolchain. An earlier version of this script copied .env, certs and appsettings.Development.json
+# and wrote COMPOSE_PROJECT_NAME/DB_NAME/DB_PORT into .env; none of those files or services exist
+# here, so every line of it was inert. The port pair is reserved so that two worktrees never
+# collide: the first is the PORT to give a server a person starts there, the second is unused.
+# scripts/render-worktree-context.mjs owns the pair.
 #
 # It also does not install dependencies. node_modules is gitignored and platform-native, so the new
 # checkout has none; `npm ci` is the first command inside the worktree, and both the summary printed
@@ -20,7 +19,7 @@
 #
 # Several runs at once, as a fan-out sweep starts them, do not fail one another: no run writes the
 # shared .git/config, and a run that fails deletes the branch it made, and only that one
-# (asdlc-openspec-686; the block that cuts the branch has the incident).
+# (the block that cuts the branch has the incident).
 #
 # Run from the primary checkout.
 
@@ -55,7 +54,7 @@ WORKTREE_PATH="${WORKTREE_ROOT}/${NAME}"
 # fix -- run the script again -- died on `fatal: a branch named 'agent/...' already exists` with no
 # hint that the way out is `git worktree remove` plus `git branch -D`. The trap once acted only once
 # the worktree existed, so a `worktree add` that failed after making the branch left the branch
-# behind with no worktree (asdlc-openspec-686, below). BRANCH_MADE is set only once this run's own
+# behind with no worktree (the incident is below). BRANCH_MADE is set only once this run's own
 # `git branch` succeeds, so a branch that existed before the run is never this trap's to delete.
 BRANCH_MADE=0
 CREATED=0
@@ -73,7 +72,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# The trunk is `main` -- see CLAUDE.md. Overridable so a hotfix worktree can be cut
+# The trunk is `main` -- see AGENTS.md § Git workflow. Overridable so a hotfix worktree can be cut
 # from a release branch without editing this script.
 TRUNK="${TRUNK_BRANCH:-main}"
 
@@ -91,12 +90,12 @@ BASE_DATE="$(git -C "$REPO_ROOT" log -1 --format=%ci "origin/$TRUNK")"
 
 # The branch is cut with --no-track, and before the worktree, in two steps. On 2026-09-26 a fan-out
 # sweep launched eleven lanes at once and two WorktreeCreate hooks failed with "could not lock config
-# file .git/config: File exists" (asdlc-openspec-686): `git worktree add -b ... origin/main` set the
+# file .git/config: File exists": `git worktree add -b ... origin/main` set the
 # new branch's upstream, a write to the one `.git/config` every worktree shares, and concurrent runs
 # race for its lock. On 2026-10-03, 30 concurrent runs of a scratch copy failed 3 times so, and 50 of
 # this one none. With --no-track no run writes the config at all, so there is no lock to race for,
-# nothing to retry and no serialising lock of this script's own to leave stale; nor the two keys per
-# branch that scripts/prune-worktree-branches.mjs then had to collect. The branch needs no upstream:
+# nothing to retry and no serialising lock of this script's own to leave stale; nor two keys per
+# branch left behind in the shared config. The branch needs no upstream:
 # the briefing rebases onto origin/main by name, `open-pr`'s `git push -u` sets the pushed branch as
 # the upstream, and `mise run gates` reads a branch with none as new, from its merge base with
 # origin/main (scripts/git-hooks.mjs). Where it loses: a bare `git pull --rebase` in a worktree not
@@ -112,8 +111,8 @@ CREATED=1
 # Ports, timestamps and the briefing. See the renderer's header for why this is not another `sed`.
 # The NEW worktree's renderer, never $REPO_ROOT's: the renderer reads the template beside itself, and
 # this checkout's working tree can trail the base, so running its copy handed a worktree cut from
-# origin/main a briefing from the checkout's older template (asdlc-openspec-kce; the renderer's
-# header, item 4, has the incidents). The worktree's copy is the base's, template and all.
+# origin/main a briefing from the checkout's older template (the renderer's header, item 4, has
+# the incidents). The worktree's copy is the base's, template and all.
 RENDER="$(node "$WORKTREE_PATH/scripts/render-worktree-context.mjs" \
   "$WORKTREE_PATH" "$BRANCH" "$BASE_SHA" "$TASK_REF" "$LIFETIME_HOURS")"
 
@@ -121,8 +120,8 @@ RENDER="$(node "$WORKTREE_PATH/scripts/render-worktree-context.mjs" \
 # ignores, because `vale sync` downloads it, so `git worktree add` brings none across. Without this
 # copy, the vale@agent-tools plugin's hook answered every Write and Edit in a worktree with "E201: The
 # path '<worktree>/.vale-styles' does not exist", a notice that reads like a check that ran, while no
-# prose written in a worktree was checked (asdlc-openspec-hv8, seen on 2026-09-30 in two worktrees
-# cut at ff2aaad). A copy, and not `vale sync`, because the WorktreeCreate hook runs this where the
+# prose written in a worktree was checked (seen on 2026-09-30 in two worktrees).
+# A copy, and not `vale sync`, because the WorktreeCreate hook runs this where the
 # network can be unreachable (the fetch above). And not a symlink: `.gitignore`'s directory rule does
 # not ignore one, Git Bash on Windows makes a copy anyway, and an absolute target dangles wherever the
 # dev container and the host see the checkout at different paths. The copy is the primary's styles
@@ -134,7 +133,7 @@ RENDER="$(node "$WORKTREE_PATH/scripts/render-worktree-context.mjs" \
 # base tracks there stays the base's and the synced ones still arrive. The copy once skipped the whole
 # directory whenever the worktree had it, and a tracked style, `Layout`, makes it always have it: the
 # worktree would get that one style and none of the synced ones `.vale.ini` names, and Vale would load
-# no config (asdlc-openspec-m7p). A failed copy warns and carries on: it costs the check, not the
+# no config. A failed copy warns and carries on: it costs the check, not the
 # worktree. Nothing copied is warned of too, since the tracked style alone is not a config Vale loads.
 STYLES=''
 if [ -f "$WORKTREE_PATH/.vale.ini" ]; then
@@ -169,7 +168,7 @@ value_of() { printf '%s\n' "$RENDER" | sed -n "s/^$1=//p"; }
 
 echo "worktree: $WORKTREE_PATH"
 echo "branch:   $BRANCH (from $BASE_SHA, $BASE_DATE)"
-echo "ports:    $(value_of APP_PORT) / $(value_of SB_PORT) (reserved: the first is PORT for npm run calculator:serve, the second unused)"
+echo "ports:    $(value_of APP_PORT) / $(value_of SB_PORT) (reserved: the first for a server's PORT, the second unused)"
 echo "deadline: $(value_of DEADLINE)"
 echo
 echo "start the agent with:  cd '$WORKTREE_PATH' && claude"

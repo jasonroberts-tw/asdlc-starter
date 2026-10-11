@@ -13,17 +13,17 @@
  * back to plain `git worktree remove` and inherits the whole failure.
  *
  * WHAT THIS DELIBERATELY DOES NOT DO: delete the branch. `git worktree remove` only ever removes a
- * checkout, and the branch is the work. CLAUDE.md routes a worktree's branch to trunk through a pull
- * request the orchestrator merges, which means the branch outliving its worktree is the normal case,
- * not a leak. Deleting it here would discard unpushed commits at session exit -- silently, since
+ * checkout, and the branch is the work. AGENTS.md § Git workflow routes a worktree's branch to trunk
+ * through a pull request the orchestrator merges, which means the branch outliving its worktree is
+ * the normal case, not a leak. Deleting it here would discard unpushed commits at session exit -- silently, since
  * nothing reads a hook's stdout on the remove path.
  *
  * WHAT IT DOES DO INSTEAD, once the removal is done: run `scripts/prune-worktree-branches.mjs`,
  * which removes ABANDONED sibling checkouts -- registered, clean, unattended, on a branch whose work
  * is ALREADY IN `origin/main` -- deletes worktree branches whose work is already in `origin/main` and,
  * with each one, the `branch.<name>.remote` / `.merge` pair the agent's `git push -u` wrote to the
- * shared `.git/config`, as provisioning also did until it cut the branch with `--no-track`
- * (asdlc-openspec-686). The paragraph above is why that is a separate step rather than a line here: the
+ * shared `.git/config`, as provisioning also did until it cut the branch with `--no-track`.
+ * The paragraph above is why that is a separate step rather than a line here: the
  * branch being torn down now is usually unmerged, so the sweep will keep it and collect the leavings
  * of EARLIER worktrees whose pull requests have since landed -- including checkouts no teardown ever
  * ran for, because this hook fires only when the harness removes a worktree and a background job
@@ -143,13 +143,13 @@ if (!removed) {
 }
 
 // NO `git worktree prune` HERE, and the incident that took it out. This hook ran one on `ROOT` on
-// every call, before the ownership check, so each run of `worktree:selftest`, a pre-push job, pruned
+// every call, before the ownership check, so each run of its selftest, then a pre-push job, pruned
 // the real repository through that suite's foreign-path cases. On a host that took only records
 // whose worktree was gone. On 2026-10-06 a dev container on the bind-mounted primary checkout pushed,
 // and there every record names a host path the container cannot see: git read each as stale,
-// pruned them all, and git and bd stopped working in every linked worktree on the host
-// (asdlc-openspec-486e). The same suite's foreign path also named the admin directory of a live
-// worktree that shared its last name, hence `owned` above. Pruning is the sweep's, by its rule.
+// pruned them all, and git and bd stopped working in every linked worktree on the host. The same
+// suite's foreign path also named the admin directory of a live worktree that shared its last
+// name, hence `owned` above. Pruning is the sweep's, by its rule.
 
 /**
  * Whether the sweep may run at all, as a reason string, or `null` to proceed.
@@ -159,7 +159,7 @@ if (!removed) {
  * `worktree_path` is whatever the caller passed. `worktree-hooks.selftest.mjs` deliberately calls
  * this hook with a throwaway `/tmp` directory to exercise the sandbox-removal fallback, and the
  * sweep, keyed off `ROOT` rather than off that path, therefore ran against THE REAL REPOSITORY on
- * every invocation. `worktree:selftest` is a pre-push job, so that made an ordinary `git push` a
+ * every invocation. The selftest ran as a pre-push job, so that made an ordinary `git push` a
  * branch-deleting event; run against a copy of the script with its safety guards deliberately
  * mutated for a mutation test, it deleted 104 local branches. They were restored from
  * `worktree-gc.log`, which is exactly why that log exists.

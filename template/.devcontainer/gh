@@ -1,12 +1,12 @@
 #!/bin/sh
-# `gh` as the agents' GitHub App (docs/decisions.md § D-51). The Dockerfile puts this file ahead of
+# `gh` as the agents' GitHub App. The Dockerfile puts this file ahead of
 # mise's `gh` on PATH, so every `gh` a container session runs gets an installation token of the
 # App's, read for that command from scripts/github-app-token.mjs, which mints a fresh one once the
 # kept one nears the end of its hour. `gh` reads its token from GH_TOKEN and from no credential
 # helper, so a wrapper is how a session longer than an hour keeps working without a restart.
 #
-# The failure it exists to prevent. No incident yet: it came with the container that acts as the App
-# (asdlc-openspec-owva.4). Were it wrong, `gh` would run with no token and fail as if the container
+# The failure it exists to prevent. No incident yet: it came with the container that acts as the
+# App. Were it wrong, `gh` would run with no token and fail as if the container
 # had never logged in, or would run after the helper failed and hide the helper's reason. So it runs
 # no `gh` without a token, and the helper's reason is what the session reads.
 #

@@ -7,7 +7,7 @@
  * work an agent cannot see and did not consent to. `.worktree/CONTEXT.md` asks the agent not to do
  * this, but context is advice; this is the part that holds.
  *
- * THE GIT RULES ARE A NO-OP IN THE PRIMARY CHECKOUT. CLAUDE.md § Git workflow forbids pushing to,
+ * THE GIT RULES ARE A NO-OP IN THE PRIMARY CHECKOUT. AGENTS.md § Git workflow forbids pushing to,
  * switching to or rewriting a protected branch from a worktree; the primary checkout is where a
  * person works, and what they commit or push there is theirs to decide. So the guard asks git
  * whether the command runs in a linked worktree and skips every git rule if not. The PR-base,
@@ -36,21 +36,21 @@
  * command runs, and the mistake is invisible until a human looks. The rule does not rest on `main`
  * being protected on GitHub, and it is not: on 2026-09-23 the branch-protection endpoint answered
  * 404 and the rulesets applying to `main` were empty. The trunk is `main`; the base is typed, never
- * inferred (CLAUDE.md § Git workflow). That has nothing to do with worktrees, so unlike the git
+ * inferred (AGENTS.md § Git workflow). That has nothing to do with worktrees, so unlike the git
  * rules it is enforced in the primary checkout too.
  *
  * IT ALSO GUARDS THE APPROVAL AND THE MERGE PAST THE CHECKS, EVERYWHERE. It refuses `gh pr review`
  * with `--approve`, since the trunk's ruleset merges a head once `verify` passes and one approving
  * review stands, and the reviewer approves every head off the high-risk floor itself: an approval a
  * session gives is a person's approval of a head on the floor, and a session holding any login with
- * write could otherwise give it (docs/decisions.md § D-57). It refuses `gh pr merge` with `--admin`,
+ * write could otherwise give it. It refuses `gh pr merge` with `--admin`,
  * which merges with the maintainer's bypass of the checks the ruleset requires, the same head's
- * merge (docs/decisions.md § D-47). From a worktree it lets `gh pr merge --auto` through, which only
+ * merge. From a worktree it lets `gh pr merge --auto` through, which only
  * asks GitHub to merge once the ruleset is met, and refuses any other merge as the orchestrator's
  * call. No incident yet: were either rule wrong, an agent could merge a pull request no person read.
- * Until 2026-10-05 (asdlc-openspec-3cp3) it guarded the reviewer's approval label in the same
+ * Until 2026-10-05 it guarded the reviewer's approval label in the same
  * place, which retired with the label. It reads only the command line, so an approval or a merge
- * through `gh api`, curl, a browser tool or the web UI passes it (docs/decisions.md § R-01).
+ * through `gh api`, curl, a browser tool or the web UI passes it.
  *
  *   printf '%s' '{"tool_input":{"command":"gh pr review 1 --approve"}}' | node scripts/hooks/guard-git.mjs
  *   printf '%s' '{"tool_input":{"command":"gh pr merge 1 --admin --rebase"}}' | node scripts/hooks/guard-git.mjs
@@ -60,19 +60,18 @@
  * the host is the second kind. A session there works in the primary checkout, where the git rules
  * are off, so a prune it typed would take every host worktree's record. On 2026-10-06 a prune run in
  * such a container, by the WorktreeRemove hook through a pre-push selftest, left git with no record
- * of any of the host's worktrees (asdlc-openspec-486e). Its `--dry-run` passes; the sweep,
- * `scripts/prune-worktree-branches.mjs`, prunes by its own rule.
+ * of any of the host's worktrees. Its `--dry-run` passes.
  *
  * IT ALSO GUARDS THE LOCAL CODE GRAPH, EVERYWHERE. It refuses graphify's `update`, `watch`, `hook
  * install` and `claude install` (`GRAPHIFY_ERODING` below), run by name or as a Python module,
  * because the first three rebuild the graph through the path that erodes its document layer and the
- * last writes graphify's advice to run `update` into CLAUDE.md (docs/decisions.md § D-20). It lets
+ * last writes graphify's advice to run `update` into CLAUDE.md. It lets
  * one through that asks for help, which graphify answers with a line of help alone. It holds in the
- * primary checkout too, because that is where `mise run code-graph` builds the graph. No session has
+ * primary checkout too, because that is where the graph is built. No session has
  * run one here yet. Were this rule wrong, a session following graphify's own advice, which its
  * user-level skill and the block `claude install` writes both give, would erode the graph: on
  * 2026-10-01, on a clone holding a copy of the first graph, two `graphify update` runs took its
- * concept nodes from 157 to 22 and its links between documents and code from 898 to 156 (D-20). It
+ * concept nodes from 157 to 22 and its links between documents and code from 898 to 156. It
  * reads a statement that opens with graphify, after any environment assignments, so graphify behind
  * a launcher (`env`, `uvx`, `pipx run`) or a shell word (`nohup`, `time`, `then`), in `bash -lc` or
  * `eval`, or its library called through `python -c`, as graphify's own skill runs its `--update`,
@@ -104,8 +103,8 @@ import { TRUNK, gitEnv, readHookInput } from './_shared.mjs'
  * session started: after `EnterWorktree` it still names the primary checkout. So in every session
  * that had entered a worktree the guard judged the primary checkout, found no linked worktree and
  * applied no git rule. From `.claude/worktrees/7dj-hook-paths`, `git worktree list` ran unrefused
- * while `gh pr create --help` was refused, which proved the guard was running
- * (asdlc-openspec-bvf). Nothing else refused a push to `main`, which has no branch protection on
+ * while `gh pr create --help` was refused, which proved the guard was running.
+ * Nothing else refused a push to `main`, which has no branch protection on
  * GitHub (the PR-base rule below). The selftest set the variable to the worktree, which the harness
  * never does, and passed.
  */
@@ -129,8 +128,7 @@ function gitPath(dir, flag) {
  * `dir`, so until 2026-10-06 every git call here answered for the checkout it named: naming the
  * shared `.git`, it let `git push origin main` and `gh pr merge` through from a linked worktree, and
  * naming a worktree's git directory, as git exports it to a hook run there, it refused them in the
- * primary checkout. 13 of 28 cases measured gave a wrong verdict (asdlc-openspec-vz5b,
- * asdlc-openspec-hn4x).
+ * primary checkout. 13 of 28 cases measured gave a wrong verdict.
  */
 function gitOut(dir, args) {
   const r = spawnSync('git', args, { cwd: dir, env: gitEnv(), encoding: 'utf8', windowsHide: true })
@@ -170,11 +168,11 @@ function realpathOr(p) {
  * WHY THIS EXISTS. A worktree removed under a live session leaves the session's directory gone, and
  * the first file the session writes there recreates it with no `.git` file in it. Git run from that
  * directory then walks upward and finds the PRIMARY checkout, so `inLinkedWorktree` answers false
- * and every git rule above is skipped. On 2026-09-28 a lane working asdlc-openspec-j09.5 lost its
+ * and every git rule above is skipped. On 2026-09-28 a lane lost its
  * worktree `.claude/worktrees/agent-a844b327378a4720e` to `npm run worktree:gc`, wrote
  * `scripts/test-trace.mjs` at that path, and ran `git fetch origin` and `git rebase origin/main`
  * there, which rebased the primary checkout's `main` (its reflog: `rebase (finish): refs/heads/main
- * onto f09c923`). It was a fast-forward, so nothing was lost (asdlc-openspec-0ga). THE SIGNAL IS
+ * onto f09c923`). It was a fast-forward, so nothing was lost. THE SIGNAL IS
  * THE PATH: nothing git says in such a directory tells it from the primary checkout, but a directory
  * under `.claude/worktrees/<name>/` belongs to that worktree, and `--show-toplevel` must be it. An
  * unanswerable toplevel (no repository at all, git missing) is not judged: git would fail there too.
@@ -271,7 +269,7 @@ function parse(command) {
     // A brace groups commands only as a word of its own, `{ git push origin main; }`, as the shell
     // reads it. Inside a word it is a letter: until 2026-09-26 it split the statement anywhere, so
     // `gh api repos/{owner}/{repo}/issues/1/labels`, gh's own placeholder form, lost its endpoint and
-    // matched no rule (asdlc-openspec-g1b's selftest found it).
+    // matched no rule (a selftest found it).
     if (ch === '{' || ch === '}') {
       const next = command[i + 1]
       const word = next === undefined || next === ' ' || next === '\t' || SEPARATORS.has(next)
@@ -399,7 +397,7 @@ const GH_OPTS_WITH_VALUE = new Set([
  * The first two bare words name the command wherever the flags sit, and `rest` is every other
  * token, the flags before them included. Until 2026-09-26 the scan stopped at the first flag, so
  * `gh --repo o/r pr create` with no `--base` matched no rule and passed the PR-base rule, and
- * `gh api -X POST <endpoint>` could not be read at all (found in asdlc-openspec-g1b's premise check).
+ * `gh api -X POST <endpoint>` could not be read at all (found in a premise check).
  */
 function ghCall(tokens) {
   const start = nameIndex(tokens)
@@ -458,7 +456,7 @@ const nonOptions = (rest) => rest.filter((t) => !isOption(t) && t !== '')
 const TRUNK_REMOTE = `origin/${TRUNK}`
 
 /**
- * Every long-lived branch, not just the trunk: the protected branches CLAUDE.md § Git workflow
+ * Every long-lived branch, not just the trunk: the protected branches AGENTS.md § Git workflow
  * names, the trunk and `release`. No `release` branch existed on 2026-09-23 (`git ls-remote --heads
  * origin`); naming it now means the day one is cut it is guarded from its first push, rather than
  * from the first time an agent has already written it. The trunk is spelled through `TRUNK`, so a
@@ -558,14 +556,14 @@ const PR_BASE =
   `branch, a setting outside this repository that need not be the trunk.`
 const PR_MERGE =
   `a merge now is the orchestrator's call, not a task agent's. From a worktree, ask GitHub to merge ` +
-  `once \`verify\` has passed and the reviewer has approved, with \`prReviewMergeMethod\` in tools/policy/pr-review.json: ` +
-  `\`gh pr merge <number> --auto --rebase\` (open-pr § 7).`
+  `once \`verify\` has passed and the reviewer has approved, with \`prReviewMergeMethod\` in policy/pr-review.json: ` +
+  `\`gh pr merge <number> --auto --rebase\`.`
 const PR_ADMIN =
   `\`--admin\` merges past the checks the trunk's ruleset requires, with the maintainer's bypass: ` +
-  `that is a person's merge of a head on the high-risk floor, never an agent's (CLAUDE.md § Git ` +
+  `that is a person's merge of a head on the high-risk floor, never an agent's (AGENTS.md § Git ` +
   `workflow). Enable auto-merge with \`--auto\`, and leave a head on the floor to a person.`
 const PR_APPROVE =
-  `an approval is the person's gate on a head on the high-risk floor, never an agent's (CLAUDE.md ` +
+  `an approval is the person's gate on a head on the high-risk floor, never an agent's (AGENTS.md ` +
   `§ Git workflow): the trunk's ruleset merges once one approving review stands, and the reviewer ` +
   `approves a head off the floor itself. Leave a head on the floor to a person; a comment or a ` +
   `request for changes is not an approval.`
@@ -639,9 +637,8 @@ function denialForGh({ group, sub, rest }, linked) {
  * by, with what it does; each says it without naming another graphify command, so a refusal names
  * its own alone. graphify 0.9.73 takes its command from its first argument and a second word from its
  * second, with no option before them (its `__main__.py` and `cli.py`), so a command matches by
- * position and nowhere else; re-read both when the `pypi:graphifyy` pin in mise.toml moves. Every
- * other command still runs: `query`, `path` and `explain` read the graph, and `extract` builds it
- * as `mise run code-graph` does.
+ * position and nowhere else; re-read both when the graphify version in use moves. Every
+ * other command still runs: `query`, `path` and `explain` read the graph, and `extract` builds it.
  */
 const ERODES = 'the local code graph through the path that erodes its document layer'
 const GRAPHIFY_ERODING = new Map([
@@ -709,9 +706,8 @@ function graphifyArgs(tokens) {
 }
 
 const GRAPHIFY = (words, does) =>
-  `\`graphify ${words}\` ${does} (docs/decisions.md § D-20). A person builds and refreshes the ` +
-  'graph with `mise run code-graph`, which spends their own plan, so do not run it yourself; if the ' +
-  'graph needs a refresh, say so in your report.'
+  `\`graphify ${words}\` ${does}. A person builds and refreshes the graph, which spends their own ` +
+  'plan, so do not run it yourself; if the graph needs a refresh, say so in your report.'
 
 /** The reason to deny a graphify call with these arguments, or `null` to allow it. */
 function graphifyDenial(args) {
@@ -788,8 +784,7 @@ const linked = inLinkedWorktree(dir)
 const stray = linked ? null : strayWorktreeDir(dir)
 
 // A worktree the script did not provision is refused whole by `guard-unprovisioned-worktree.mjs`,
-// which runs beside this hook on every Bash command, off the high-risk floor (docs/decisions.md
-// § D-58).
+// which runs beside this hook on every Bash command, off the high-risk floor.
 
 // FAILING CLOSED IS A WORKTREE RULE, NOT A GLOBAL ONE. Inside a linked worktree an unreadable
 // payload must not be waved through -- that was the original defect. In the primary checkout the

@@ -1,9 +1,9 @@
-# `tools/policy/`
+# `policy/`
 
 **The workflow's policy: every constant a prompt or a tool reads, each under a key with its reason
 beside it, in one record per kind of key.** The records split the constants by who may change them
 and who reads them (`docs/decisions.md` § D-27). Every record is a hand-authored decision record
-(`CLAUDE.md` § Three kinds of file, and never a fourth): it opens with `describes`,
+(`AGENTS.md` § Three kinds of file, and never a fourth): it opens with `describes`,
 `whyThisFileExists`, `gatedBy`, `whatItDoesNOTDo` and `provenance`, and gives each constant a
 `<key>Means` sibling.
 

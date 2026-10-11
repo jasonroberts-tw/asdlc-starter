@@ -20,23 +20,12 @@
  *     elsewhere answered for where it ran; and the post-checkout hook `git worktree add` runs in the
  *     new worktree got no `GIT_DIR` either;
  *   - no hook from either got `GIT_WORK_TREE`.
- * The steps of those runs and every value they printed are in asdlc-openspec-y1f's notes.
  * Every `GIT_*` key is dropped all the same, because an index named by an absolute path is as
  * wrong for a scratch repository as a git directory is, and a caller may set any of them. The
- * incident: on 2026-10-01 `code-graph:selftest`, run by the pre-push hook from a linked worktree,
+ * incident: on 2026-10-01 a code-graph selftest, run by the pre-push hook from a linked worktree,
  * committed its fixture onto the branch being pushed, because its git calls kept the hook's
- * `GIT_DIR`; commit 21e4a95 moved them onto `gitEnv()`. `citations:selftest` asserts that
+ * `GIT_DIR`; moving them onto `gitEnv()` fixed it. `citations:selftest` asserts that
  * `gitEnv()` leaks no `GIT_*` key.
- *
- * WHAT A RETIREMENT TOOK OUT. This function came from `tools/lib/sibling-root.ts`, which
- * `docs/decisions.md` § D-15 deleted with the pipeline graph: `resolveSiblingRoot` and
- * `primaryCheckout` found a sibling checkout beside the primary one, and nothing here reads one.
- * `tools/lib/estate-root.ts`, its copy from before a rename, went with it.
- *
- * WHAT A SECOND EMITTER BROUGHT IN. `gitIn`, `gitOk` and `SCRATCH_GIT_ENV` came from
- * `tools/trace/trace.ts` when `tools/coupling/coupling.ts` needed them too (asdlc-openspec-3oln,
- * 2026-10-02): imported from trace, they would have loaded trace's own imports on every coupling
- * run, and a retirement of trace would have taken coupling's git runner with it.
  *
  * INVOCATION. Imported, never run:
  * `import { gitEnv, gitIn, gitOk, SCRATCH_GIT_ENV, type Git } from '../lib/git-env.ts'`.

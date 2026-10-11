@@ -1,6 +1,6 @@
 /**
  * The git hook runner. Git's config-based hooks call it, one `hook.asdlc-<event>` entry per event,
- * and it runs that event's jobs from `git-hooks.yml` (`docs/decisions.md` § D-19).
+ * and it runs that event's jobs from `git-hooks.yml`.
  *
  * WHAT IT DOES. It reads `git-hooks.yml`, which keeps lefthook's schema, and only the part of it this
  * repository used: hook keys `jobs` and `parallel`; job keys `name`, `run`, `glob`, `env` and
@@ -13,17 +13,17 @@
  * A job runs when it has no glob, when one of its globs matches one of those files
  * (`path.matchesGlob`, under which `*` stops at `/`), or when the run is forced. It prints one line
  * per job, the jobs it skipped and why, and a total; a failing job also prints the last
- * `gitHooksFailedOutputBytes` (in `tools/policy/tool-settings.json`) of its output and the path of
+ * `gitHooksFailedOutputBytes` (in `policy/tool-settings.json`) of its output and the path of
  * a file holding all of it.
  *
  * THE FAILURE IT EXISTS TO PREVENT. lefthook ran these jobs until this runner replaced it, and
- * `asdlc-openspec-pp6` lists what that cost, each with its evidence:
+ * this is what that cost:
  *   - its npm postinstall rewrote the hooks every checkout shares from whichever worktree last ran
  *     `npm ci`: on 2026-10-01 all five shims named the binary of one worktree,
- *     `wf_a32cb9f8-89a-2` (`asdlc-openspec-uc1`, step 0a);
+ *     `wf_a32cb9f8-89a-2`;
  *   - its install renamed another tool's hook `<hook>.old`, which never runs, and erased a section
  *     appended to its own shim: the tracker's sections the dev container appended on 2025-09-25
- *     survived only as `.backup` copies (the same step);
+ *     survived only as `.backup` copies;
  *   - its bare run skipped every job and exited 0 when the push changed nothing ("36 jobs
  *     skipped, 0.11s, exit 0");
  *   - `npm run gates` printed 34-108 KB. On 2026-10-01 a run with one failing job printed
@@ -33,7 +33,7 @@
  *   - a run by hand saw a different environment from a real push, which once let a selftest pass
  *     by hand and damage the repository under a real push (the header of
  *     `scripts/hooks/worktree-hooks.selftest.mjs`).
- * The wrong fix weighed first was lefthook, hardened: D-19 says what it left. If this runner were
+ * The wrong fix weighed first was lefthook, hardened. If this runner were
  * wrong, a glob it misread would stop a gate on exactly the pushes that change its inputs, and a
  * skip it did not print would read as a pass; `--selftest` holds both.
  *
@@ -53,7 +53,7 @@
  *   mise run hooks:selftest  (--selftest) every refusal and every path above, in scratch repositories
  *   GIT_HOOKS_FORCE=1       runs every job, whatever its glob
  *   GIT_HOOKS_SKIP=1        runs none, and says so
- *   GIT_HOOKS_ROOT=<dir>    reads `git-hooks.yml` and `tools/policy/` from a doctored copy, and
+ *   GIT_HOOKS_ROOT=<dir>    reads `git-hooks.yml` and `policy/` from a doctored copy, and
  *                           runs its jobs and git there
  *
  * NEEDS. Git 2.54.0 or later, the first that reads `hook.*` (the install and the gates refuse an
@@ -89,7 +89,7 @@ const JOB_FILE = 'git-hooks.yml'
 /** The policy's loader, which the selftest's scratch repositories copy beside this file. */
 const LOADER = 'tools/lib/policy.ts'
 /** The record that holds the cap, named in a refusal. */
-const CAP_RECORD = 'tools/policy/tool-settings.json'
+const CAP_RECORD = 'policy/tool-settings.json'
 const CAP_KEY = 'gitHooksFailedOutputBytes'
 /** The events this runner installs, in the order Git meets them in a commit and a push. */
 const EVENTS = ['pre-commit', 'prepare-commit-msg', 'post-checkout', 'post-merge', 'pre-push']
@@ -323,7 +323,7 @@ function classicWarnings(event) {
   if (text.includes(BEADS_SECTION)) {
     warnings.push(
       `warning: ${path} carries the tracker's own hook, so bd runs a second time after its job in` +
-        ` ${JOB_FILE}; remove that section (docs/decisions.md § D-22)`,
+        ` ${JOB_FILE}; remove that section`,
     )
   }
   return warnings
@@ -640,7 +640,7 @@ function install({ prepare }) {
     } else if (text.includes(BEADS_SECTION)) {
       console.log(
         `${label}: left      ${path}: the tracker's own hook. Git runs it after this runner, so bd` +
-          ` runs twice for ${name}; remove its section (docs/decisions.md § D-22)`,
+          ` runs twice for ${name}; remove its section`,
       )
     }
   }
@@ -717,10 +717,8 @@ async function main() {
 /**
  * Whether `pid` names a process that has not exited. A zombie has exited and waits on a parent to reap
  * it, and `process.kill(pid, 0)` still finds it; where PID 1 reaps no orphan, as in the dev container,
- * a job the runner killed stays one, so on Linux its state in `/proc` decides (asdlc-openspec-c17k). A
- * `/proc` it cannot read leaves the signal's answer, so a job that runs on is never read as gone.
- * `scripts/fresh-run.mjs` holds the same reading for its selftest, and `alive` in
- * `scripts/code-graph.mjs` still lacks it (asdlc-openspec-29nx).
+ * a job the runner killed stays one, so on Linux its state in `/proc` decides. A `/proc` it cannot
+ * read leaves the signal's answer, so a job that runs on is never read as gone.
  */
 function pidRuns(pid) {
   const signalled = () => {
@@ -880,7 +878,7 @@ async function readingCases(base, record) {
       name: 'a policy that cannot be read is refused',
       doctor: (t) => t,
       removePolicy: true,
-      expect: /tools\/policy\/ cannot be read at .*no policy record/,
+      expect: /policy\/ cannot be read at .*no policy record/,
     },
   ]
   for (const [index, { name, doctor, policy, removeJobs, removePolicy, expect }] of cases.entries()) {

@@ -3,10 +3,9 @@
  *
  * TWO CALLERS spawned `bd` and each used to resolve it on its own: `scripts/check-beads.mjs` with
  * `execFileSync('bd', ...)` and a catch-all that turned every error into "bd is not installed", and
- * the learning loop's filing step, `tools/outcomes/propose.ts`, with
+ * the learning loop's filing step, with
  * `spawnSync('bd', args, { shell: process.platform === 'win32' })` and Node's DEP0190 warning on
- * every run. That step is retired with the loop (`docs/decisions.md` § D-06); `check-beads.mjs` is
- * the one caller left.
+ * every run. That step is retired with the loop; `check-beads.mjs` is the one caller left.
  *
  * THE FAILURE THIS EXISTS TO PREVENT. On native Windows `bd` is the npm package `@beads/bd`, and what
  * `where bd` finds is `%APPDATA%\npm\bd` -- a `#!/bin/sh` shim, beside `bd.cmd` and `bd.ps1`, all
@@ -18,9 +17,8 @@
  * looked is the mirror of the failure `check-beads.mjs`'s own header argues against, and nothing in
  * the output told the two apart.
  *
- * Since 2026-10-03 every machine set up from README.md § Setup takes `bd` from mise
- * (`docs/decisions.md` § D-31), whose shims on Windows are `.exe` files by default, so the first
- * rule below finds `bd.exe`. That has not been run on Windows here (asdlc-openspec-8juz.9). The npm
+ * Since 2026-10-03 every machine takes `bd` from mise, whose shims on Windows are `.exe` files by
+ * default, so the first rule below finds `bd.exe`. That has not been run on Windows here. The npm
  * rule stays for a machine set up the old way.
  *
  * WHAT THIS RESOLVES, in PATH order, first hit wins:
@@ -47,8 +45,8 @@
  * either a real `.exe` or `process.execPath`, both of which CreateProcess starts.
  *
  * `resolveBd()` takes the platform, the environment and the PATH delimiter as OPTIONS, defaulting to
- * the process's own, so `bd-launcher.selftest.ts` can walk the win32 branch on a Linux host with a
- * fixture directory in place of `%APPDATA%\npm`. Nothing here reads `../sibling`.
+ * the process's own, so a selftest can walk the win32 branch on a Linux host with a fixture
+ * directory in place of `%APPDATA%\npm`. Nothing here reads `../sibling`.
  */
 import { spawnSync } from 'node:child_process'
 import { accessSync, constants, statSync } from 'node:fs'
@@ -214,7 +212,7 @@ export function describeLauncher(launcher: BdLauncher): string {
 
 /**
  * Run `bd <args>` through a resolved launcher. Never throws; `NO_COLOR=1` is set because bd 1.2.2
- * probes the terminal with escape sequences otherwise (the `git-hooks.yml` `beads` jobs' note).
+ * probes the terminal with escape sequences otherwise.
  */
 export function runBd(launcher: BdLauncher, args: string[], options: RunOptions = {}): BdRun {
   const run = spawnSync(launcher.command, [...launcher.prefix, ...args], {
@@ -234,7 +232,7 @@ export function runBd(launcher: BdLauncher, args: string[], options: RunOptions 
   }
 }
 
-/** Where the win32 branch expects `@beads/bd`'s `bd.js` relative to a shim's directory; the selftest builds its fixture there. */
+/** Where the win32 branch expects `@beads/bd`'s `bd.js` relative to a shim's directory, where a selftest builds its fixture. */
 export function packageMainBeside(shimDir: string): string {
   return join(shimDir, ...PACKAGE_MAIN)
 }

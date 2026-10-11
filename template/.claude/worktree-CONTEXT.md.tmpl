@@ -26,7 +26,7 @@ Other agents and humans are editing this repository right now, in worktrees you 
 - Commit and force-push freely, to `{{BRANCH}}` only.
 - Open every pull request with the `open-pr` skill. It names `main` as the base rather than letting a tool infer one, and opens the pull request ready for review, never as a draft unless the request says draft.
 
-`scripts/hooks/guard-git.mjs` enforces the rules above on every Bash command — including refusing a `gh pr create` that does not name `main` as its base, and a `gh pr merge` past the required checks — so a slip is refused rather than silently landing on someone else's work. The refusal text says what to do instead; read it rather than retrying a variation. Claude Code's own worktree isolation refuses too (verified against the CLI, 2.1.292): a git command naming git twice, as in a file name, and a command such as `bd`, `gh` or `docker exec` whose text names git. Leave the word out where you can; a step that needs it is a person's (`CLAUDE.md` § Guards).
+`scripts/hooks/guard-git.mjs` enforces the rules above on every Bash command — including refusing a `gh pr create` that does not name `main` as its base, and a `gh pr merge` past the required checks — so a slip is refused rather than silently landing on someone else's work. The refusal text says what to do instead; read it rather than retrying a variation. Claude Code's own worktree isolation refuses too (verified against the CLI, 2.1.292): a git command naming git twice, as in a file name, and a command such as `bd`, `gh` or `docker exec` whose text names git. Leave the word out where you can; a step that needs it is a person's (`AGENTS.md` § Guards).
 
 ## Environment
 

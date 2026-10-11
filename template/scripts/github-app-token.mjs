@@ -1,7 +1,7 @@
 /**
- * The agents' GitHub App tokens, for `git` and `gh` in the dev container (`docs/decisions.md`
- * § D-51). It mints an installation access token for the App `githubAppId` names, on the
- * installation `githubAppInstallationId` names (`tools/policy/tool-settings.json`), for the one
+ * The agents' GitHub App tokens, for `git` and `gh` in the dev container. It mints an
+ * installation access token for the App `githubAppId` names, on the
+ * installation `githubAppInstallationId` names (`policy/tool-settings.json`), for the one
  * repository `githubAppTokenRepository` names, signing the request with the App's private key: the
  * one `.pem` file in the directory `GITHUB_APP_KEY_DIR` names, which
  * `.devcontainer/devcontainer.json` mounts read-only. It keeps the token in a file only
@@ -28,12 +28,12 @@
  * the one token is minted, so nothing there mints a second.
  *
  * THE FAILURE IT EXISTS TO PREVENT. No incident yet: it came with the container that acts as the
- * App (asdlc-openspec-owva.4). Were it wrong, a session past its first hour would be refused its next
+ * App. Were it wrong, a session past its first hour would be refused its next
  * push or `gh` call, which reads as a network or permission fault rather than an expired token; a
  * kept token another user could read, or one answered for another host, would hand the App's
  * identity to them; and a key directory holding two keys would sign with whichever it read first,
  * and be refused whenever that one was revoked. A token asked for with no repository reached all 8
- * the installation covered on 2026-10-06, where this one alone was meant (asdlc-openspec-t4cz). A
+ * the installation covered on 2026-10-06, where this one alone was meant. A
  * wrong `identity` would put another account's name or address on every commit the container makes.
  * So it refuses a key directory without exactly one `.pem`, a policy without a key its subcommand
  * reads, and an answer from GitHub without a token and its expiry, each by its reason, and never
@@ -60,9 +60,8 @@
  * selftest that sources `.devcontainer/entrypoint.sh` and reads the Dockerfile, it also holds the
  * rest of the container's start that needs no image: the entrypoint's `tracing`, against a stub
  * `claude` and a canary secret no output may carry, its `statusline`,
- * `.devcontainer/statusline.sh` through `sh`, and the Dockerfile's `NO_COLOR` for `bd` alone
- * (asdlc-openspec-ikr3, asdlc-openspec-07bm); and the entrypoint's `clone`, against a local
- * repository git reads as GitHub's address (asdlc-openspec-vvns).
+ * `.devcontainer/statusline.sh` through `sh`, and the Dockerfile's `NO_COLOR` for `bd` alone;
+ * and the entrypoint's `clone`, against a local repository git reads as GitHub's address.
  */
 import { spawn } from 'node:child_process'
 import { createPrivateKey, createSign, createVerify, generateKeyPairSync } from 'node:crypto'
@@ -99,11 +98,11 @@ function settings(root) {
   const policy = readPolicy(root)
   const bad = NUMBER_KEYS.filter((key) => !Number.isInteger(policy[key]) || policy[key] <= 0)
   if (bad.length > 0) {
-    throw new Refusal(`${bad.map((key) => `\`${key}\``).join(', ')} must each be a whole number above 0 in tools/policy/ under ${root}`)
+    throw new Refusal(`${bad.map((key) => `\`${key}\``).join(', ')} must each be a whole number above 0 in policy/ under ${root}`)
   }
   const repository = policy.githubAppTokenRepository
   if (typeof repository !== 'string' || !/^[\w.-]+$/.test(repository)) {
-    throw new Refusal(`\`githubAppTokenRepository\` must be a repository's bare name in tools/policy/ under ${root}, not ${JSON.stringify(repository ?? null)}`)
+    throw new Refusal(`\`githubAppTokenRepository\` must be a repository's bare name in policy/ under ${root}, not ${JSON.stringify(repository ?? null)}`)
   }
   return { appId: policy.githubAppId, installationId: policy.githubAppInstallationId, refreshSeconds: policy.githubAppTokenRefreshSeconds, repository }
 }
@@ -118,9 +117,9 @@ function identity(root) {
   const login = policy.githubAppBotLogin
   const id = policy.githubAppBotUserId
   if (typeof login !== 'string' || !/^[\w.-]+\[bot\]$/.test(login)) {
-    throw new Refusal(`\`githubAppBotLogin\` must be a bot account's login, ending [bot], not ${JSON.stringify(login ?? null)} in tools/policy/ under ${root}`)
+    throw new Refusal(`\`githubAppBotLogin\` must be a bot account's login, ending [bot], not ${JSON.stringify(login ?? null)} in policy/ under ${root}`)
   }
-  if (!Number.isInteger(id) || id <= 0) throw new Refusal(`\`githubAppBotUserId\` must be a whole number above 0 in tools/policy/ under ${root}`)
+  if (!Number.isInteger(id) || id <= 0) throw new Refusal(`\`githubAppBotUserId\` must be a whole number above 0 in policy/ under ${root}`)
   return `user.name=${login}\nuser.email=${id}+${login}@users.noreply.github.com\n`
 }
 
@@ -136,7 +135,7 @@ function readKey() {
   }
   const pems = names.filter((name) => name.endsWith('.pem')).sort()
   if (pems.length !== 1) {
-    throw new Refusal(`${dir} holds ${pems.length} .pem files${pems.length > 0 ? ` (${pems.join(', ')})` : ''}, where it must hold the App's one private key (.devcontainer/README.md)`)
+    throw new Refusal(`${dir} holds ${pems.length} .pem files${pems.length > 0 ? ` (${pems.join(', ')})` : ''}, where it must hold the App's one private key`)
   }
   const path = join(dir, pems[0])
   try {
@@ -465,7 +464,7 @@ const keepsKeys = (r) => ![LANGFUSE_KEYS.LANGFUSE_PUBLIC_KEY, LANGFUSE_KEYS.LANG
  * something in the workspace first. Returns the run and the workspace.
  */
 async function cloneStep(ctx, { prepare } = {}) {
-  const policyFile = join(ctx.env.GITHUB_APP_TOKEN_ROOT, 'tools', 'policy', 'tool-settings.json')
+  const policyFile = join(ctx.env.GITHUB_APP_TOKEN_ROOT, 'policy', 'tool-settings.json')
   const policy = JSON.parse(readFileSync(policyFile, 'utf8'))
   const github = join(ctx.dir, 'github')
   const source = join(github, String(policy.githubAppRepositoryOwner), `${policy.githubAppTokenRepository}.git`)
@@ -706,12 +705,12 @@ function cases() {
     {
       name: 'a policy without `githubAppId` is refused, naming it',
       doctor: (root) => editPolicy(root, (policy) => delete policy.githubAppId),
-      check: async (ctx) => refused(await tokenRun(ctx), /^github-app-token: `githubAppId` must each be a whole number above 0 in tools\/policy\//, ctx),
+      check: async (ctx) => refused(await tokenRun(ctx), /^github-app-token: `githubAppId` must each be a whole number above 0 in policy\//, ctx),
     },
     {
       name: 'a policy without `githubAppTokenRepository` is refused, naming it, rather than mint a token for every repository',
       doctor: (root) => editPolicy(root, (policy) => delete policy.githubAppTokenRepository),
-      check: async (ctx) => refused(await tokenRun(ctx), /`githubAppTokenRepository` must be a repository's bare name in tools\/policy\/ under .*, not null/, ctx),
+      check: async (ctx) => refused(await tokenRun(ctx), /`githubAppTokenRepository` must be a repository's bare name in policy\/ under .*, not null/, ctx),
     },
     {
       name: 'a policy whose `githubAppTokenRefreshSeconds` is 0 is refused, naming it',

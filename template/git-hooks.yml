@@ -5,7 +5,7 @@ pre-push:
       glob:
         - 'scripts/git-hooks.mjs'
         - 'git-hooks.yml'
-        - 'tools/policy/**'
+        - 'policy/**'
         - 'tools/lib/policy.ts'
         - 'tools/lib/git-env.ts'
         - 'tasks.toml'
@@ -14,7 +14,7 @@ pre-push:
       run: mise run hooks:selftest
     - name: check-policy
       glob:
-        - 'tools/policy/**'
+        - 'policy/**'
         - 'tools/policy.json'
         - 'tools/lib/policy.ts'
         - 'scripts/check-policy.mjs'
@@ -22,7 +22,7 @@ pre-push:
       run: mise run check:policy
     - name: check-policy-selftest
       glob:
-        - 'tools/policy/**'
+        - 'policy/**'
         - 'tools/lib/policy.ts'
         - 'scripts/check-policy.mjs'
         - 'tasks.toml'
@@ -34,6 +34,7 @@ pre-push:
         - 'tools/citations/**'
         - 'tools/lib/**'
         - 'CLAUDE.md'
+        - 'AGENTS.md'
         - 'README.md'
         - '.claude/**'
         - '.beads/formulas/**'
@@ -48,7 +49,7 @@ pre-push:
         - '.devcontainer/Dockerfile'
         - '.devcontainer/entrypoint.sh'
         - '.devcontainer/statusline.sh'
-        - 'tools/policy/**'
+        - 'policy/**'
         - 'tools/lib/policy.ts'
         - 'tools/lib/git-env.ts'
         - 'tasks.toml'
@@ -64,7 +65,7 @@ pre-push:
     - name: beads-selftest
       glob:
         - 'scripts/check-beads.mjs'
-        - 'tools/policy/**'
+        - 'policy/**'
         - 'tools/lib/policy.ts'
         - 'tools/lib/bd-launcher.ts'
         - 'tasks.toml'

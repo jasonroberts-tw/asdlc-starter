@@ -25,13 +25,13 @@
  * cover the citations that adopted it, where a repository holds many that have not. This takes citations exactly as they are WRITTEN, anywhere in the
  * repository, and asserts the cheap thing: that a reader following the pointer arrives somewhere real.
  *
- * What it leaves is whether that somewhere SAYS what the citing sentence claims, which
- * `tools/citations/support.ts` judges. The two are complements, and the division is deliberate:
+ * What it leaves is whether that somewhere SAYS what the citing sentence claims. The two are
+ * complements, and the division is deliberate:
  *
  *   - resolution -> here, a gate: catches the pointer that now lands on nothing, on a line past the
  *     end of the file, on a blank, or on a file that has since been RETIRED out from under its old name
- *   - support -> `support.ts`, an advisory a person reads: a TypeSafe judgment over the citing lines
- *     and the cited section, so it reads a token and the network and can never be part of this gate
+ *   - support -> a judgment over the citing lines and the cited section, which needs a reader rather
+ *     than a rule and so can never be part of this gate
  *
  * That last one was added after review, and it is the case where resolving too helpfully would have
  * been worse than not checking: retirement moves a file without rewriting the pointers into it, so
@@ -49,29 +49,27 @@
  *
  * WHAT IT DELIBERATELY DOES NOT CHECK.
  *
- *   - QUOTATIONS. A retest log quotes stale citations on purpose, and
- *     `docs/retired/` records what a retired document said (the correction log frozen there since
- *     a later decision records what a correction SAID at the time). CLAUDE.md exempts quotations from the count index for exactly
- *     this reason, and the same logic applies here: a gate that fails on the record of a past defect
- *     is a gate nobody can make green, so it gets deleted and checks nothing. See `HISTORY`.
+ *   - QUOTATIONS. A retest log quotes stale citations on purpose, and `docs/retired/` records what a
+ *     retired document said. A gate that fails on the record of a past defect is a gate nobody can
+ *     make green, so it gets deleted and checks nothing. See `HISTORY`.
  *   - WHETHER THE CITED LINE SAYS WHAT THE CITER CLAIMS. That needs a judgment over two texts, not a
- *     rule, so `tools/citations/support.ts` makes it as an advisory (`mise run citations:support`).
- *     Resolution is the half that can be checked deterministically, which is why it is the gate.
+ *     rule, so it is left to a reader. Resolution is the half that can be checked deterministically,
+ *     which is why it is the gate.
  *   - NUMERALS restated from another document. A prompt that repeats a corpus count it did not
  *     derive is a real and more expensive defect, but it needs a policy about prompt-embedded
- *     numerals rather than a scanner. Tracked separately.
+ *     numerals rather than a scanner.
  *   - BARE FILENAME MENTIONS -- a backticked `X.md` carrying no `:NN` and no `§`. `LINE_RE` and
  *     `SECTION_RE` below both require a locator, so a bare name is outside the definition of a
- *     citation used here. **That was measured and refused, not overlooked: see a later decision.** A tracked
- *     issue walked every one of them. A blanket rule produces 327 findings, of which the large
+ *     citation used here. **That was measured and refused, not overlooked.** A survey walked every
+ *     one of them. A blanket rule produces 327 findings, of which the large
  *     majority are correct writing: shorthand for a path the document states once, and deliberate
- *     mentions of files a later decision deleted (where the mention IS the record). The
+ *     mentions of deleted files (where the mention IS the record). The
  *     narrow version -- a live file naming a RETIRED file by bare basename must spell the
  *     `docs/retired/` path -- flags 11, of which 10 are correct; one of those 10 is a frozen grep
  *     result its own document declares literal, so the rule would demand falsifying evidence.
  *     **Do not add either rule here.** The residue is real but semantic -- a bare name is a defect
- *     only when the passage presents the file as extant -- so a later decision makes it a review habit and
- *     names the one mechanical shape worth fixing on sight: a source attribution, "per `X.md`",
+ *     only when the passage presents the file as extant -- so it stays a review habit, with one
+ *     mechanical shape worth fixing on sight: a source attribution, "per `X.md`",
  *     with no locator.
  *
  * Reads only this repository, needs no `../sibling` checkout and no network.
@@ -84,7 +82,7 @@ import { ROOT } from '../lib/paths.ts'
 /**
  * The checkout this gate reads: the repository, or the doctored copy `CITATIONS_ROOT` names. The
  * selftest points the gate at a synthetic tree under the temporary directory through it, and a
- * by-hand run can do the same without editing anything (`CLAUDE.md` § Standing rules for prompts
+ * by-hand run can do the same without editing anything (`AGENTS.md` § Standing rules for prompts
  * and gates). Every path below is relative to it.
  */
 export const SCAN_ROOT = process.env.CITATIONS_ROOT ? resolve(process.env.CITATIONS_ROOT) : ROOT
@@ -92,13 +90,13 @@ export const SCAN_ROOT = process.env.CITATIONS_ROOT ? resolve(process.env.CITATI
 /**
  * Text files worth scanning. Anything else is either binary or has no citations in it.
  *
- * `tmpl` and `sh` were added on 2026-09-26 (`asdlc-openspec-5sc`). Until then the worktree
- * briefing's template cited `docs/decisions.md` § D-04, and a shell script's comment could cite any
+ * `tmpl` and `sh` were added on 2026-09-26. Until then the worktree briefing's template cited a
+ * decision-register entry, and a shell script's comment could cite any
  * section, with no gate reading either. Measured before they were added: the three tracked files of
  * those types held one pointer in the form this gate reads, and it resolved.
  *
- * `toml` was added on 2026-10-04 (`asdlc-openspec-8juz.11`), when each task's description moved from
- * `README.md` § The tasks, which this gate reads, into `tasks.toml`, which it did not: the move would
+ * `toml` was added on 2026-10-04, when each task's description moved from the README's table of
+ * tasks, which this gate reads, into `tasks.toml`, which it did not: the move would
  * have left the three section pointers those descriptions carry unread. Until then `mise.toml`'s
  * comments and `tasks.toml`'s header went unread too. Measured before it was added, through
  * `citationsIn`: the three tracked files of that type held 14 pointers in the forms this gate reads,
@@ -288,10 +286,10 @@ export function trackedFiles(): string[] {
 /**
  * Whether the gate also reads the files git lists as untracked and not ignored. Off unless
  * `CITATIONS_UNTRACKED=1`, so off at pre-push and in CI, where a file nobody has added is not part
- * of what is pushed. The Stop hook turns it on (`scripts/hooks/gate-summary.mjs`): in a session the
- * newest file is the likeliest to carry a bad pointer, and until it is staged a gate over tracked
- * files never reads it. On 2026-09-24 the hook printed PASS at every one of a change's 33 stops while
- * the change's unstaged design sat unread (asdlc-openspec-hp8).
+ * of what is pushed. A Stop hook can turn it on: in a session the newest file is the likeliest to
+ * carry a bad pointer, and until it is staged a gate over tracked files never reads it. On 2026-09-24
+ * such a hook printed PASS at every one of a change's 33 stops while the change's unstaged design
+ * sat unread.
  */
 export const INCLUDE_UNTRACKED = process.env.CITATIONS_UNTRACKED === '1'
 
@@ -323,10 +321,9 @@ export function historyReason(file: string): string | null {
  *
  * Three strategies, in order. Most citations are written relative to the repository root, but plenty
  * are written relative to the citing file's own directory, and a third group names only a BASENAME
- * (`SKILL.md:78` from inside a mirror's README, describing a mirrored tree one directory down -- the
- * shape the `reference/` skill mirror's README had until a later decision deleted that mirror; the selftest
- * keeps the case on synthetic paths). The basename strategy demands a UNIQUE match: two files with the same name make the
- * citation genuinely ambiguous, and guessing which was meant is how a checker starts asserting the
+ * (`SKILL.md:78` from inside a mirror's README, describing a mirrored tree one directory down; the
+ * selftest keeps the case on synthetic paths). The basename strategy demands a UNIQUE match: two
+ * files with the same name make the citation genuinely ambiguous, and guessing which was meant is how a checker starts asserting the
  * wrong thing confidently.
  */
 export function resolveTarget(
@@ -335,7 +332,7 @@ export function resolveTarget(
   tracked: ReadonlySet<string>,
   byName: ReadonlyMap<string, string[]>,
 ): { path: string } | { error: string } {
-  // REPOSITORY-ROOT FIRST, because that is this repository's convention -- CLAUDE.md writes every
+  // REPOSITORY-ROOT FIRST, because that is this repository's convention -- AGENTS.md writes every
   // path from the root, and so does almost every citation. Trying the citing file's own directory
   // first read `README.md:368` in `docs/some-plan.md` as `docs/README.md`, which is 37
   // lines long, and reported a live pointer into the 440-line root README as past the end of a file.
@@ -349,8 +346,8 @@ export function resolveTarget(
   if (ending.length === 1) return { path: ending[0] as string }
   if (ending.length > 1) {
     // NEAREST WINS. `SKILL.md` was the name of five tracked files when this was written, four of
-    // them Claude Code skills; cited from inside the `reference/` skill mirror's README (deleted by
-    // a later decision) it unambiguously meant the one in the mirrored tree beside it. Preferring the deepest shared
+    // them Claude Code skills; cited from inside a skill mirror's README it unambiguously meant the
+    // one in the mirrored tree beside it. Preferring the deepest shared
     // prefix with the citing file is how a human reads a bare filename, and without it every common
     // basename is reported ambiguous forever.
     const nearest = ending
@@ -402,7 +399,7 @@ function sharedPrefixLength(a: string, b: string): number {
 
 /**
  * AN `isDeliveredPackage(file)` PREDICATE STOOD HERE, matching a delivered package's directory,
- * and a later decision deleted it with the packages. The argument is kept because the SHAPE will recur the next
+ * and was deleted with the packages. The argument is kept because the SHAPE will recur the next
  * time this repository copies documents under new paths.
  *
  * It excluded a delivered handoff package from this gate on BOTH sides, for two different reasons.
@@ -417,7 +414,7 @@ function sharedPrefixLength(a: string, b: string): number {
  * IF A FUTURE NODE COPIES DOCUMENTS UNDER NEW PATHS, that second failure returns on the day the copy
  * lands, and the fix is this predicate again: filter the BASENAME INDEX and never `trackedSet`, so a
  * citation spelling the copy's path out in full still resolves while a bare basename cannot silently
- * reach it. Recover the original from `git show <a later decision>^:tools/citations/scan.ts`.
+ * reach it.
  */
 
 /** Index of basename -> every tracked path with that basename. */
@@ -519,10 +516,10 @@ function stripWrapper(s: string): string {
 
   // AN UNQUOTED NAME ENDS AT A QUOTE NO LETTER FOLLOWS, ONCE THE NAME HAS BEGUN: the quote closing a
   // string literal the whole pointer sits in, as in `includes('docs/decisions.md § D-20')`, which the
-  // gate read as a section called "D-20'" once it read unbackticked names (2026-10-03,
-  // asdlc-openspec-tl0). An apostrophe inside a name, `Reviewer's`, has a letter after it and is
-  // kept. The name begins at its first character that is not a space, quote, `*` or `_`. Cut at
-  // the name's own opening quote instead, as the first version of that change cut,
+  // gate read as a section called "D-20'" once it read unbackticked names (2026-10-03). An
+  // apostrophe inside a name, `Reviewer's`, has a letter after it and is kept. The name begins at
+  // its first character that is not a space, quote, `*` or `_`. Cut at the name's own opening quote
+  // instead, as the first version of that change cut,
   // `§ "3.2 Three names` with no closing quote on its line and `§ "1) Foo"`, which the bracket ends
   // at `"1`, became empty names, and an empty name is dropped as no citation, where the gate before
   // it read `3.2 Three names` and `1` (found by that change's branch review, 2026-10-03). A name cut
@@ -615,7 +612,7 @@ export function namesSection(section: string, lines: readonly string[]): boolean
 /**
  * Whether `§ <text>` is naming a SECTION at all, rather than running on into prose.
  *
- * Section names in this repository are capitalised (`§ Closure`, `§ INVARIANTS`, `§ a later decision`), quoted
+ * Section names in this repository are capitalised (`§ Closure`, `§ INVARIANTS`, `§ Decision`), quoted
  * (`§ "Measured state"`) or numbered (`§5`). A lowercase first word means the `§` was used as a
  * preposition in a sentence -- `` `artifacts/report.md` § header, "Runtime" line `` means
  * the document's header block, not a heading called "header" -- and asserting a heading exists for

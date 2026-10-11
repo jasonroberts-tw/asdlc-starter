@@ -32,6 +32,13 @@ explicitly on every pull request, because a tool that infers one infers the defa
 protected branches are main, release: never push to, switch to or rewrite one from a
 worktree. 
 
+## Worktree-local context
+
+In a worktree the worktree script made, its briefing loads here and wins where it and this file
+disagree. Outside one the file does not exist, and nothing loads.
+
+@.worktree/CONTEXT.md
+
 ## Guards
 
 A refused command or edit is never retried in another shape that reaches the effect the refusal
@@ -44,9 +51,8 @@ itself. Each of those gets past a judgement the session cannot overrule. Read th
   line of the report, since a block would hand the user what the refusal was right to stop; a
   criterion it shows cannot be met goes to the user. A smaller check that passed in its place does
   not make it unneeded.
-- **Its form, not its effect.** The call broke § Bash command style, or a check could not parse it,
-  and a form that section prescribes, or a dedicated tool, does the same work without what was
-  refused. Run that once, since form after form until one passes is the retry barred above; refused
+- **Its form, not its effect.** A check refused how the call was written, or could not parse it,
+  and another form, or a dedicated tool, does the same work without what was refused. Run that once, since form after form until one passes is the retry barred above; refused
   again, take the next case.
 - **Later work needs it.** Finish the work that does not, then stop and give the exact command for
   the user to run as `! <command>`, which puts its output in the session (not verified against the
@@ -134,7 +140,7 @@ failure, never a skip.
 
 Each of these holds from the first file it applies to, and for every one after it.
 - **A rule in a prompt states the failure it prevents in one clause, and carries no incident.** In
-  `CLAUDE.md`, a skill or an agent, the dated incident behind a rule goes in the description of the
+  `AGENTS.md`, a skill or an agent, the dated incident behind a rule goes in the description of the
   pull request that adds or changes the rule, because every session loads the prompt and only the reader who edits the rule needs the incident. That reader finds it from the prompt:
   `git log --format=%h origin/main -- <prompt>` lists the commits that changed it, and
   `gh api repos/{owner}/{repo}/commits/<commit>/pulls` names the pull request each one landed from.

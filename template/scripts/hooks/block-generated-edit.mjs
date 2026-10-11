@@ -6,9 +6,9 @@
  * survives until the next run of the emitter, which silently reverts it -- or until the gate that
  * diffs the two, which turns it into a build failure with no memory of what the edit was for.
  *
- * AND A WORKTREE IT DID NOT SEE. Until 2026-10-03 (asdlc-openspec-d2qv) the hook judged every path
- * against its own checkout, which for a session that has entered a worktree is the primary checkout
- * (`.claude/README.md` § The hooks). An edit to a generated file in a linked worktree, where most
+ * AND A WORKTREE IT DID NOT SEE. Until 2026-10-03 the hook judged every path
+ * against its own checkout, which for a session that has entered a worktree is the primary checkout.
+ * An edit to a generated file in a linked worktree, where most
  * agent work happens, became `.claude/worktrees/<name>/artifacts/...`, which no redirect matched, and
  * passed; the catch-all skips Markdown, so nothing at all held the trace record's README there. The
  * checkout is now placed by the edited file's own path (`editedCheckout`), never by the payload's
@@ -25,8 +25,6 @@
  * Needs `git`, which places the path: four calls inside a checkout and two outside any, each with no
  * `GIT_*` variable, since an inherited `GIT_DIR` would make git place the path in its own directory.
  * With no git on PATH, every path is judged against this hook's own checkout, as before the fix.
- * `gate-summary.selftest.mjs` runs a copy over a scratch repository and its worktrees and prints the
- * hook's wall time.
  */
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'

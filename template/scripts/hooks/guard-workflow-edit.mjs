@@ -5,24 +5,22 @@
  * `checks: write` or `write-all`, to every job or to one, or, in any workflow but `verify.yml`, a
  * job whose id or name is that check's. It refuses, too, an edit that would let a workflow other
  * than `prReviewAppKeyWorkflow` read the agents' App key, whose token approves a pull request the App
- * did not open, or let that one read it on another event or outside its environment
- * (`docs/decisions/asdlc-openspec-ic9h.md` § Decision). The rule is `forgeProblems` in
- * `scripts/pr-review.mjs`, which `pr-review:check` also runs over every workflow at pre-push and in
- * CI; this runs it over the file as the edit would leave it, before the edit lands.
+ * did not open, or let that one read it on another event or outside its environment. The rule is
+ * `forgeProblems` in `scripts/pr-review.mjs`; this runs it over the file as the edit would leave
+ * it, before the edit lands.
  *
- * WHAT IT WOULD LET THROUGH IF IT WERE WRONG. No incident yet. Since 2026-10-08 (asdlc-openspec-t2ly,
- * docs/decisions.md § D-57) GitHub merges a pull request once `verify` passes on its head and one
+ * WHAT IT WOULD LET THROUGH IF IT WERE WRONG. No incident yet. Since 2026-10-08
+ * GitHub merges a pull request once `verify` passes on its head and one
  * approving review stands, so whatever approves, or passes `verify`, decides the merge. A branch
  * whose workflow could write pull requests would approve its own after the reviewer left it to a
  * person, and GitHub would merge a head on the high-risk floor that no person read; one that could
  * write a check or a status, or named a job `verify`, would pass the check on a head `verify.yml`
- * failed. `pr-review:check` refuses such a workflow, but `verify` runs the branch's own copy of that
- * check, which the same branch can weaken; this refuses the edit in the session that makes it.
- * Routine edits pass, such as a gate's step added to `verify.yml`, which 52 commits had made by
- * 2026-10-05 (`git rev-list --count HEAD -- .github/workflows/verify.yml`). It sees Write and Edit
+ * failed. A gate that `verify` runs over the workflows is the branch's own copy, which the same
+ * branch can weaken; this refuses the edit in the session that makes it.
+ * Routine edits pass, such as a gate's step added to `verify.yml`. It sees Write and Edit
  * alone: a workflow written through Bash passes it, and so does a job whose name an expression
  * builds. From 2026-10-05 to that day the grant it refused was the `pr-review` status's, which the
- * ruleset required (docs/decisions.md § D-47).
+ * ruleset required.
  *
  * Exit 2 blocks the edit, and stderr is the reason the agent reads. A Write is judged by its
  * `content`; an Edit by the file with its first `old_string`, or every one under `replace_all`,
@@ -85,7 +83,7 @@ try {
 } catch (error) {
   refuse(
     `${rel} is a workflow, and this edit could not be judged: ${error.message}. A workflow other than ` +
-      `.github/workflows/pr-review.yml must not be able to approve a pull request or pass the required check (docs/decisions.md § D-57), ` +
+      `.github/workflows/pr-review.yml must not be able to approve a pull request or pass the required check, ` +
       'so the edit waits until the file parses and the policy reads.',
   )
 }

@@ -2,7 +2,7 @@
 ["beads:check"]
 description = '''
 Refuses an open issue with no label naming where its work lands; an open issue filed
-`discovered-from` another with no label `assetLabels` in `tools/policy/vocabulary.json` lists or, if
+`discovered-from` another with no label `assetLabels` in `policy/vocabulary.json` lists or, if
 created since the instant `foundAtLabelsSince` there names, none that `foundAtLabels` lists; an open
 issue whose type no row of `issueTypes` there names; and an issue citing an identifier that does not
 resolve here. Without the second, a found issue drops out of `bd count --by-label`, or out of the
@@ -21,9 +21,9 @@ run = "node scripts/check-beads.mjs --selftest"
 
 ["check:policy"]
 description = '''
-Refuses a record under `tools/policy/` without its five header fields, a constant without its
+Refuses a record under `policy/` without its five header fields, a constant without its
 `Means` sibling and a `Means` without its constant, a key two records define, a record
-`tools/policy/README.md` does not name and any other file in the directory, and `tools/policy.json`
+`policy/README.md` does not name and any other file in the directory, and `tools/policy.json`
 back beside the records. Without it a key lands with no reason beside it, two records give one key
 two values and each reader takes one, and a key added to the retired file reaches no reader.'''
 run = "node scripts/check-policy.mjs"

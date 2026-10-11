@@ -4,7 +4,7 @@
 # `.devcontainer/entrypoint.sh` sets it as `statusLine` in the container's settings, run from the
 # clone, so an edit here needs no rebuild.
 #
-# The failure it exists to prevent. No incident yet: it came with asdlc-openspec-07bm. Were it wrong,
+# The failure it exists to prevent. No incident yet. Were it wrong,
 # the status line would show a stale field or none, and nothing else would notice. It reads the JSON
 # with `printf`, never `echo`, which dash, the image's `sh`, runs on backslashes, so a `\n` in a JSON
 # string would reach jq as a newline and leave every field empty.

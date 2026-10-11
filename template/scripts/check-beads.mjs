@@ -1,8 +1,8 @@
 /**
  * Every bead in the tracker stands on its own: it names where its work lands, an open bead a run
  * filed `discovered-from` another names the kinds of file its work would change and, if filed since
- * D-06, the stage that found it, an open bead's type is one the rubric describes, and every
- * identifier it cites resolves from THIS checkout.
+ * the cut-off `foundAtLabelsSince` names, the stage that found it, an open bead's type is one the
+ * rubric describes, and every identifier it cites resolves from THIS checkout.
  *
  * THE FAILURE THIS EXISTS TO PREVENT. A bead is a set of instructions an agent executes months
  * after a human wrote it, and the tracker is the only thing that travels with it. When a bead cites
@@ -15,23 +15,23 @@
  * and it was PUBLISHED into a generated artifact as the stated authority for a hard exclusion
  * rule. The smell escaped the tracker and shipped.
  *
- * AN UNLABELLED FOUND ISSUE IS A HOLE IN A COUNT, AND THE COUNT DOES NOT SHOW IT. `docs/decisions.md`
- * § D-06 retired the run-outcome learning loop and put labels in its place: an issue a run files
+ * AN UNLABELLED FOUND ISSUE IS A HOLE IN A COUNT, AND THE COUNT DOES NOT SHOW IT. Labels took the
+ * place of a retired run-outcome learning loop: an issue a run files
  * `discovered-from` the issue it ran on carries a label that `assetLabels` in
- * `tools/policy/vocabulary.json` lists for each kind of file its work would change, so `bd count --by-label` shows what keeps
- * needing a fix (`CLAUDE.md` § The task store). On 2026-09-26 a fan-out sweep's investigator found
- * asdlc-openspec-egt and asdlc-openspec-pkn open with no such label: both were filed
- * `discovered-from` on 2026-09-23, the day before D-06, and nothing had asked for the label since.
+ * `policy/vocabulary.json` lists for each kind of file its work would change, so `bd count --by-label` shows what keeps
+ * needing a fix. On 2026-09-26 a fan-out sweep's investigator found two issues open with no such
+ * label: both were filed `discovered-from` on 2026-09-23, the day before the labels were decided,
+ * and nothing had asked for the label since.
  * The count left both out and read the same as a complete one. The sweep labelled them by hand, and
  * rule 4 below refuses the next one.
  *
- * THE OTHER HALF OF THE PAIR NEEDS A CUT-OFF, AND IT IS READ, NOT WRITTEN HERE. D-06 counts an asset
- * label beside a `foundAtLabels` label, the stage that found the issue, and rule 4 held only the
- * first. On 2026-09-26 asdlc-openspec-sbp measured five open issues filed `discovered-from` with no
- * found-at label, every one filed before D-06, which `foundAtLabelsMeans` exempts: such an issue
- * carries one only where its own text says which stage found it. On 2026-10-04 no open issue filed
+ * THE OTHER HALF OF THE PAIR NEEDS A CUT-OFF, AND IT IS READ, NOT WRITTEN HERE. The count reads an
+ * asset label beside a `foundAtLabels` label, the stage that found the issue, and rule 4 held only
+ * the first. On 2026-09-26 a measurement found five open issues filed `discovered-from` with no
+ * found-at label, every one filed before the labels were decided, which `foundAtLabelsMeans`
+ * exempts: such an issue carries one only where its own text says which stage found it. On 2026-10-04 no open issue filed
  * since lacked one, so there is no incident yet. Were rule 6 wrong one way, it would pass a found issue
- * filed since D-06 with no stage, and `bd count -l <a found-at label> --by-label` would leave it out
+ * filed since the cut-off with no stage, and `bd count -l <a found-at label> --by-label` would leave it out
  * and read as complete; the other way, with no cut-off, it would refuse the issues the maintainer
  * exempted until someone guessed their stage. So it reads the cut-off, `foundAtLabelsSince`, from the
  * policy, and only a `created_at` that reads as before it exempts an issue.
@@ -39,7 +39,7 @@
  * A TYPE NO ROW DESCRIBES IS ONE NO FILER WAS TOLD WHEN TO USE. Until 2026-10-03 nothing said which
  * type an issue takes, and every filer but two took `bd`'s default. The tracker drifted: three
  * tasks filed from 2026-10-01 to 2026-10-03 carry the `## Steps to Reproduce` that `bd lint` asks of
- * a bug (`docs/decisions.md` § D-29). D-29 answered with a rubric, `issueTypes`, rows tried in
+ * a bug. The answer was a rubric, `issueTypes`, rows tried in
  * order, and rule 5 holds only its vocabulary: it refuses an open bead whose type no row names, so a
  * filer who reaches for `story` or `milestone`, which `bd create --help` also lists, finds the
  * rubric. Wrong, it would pass a type the rubric never describes, and `bd count --by-type` would
@@ -53,13 +53,13 @@
  * would stop saying anything.
  *
  * WHY THE LIVE RUN IS NOT A CI STEP, AND ITS SELFTEST IS. The live run reads the Dolt database
- * through `bd export`. CI has no database, though mise installs the binary there since
- * `docs/decisions.md` § D-31, so it would compare against nothing and pass. It is a `pre-push` job.
+ * through `bd export`. CI has no database, though mise installs the binary there, so it would
+ * compare against nothing and pass. It is a `pre-push` job.
  * Where `bd` is unavailable it SKIPS CLEAN and says so -- a
  * gate that is red on every fresh clone gets bypassed with `--no-verify`, which costs you every other
  * gate too. `--selftest` reads only the fixtures it writes and the committed records under
- * `tools/policy/`, and runs no `bd`, so it is a pre-push job and a `.github/workflows/verify.yml` step both
- * (`CLAUDE.md` § The gate ladder).
+ * `policy/`, and runs no `bd`, so it is a pre-push job and a `.github/workflows/verify.yml` step both
+ * (`AGENTS.md` § The gate ladder).
  *
  * "UNAVAILABLE" MEANS NOT FOUND, AND NOTHING ELSE. `tools/lib/bd-launcher.ts` resolves `bd` on PATH
  * and starts it without a shell; only its `found: false` answer is a skip. A `bd` that IS found and
@@ -81,18 +81,18 @@
  *      Those beads carry the copied bundle facts; a cross-repo bead that does not point at one is
  *      asking the reader to go and open another checkout.
  *   4. An open bead with a `discovered-from` dependency and no label that `assetLabels` in
- *      `tools/policy/vocabulary.json` lists. The list is read from the policy on every run and
+ *      `policy/vocabulary.json` lists. The list is read from the policy on every run and
  *      spelled nowhere here, so a label added there is accepted at once, and a label renamed there
  *      strands every issue that carries the old spelling, as `assetLabelsMeans` warns. A closed bead
  *      is exempt: the count is read for what is still to fix. A policy with no such list, or an
  *      empty one, is a failure, never a pass over nothing.
- *   5. An open bead whose type no row of `issueTypes` in `tools/policy/vocabulary.json` names. The
+ *   5. An open bead whose type no row of `issueTypes` in `policy/vocabulary.json` names. The
  *      types are read from the policy on every run and spelled nowhere here, so a row added there is
  *      accepted at once, and a row renamed or removed there refuses every open bead of the old type,
  *      as `issueTypesMeans` warns. A closed bead keeps the type it closed with. A policy with no
  *      such array, an empty one, or a row with no type is a failure, never a pass over nothing.
  *   6. An open bead with a `discovered-from` dependency, whose `created_at` is not before the instant
- *      `foundAtLabelsSince` in `tools/policy/vocabulary.json` names, and no label `foundAtLabels`
+ *      `foundAtLabelsSince` in `policy/vocabulary.json` names, and no label `foundAtLabels`
  *      there lists. Both are read from the policy on every run and spelled nowhere here, so the
  *      refusal names the bead and the keys and spells no value. A bead whose `created_at` cannot be
  *      read is held, not exempted. A policy with no such list, an empty one, or a cut-off that is not
@@ -109,7 +109,7 @@
  *   BEADS_CHECK_ROOT=<dir> mise run beads:check  the gate over a doctored copy
  *
  * ROOT OVERRIDE. `BEADS_CHECK_ROOT` names a doctored copy: a directory holding the policy's records
- * under `tools/policy/` and `export.jsonl`, one issue per line in the shape `bd export` writes. The gate then reads both from
+ * under `policy/` and `export.jsonl`, one issue per line in the shape `bd export` writes. The gate then reads both from
  * there and runs no `bd`. A copy with no export is a failure, never a fall-back to the live tracker
  * or a skip.
  *
@@ -416,7 +416,7 @@ function runCheck(beads, assetLabels, issueTypes, foundAt) {
       failures.push(
         `${bead.id}: filed \`discovered-from\` ${from.join(', ')} and carries no label that \`${POLICY_KEY}\`\n` +
           `    in ${POLICY} lists (it carries ${carried}). Add one for each kind of file its work\n` +
-          `    would change (CLAUDE.md § The task store): without it \`bd count --by-label\` leaves the\n` +
+          `    would change: without it \`bd count --by-label\` leaves the\n` +
           `    issue out and still reads as complete.`,
       )
     }
@@ -426,8 +426,8 @@ function runCheck(beads, assetLabels, issueTypes, foundAt) {
       const named = [...issueTypes].map((t) => `\`${t}\``).join(', ')
       failures.push(
         `${bead.id}: its type is \`${String(bead.issue_type)}\`, which no row of \`${TYPES_KEY}\` in ${POLICY}\n` +
-          `    names (they name ${named}). Retype it to the first row that fits, \`bd update ${bead.id} -t <type>\`\n` +
-          `    (CLAUDE.md § The task store): a type no row describes is one no filer was told when to use.`,
+          `    names (they name ${named}). Retype it to the first row that fits, \`bd update ${bead.id} -t <type>\`:\n` +
+          `    a type no row describes is one no filer was told when to use.`,
       )
     }
 
@@ -440,7 +440,7 @@ function runCheck(beads, assetLabels, issueTypes, foundAt) {
       failures.push(
         `${bead.id}: filed \`discovered-from\` ${from.join(', ')} at ${at}, not before \`${SINCE_KEY}\`,\n` +
           `    and carries no label that \`${FOUND_KEY}\` in ${POLICY} lists (it carries ${carried}).\n` +
-          `    Add the one for the stage that found it (CLAUDE.md § The task store): without it\n` +
+          `    Add the one for the stage that found it: without it\n` +
           `    \`bd count -l <a found-at label> --by-label\` leaves the issue out and still reads as complete.`,
       )
     }
@@ -560,7 +560,7 @@ function fixture(policy, asset, type, found, since) {
         dependencies: discoveredFrom('fx-working'),
       },
       // Found, open, filed a second before the cut-off, with no found-at label: exempt from rule 6,
-      // as `foundAtLabelsMeans` exempts an issue filed before D-06.
+      // as `foundAtLabelsMeans` exempts an issue filed before the cut-off.
       {
         _type: 'issue',
         id: 'fx-early',
@@ -612,10 +612,10 @@ function cases(asset, type, foundAt, since) {
     new RegExp(`^  ${id}: filed \`discovered-from\` fx-parent and carries no label that \`${POLICY_KEY}\``, 'm')
   const refusedType = (id, carried) =>
     new RegExp(`^  ${id}: its type is \`${carried}\`, which no row of \`${TYPES_KEY}\``, 'm')
-  const noTypes = new RegExp(`^  tools/policy/vocabulary\\.json has no \`${TYPES_KEY}\` array whose every row names a \`type\``, 'm')
+  const noTypes = new RegExp(`^  policy/vocabulary\\.json has no \`${TYPES_KEY}\` array whose every row names a \`type\``, 'm')
   const refusedFoundAt = (id) =>
     new RegExp(`^  ${id}: filed \`discovered-from\` fx-parent at .*, not before \`${SINCE_KEY}\`,\\n {4}and carries no label that \`${FOUND_KEY}\``, 'm')
-  const noSince = new RegExp(`^  tools/policy/vocabulary\\.json has no \`${SINCE_KEY}\` that is an instant in UTC ending in \`Z\``, 'm')
+  const noSince = new RegExp(`^  policy/vocabulary\\.json has no \`${SINCE_KEY}\` that is an instant in UTC ending in \`Z\``, 'm')
   return [
     {
       name: 'control: the undoctored fixture passes',
@@ -657,7 +657,7 @@ function cases(asset, type, foundAt, since) {
       doctor: (fx) => {
         delete fx.policy[POLICY_KEY]
       },
-      expect: new RegExp(`^  tools/policy/vocabulary\\.json has no \`${POLICY_KEY}\` object with at least one label`, 'm'),
+      expect: new RegExp(`^  policy/vocabulary\\.json has no \`${POLICY_KEY}\` object with at least one label`, 'm'),
     },
     {
       name: `an open issue filed discovered-from on the cut-off with no label ${FOUND_KEY} lists`,
@@ -694,7 +694,7 @@ function cases(asset, type, foundAt, since) {
       doctor: (fx) => {
         delete fx.policy[FOUND_KEY]
       },
-      expect: new RegExp(`^  tools/policy/vocabulary\\.json has no \`${FOUND_KEY}\` object with at least one label`, 'm'),
+      expect: new RegExp(`^  policy/vocabulary\\.json has no \`${FOUND_KEY}\` object with at least one label`, 'm'),
     },
     {
       name: `the policy has no ${SINCE_KEY}`,

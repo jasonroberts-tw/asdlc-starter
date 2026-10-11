@@ -11,7 +11,7 @@
  *   | base       | origin/main, fetched first   | worktree.baseRef: origin/<default>, HEAD |
  *   | branch     | agent/<name>                 | worktree-<name>                          |
  *   | ports      | probed, written to ports.env | none; every agent binds the same         |
- *   | briefing   | .worktree/CONTEXT.md         | none; CLAUDE.md's @-import is dead       |
+ *   | briefing   | .worktree/CONTEXT.md         | none; AGENTS.md's @-import is dead       |
  *
  * LOCATION USED TO BE THE FIRST ROW AND IS NOW SETTLED. The script provisioned outside the working
  * tree at `../worktrees/<name>` and the tool insisted on `.claude/worktrees/<name>`, so the two
@@ -25,7 +25,7 @@
  * placement an agent can reach by accident.
  *
  * What is left is the base, the branch and the briefing, and the base is why no setting will do.
- * CLAUDE.md § Git workflow cuts agent work from `origin/main` by the one worktree script, and
+ * AGENTS.md § Git workflow cuts agent work from `origin/main` by the one worktree script, and
  * `worktree.baseRef` offers only `fresh` (origin/<default branch>) or `head`, so no setting
  * expresses "origin/main". The default branch is a GitHub setting outside this repository: `main`
  * when checked on 2026-09-23, and free to change without a commit here. A hook names the trunk
