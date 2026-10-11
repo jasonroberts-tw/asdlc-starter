@@ -7,10 +7,12 @@ A rule with two homes has one that is stale.
 ## Memory tiers
 
 Memory is handled in tiers, based on the scope.
-1. Environment memories - machine specific; use *thing*
-2. Harness memories - decision records + tracked files described in previous section
-3. Work tracking - features, tasks, bugs etc. harness work or product work. tracked in beads
-4. Runtime memory - anything that doesn't fall into the other categories; use *thing2*
+1. Environment memory - machine-specific setup and tool locations; keep outside the repository
+   and verify against the current machine before use.
+2. Harness memory - durable decisions and rules in the tracked files named above.
+3. Work tracking - harness and product issues in beads.
+4. Session memory - temporary notes in the conversation or `.scratch/`; move durable decisions
+   into tracked files before the session ends.
 
 ## Verification before claiming
 
@@ -120,7 +122,7 @@ The same checks run at four latencies, and a slower tier never trusts a faster o
 | Tier | Latency | Shape |
 |---|---|---|
 | In-session hooks (`scripts/hooks/`) | milliseconds | may be unsound; never block a stop |
-| Pre-commit (`git-hooks.yml`) | seconds | sequential, over staged files only |
+| Pre-commit (`git-hooks.yml`) | seconds | sequential; rejects whitespace errors in the staged diff |
 | Pre-push (`git-hooks.yml`) | tens of seconds | parallel, each job scoped by a glob of what it reads |
 | `.github/workflows/verify.yml` | minutes | every gate, binding on every pull request and every push to `main` |
 
@@ -155,4 +157,4 @@ Each of these holds from the first file it applies to, and for every one after i
 
 ## Citations
 
-Cite a document by section, `<file>.md § "<Heading>"`, not by line: a line pointer rots on every edit above it. 
+Cite a document by section, `<file>.md § "<Heading>"`, not by line: a line pointer rots on every edit above it.

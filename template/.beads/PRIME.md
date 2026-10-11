@@ -8,7 +8,7 @@ and `AGENTS.md` disagree, `AGENTS.md` wins.
 Before a `bd` command, read where its rules live:
 
 - `AGENTS.md` § Git workflow: commits, pushes and pull requests.
-- `bead` skill: an issue worked from its claim to its close.
+- `work` skill: an issue worked from its claim to its close.
 
 A command's flags are in `bd <command> --help`.
 

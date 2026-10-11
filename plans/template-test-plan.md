@@ -1,5 +1,9 @@
 # The Template test: a plan
 
+**Status:** The Template test is not being implemented. Its existing Template blockers (work items
+2–7) were repaired on 2026-10-11. Deploy and the probe work remain separate; this document retains
+the draft Deploy contract.
+
 **The Template test deploys the Template into a new, empty git repository inside a container. It
 checks that the Target project it makes works on a second machine: Bootstrap succeeds, the gates
 pass, and the guards are live. Then an agent writes a small Node script there twice, once from a
@@ -77,8 +81,24 @@ section is a draft.
 ### What it takes
 
 - **A values file**, in JSON, with one key per placeholder name. Every placeholder in the Template
-  carries its name, in the form `<REPLACE_ME:name>`. Today's bare `<REPLACE_ME>` stands for
-  different values in different files, so a values file cannot fill it. Work item 5 converts them.
+  carries its name, in the form `<REPLACE_ME:name>`. The names and the files that use them are:
+
+  | Name | Used in |
+  |---|---|
+  | `projectName` | `package.json` and `package-lock.json` |
+  | `githubAppRepositoryOwner` | `policy/tool-settings.json` and `devcontainer.json`'s key mount |
+  | `githubAppTokenRepository` | `policy/tool-settings.json`, the container workspace folder and key mount |
+  | `githubAppId` | `policy/tool-settings.json` |
+  | `githubAppInstallationId` | `policy/tool-settings.json` |
+  | `githubAppBotLogin` | `policy/tool-settings.json` |
+  | `githubAppBotUserId` | `policy/tool-settings.json` |
+  | `trackerRemote` | `.beads/config.yaml` |
+
+  Substitution fills the token inside the JSON string that contains it. The App id, installation
+  id and bot user id therefore reach the helper as positive decimal strings; it also accepts JSON
+  numbers, and refuses unfilled placeholders, malformed ids and ids outside Node's safe integer
+  range. The container's host key directory is described in
+  `template/.devcontainer/README.md`.
 - **Required values** are the project name, the GitHub owner and repository, and the GitHub App's
   identity (app id, installation id, bot login and bot user id). The Template assumes the App
   everywhere: the entrypoint, the `gh` wrapper, the credential helper and the token's selftest. So
@@ -113,8 +133,8 @@ The Template test does not exercise Deploy's refusals: Deploy's own selftest cov
 deploy plan. They are listed here so that selftest has a spec:
 
 - a target that is not a git repository, has a commit, or has no `origin`;
-- a values file that lacks a name the Template uses, names one it does not use, or gives an empty
-  value;
+- a values file that lacks a required name the Template uses, names one it does not use, or gives
+  an empty value; `trackerRemote` may be omitted because it defaults to origin's URL;
 - a push to origin that fails.
 
 Whether a refused Deploy undoes what it had done is the deploy plan's call.
@@ -329,28 +349,34 @@ case must pass. The cases cover:
 
 ## What has to be true before it can pass
 
-Run today, the test fails, and it should. The test tolerates none of these failures. Each fix is its
-own work item:
+The existing Template blockers were repaired independently of this test on 2026-10-11:
 
-1. **`mise.lock` is missing.** The Dockerfile copies it and installs with `--locked`, so the image
-   cannot build. It needs linux-x64 and linux-arm64, since the image builds for the host's
-   architecture, plus every platform `mise.toml`'s header says the project runs on.
-2. **`package-lock.json` is missing,** so `npm ci` fails in the entrypoint and in `verify.yml`.
-3. **A plain `git commit` is refused once the hooks are installed.** `git-hooks.yml` has no
-   `pre-commit:` block, and `scripts/git-hooks.mjs` refuses a gating event with no block.
-   `AGENTS.md` § "The gate ladder" describes a pre-commit tier that does not exist.
-4. **`citations:check` fails.** `.beads/PRIME.md`, `.claude/agents/fan-out-work.md`,
-   `policy/vocabulary.json` and `policy/prompt-budgets.json` name `.claude/skills/bead/SKILL.md`,
-   which does not exist.
-5. **Project-specific values are hard-coded,** and those that are placeholders carry no name:
-   - `package.json`'s `name`;
-   - in `policy/tool-settings.json`, an existing GitHub App's id, installation id, bot login and bot
-     user id, beside the two `<REPLACE_ME>` keys;
-   - `.beads/config.yaml`'s `sync.remote`;
-   - in `devcontainer.json`, `workspaceFolder` and the `~/.asdlc-agent-j` key mount. This item also
-     settles whether `devcontainer.json` stays at all.
-6. **`AGENTS.md` § "Memory tiers"** still reads `*thing*` and `*thing2*`.
-7. **Five `.DS_Store` files are tracked** under `template/`.
+1. **The toolchain lockfile is present.** `template/mise.lock` covers Linux x64 and arm64,
+   macOS x64 and arm64, and Windows x64 for every tool `mise.toml` pins. The Template's Dockerfile
+   builds with its own pinned mise and `--locked` install.
+2. **The npm lockfile is present.** `template/package-lock.json` is generated from the Template's
+   dependencies, and `npm ci` succeeds both before and after filling the named project value.
+3. **Plain commits pass with the hooks installed.** `git-hooks.yml`'s sequential pre-commit job
+   checks the staged diff for whitespace errors. The shipped configuration's selftest allows a
+   clean commit and refuses a bad staged file for its whitespace error.
+4. **Workflow references resolve to `work`.** `.beads/PRIME.md`, `.claude/agents/fan-out-work.md`,
+   `policy/vocabulary.json` and `policy/prompt-budgets.json` name the existing `work` skill.
+   `citations:check` passes; the prompt budget retains its existing ceiling.
+5. **Project-specific values are named placeholders.** The names live in the Deploy input contract
+   above. `devcontainer.json` stays, with a workspace and host key directory derived from the
+   project's repository values. App-helper fixtures supply their own App identity, and construct
+   their unresolved-placeholder cases at runtime so substitution cannot fill those refusal cases.
+6. **Memory tiers have concrete guidance.** `AGENTS.md` distinguishes machine facts, tracked
+   decisions and rules, beads work tracking, and temporary session notes.
+7. **Finder metadata is removed and ignored.** No `.DS_Store` is tracked under `template/`;
+   the Template now ignores it too, so the rule reaches a Target project.
+
+Verification used the Template's image and a throwaway Target-project fixture with every named
+placeholder filled and an initialized Tracker. A normal `npm ci` installed the hooks, a plain
+commit passed, and `mise run gates` passed every job without a skip. Every `mise run` step in
+`verify.yml` is covered by that suite. The App helper's new tests also rejected an inverted
+ID-validation condition; the source was restored afterward. This verification did not implement
+the Template test or Deploy.
 
 One more question belongs to the Template, not to this test. `policy/vocabulary.json` says a change
 to what the product does is filed as an epic, with tasks under it. Read strictly, that makes the Work
@@ -359,8 +385,10 @@ the vocabulary to its owners.
 
 ## Facts to probe first
 
-None of these has been confirmed by a run. Each one shapes a check above. They run in the image with
-a throwaway config directory, and the findings are recorded in this plan.
+These probes remain separate work. Blocker verification confirmed that pinned bd 1.3.0 accepts
+`--skip-agents --skip-hooks` and initializes an embedded Tracker, but did not check its exact write
+set, remote synchronization or second-machine Bootstrap. Each probe below shapes a check above;
+they run in the image with a throwaway config directory, and their full findings belong here.
 
 - PreToolUse hooks run under `--permission-mode bypassPermissions`, and an exit 2 there blocks the
   call.
@@ -427,6 +455,7 @@ a throwaway config directory, and the findings are recorded in this plan.
 ## Work items
 
 Each item is one issue. The last column names the items that must land first.
+Items 2–7 were implemented independently on 2026-10-11; the remaining items are outside that work.
 
 | # | Item | Lands in | After |
 |---|---|---|---|

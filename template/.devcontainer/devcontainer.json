@@ -17,7 +17,7 @@
   // sessions use included. The volume is named in `mounts`, not here, because the CLI substitutes
   // `${devcontainerId}` there and not in this property (CLI 0.89.0, tried on 2026-10-06).
   "workspaceMount": "",
-  "workspaceFolder": "/workspaces/<REPLACE_ME>",
+  "workspaceFolder": "/workspaces/<REPLACE_ME:githubAppTokenRepository>",
 
   // `${localEnv:HOME}${localEnv:USERPROFILE}` is one path, not two: exactly one of the pair is set
   // -- HOME on Linux and macOS, USERPROFILE on Windows -- so the empty one contributes nothing.
@@ -26,7 +26,7 @@
     // scripts/github-app-token.mjs reads through GITHUB_APP_KEY_DIR below. A directory rather than the file, so a key generated afresh,
     // under a new name, needs no edit here. It must exist, even empty, or Docker refuses to start the
     // container.
-    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.asdlc-agent-j,target=/home/vscode/.github-app,type=bind,readonly",
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.github-app/<REPLACE_ME:githubAppRepositoryOwner>/<REPLACE_ME:githubAppTokenRepository>,target=/home/vscode/.github-app,type=bind,readonly",
     // Claude Code's state, in a volume of the container's own, one per clone: your login in the
     // container, its history and its plugins, kept across a rebuild and shared with no host.
     "source=claude-code-${devcontainerId},target=/home/vscode/.claude,type=volume",

@@ -21,9 +21,9 @@
       "words": 900,
       "means": "The most words `.claude/skills/add-task/SKILL.md` may hold: the skill a session loads to add, rename or remove a task in `tasks.toml`. Set to its count on 2026-10-11; a raise edits this value and says why here."
     },
-    ".claude/skills/bead/SKILL.md": {
+    ".claude/skills/work/SKILL.md": {
       "words": 1034,
-      "means": "The most words `.claude/skills/bead/SKILL.md` may hold: the skill a session loads to work an issue from its claim to its close. Set to its count on 2026-10-11; a raise edits this value and says why here."
+      "means": "The most words `.claude/skills/work/SKILL.md` may hold: the skill a session loads to work an issue from its claim to its close. Retains the workflow's existing ceiling after its rename to `work`; a raise edits this value and says why here."
     },
     ".claude/skills/open-pr/SKILL.md": {
       "words": 596,

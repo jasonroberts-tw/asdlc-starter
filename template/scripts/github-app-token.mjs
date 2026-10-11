@@ -22,6 +22,9 @@
  * It also prints, with `identity`, the App's bot account as git's commit identity:
  * `githubAppBotLogin` as `user.name`, and `<githubAppBotUserId>+<githubAppBotLogin>@users.noreply.github.com`
  * as `user.email`, which `.devcontainer/entrypoint.sh` sets when none is. That needs no key or token.
+ * App ids accept JSON numbers or positive decimal strings, so named placeholders can be filled by
+ * plain text substitution while the Template's policy remains valid JSON. Unfilled placeholders
+ * and other strings are refused.
  *
  * The `review` job of `.github/workflows/prompt-review.yml` runs `token` and `identity` too. It names
  * a directory of its own as `GITHUB_APP_KEY_DIR` and `GITHUB_APP_TOKEN_CACHE`, and deletes it once
@@ -92,10 +95,15 @@ class Refusal extends Error {}
 
 const nowSeconds = () => Math.floor(Date.now() / 1000)
 
+/** A canonical decimal id string becomes a number; all other values stay for the caller to refuse. */
+const idNumber = (value) => typeof value === 'string' && /^[1-9]\d*$/.test(value) ? Number(value) : value
+
 /** The four policy keys this reads: three whole numbers above 0 and a repository's bare name, or a refusal naming those that are not. */
 function settings(root) {
   const policy = readPolicy(root)
-  const bad = NUMBER_KEYS.filter((key) => !Number.isInteger(policy[key]) || policy[key] <= 0)
+  policy.githubAppId = idNumber(policy.githubAppId)
+  policy.githubAppInstallationId = idNumber(policy.githubAppInstallationId)
+  const bad = NUMBER_KEYS.filter((key) => !Number.isSafeInteger(policy[key]) || policy[key] <= 0)
   if (bad.length > 0) {
     throw new Refusal(`${bad.map((key) => `\`${key}\``).join(', ')} must each be a whole number above 0 in policy/ under ${root}`)
   }
@@ -114,11 +122,11 @@ function settings(root) {
 function identity(root) {
   const policy = readPolicy(root)
   const login = policy.githubAppBotLogin
-  const id = policy.githubAppBotUserId
+  const id = idNumber(policy.githubAppBotUserId)
   if (typeof login !== 'string' || !/^[\w.-]+\[bot\]$/.test(login)) {
     throw new Refusal(`\`githubAppBotLogin\` must be a bot account's login, ending [bot], not ${JSON.stringify(login ?? null)} in policy/ under ${root}`)
   }
-  if (!Number.isInteger(id) || id <= 0) throw new Refusal(`\`githubAppBotUserId\` must be a whole number above 0 in policy/ under ${root}`)
+  if (!Number.isSafeInteger(id) || id <= 0) throw new Refusal(`\`githubAppBotUserId\` must be a whole number above 0 in policy/ under ${root}`)
   return `user.name=${login}\nuser.email=${id}+${login}@users.noreply.github.com\n`
 }
 
@@ -672,6 +680,33 @@ function cases() {
       check: async (ctx) => refused(await tokenRun(ctx), /`githubAppTokenRefreshSeconds` must each be a whole number above 0/, ctx),
     },
     {
+      name: 'decimal-string App ids mint the same token and print the same identity as numeric ids',
+      doctor: (root) => editPolicy(root, (policy) => {
+        for (const key of ['githubAppId', 'githubAppInstallationId', 'githubAppBotUserId']) policy[key] = String(policy[key])
+      }),
+      check: async (ctx) => {
+        const token = await tokenRun(ctx)
+        const identity = await helper(ctx, ['identity'])
+        const [call] = ctx.stub.requests
+        const want = `user.name=${ctx.botLogin}\nuser.email=${ctx.botUserId}+${ctx.botLogin}@users.noreply.github.com\n`
+        return token.status === 0 && token.stdout === 'ghs_stub1\n' && ctx.stub.requests.length === 1 &&
+          call.url === `/app/installations/${ctx.installationId}/access_tokens` && call.problems.length === 0 &&
+          identity.status === 0 && identity.stdout === want ? null : `${said(token)}; ${said(identity)}`
+      },
+    },
+    // Construct refusal fixtures at runtime so Deploy's substitution cannot fill them.
+    ...['githubAppId', 'githubAppInstallationId', 'githubAppBotUserId'].flatMap((key) =>
+      ['<REPLACE' + `_ME:${key}>`, '', '0', '-1', '1.5', '1e3', ' 123', '001', '9007199254740993'].map((value) => ({
+        name: `${key} refuses the invalid id string ${JSON.stringify(value)}`,
+        doctor: (root) => editPolicy(root, (policy) => (policy[key] = value)),
+        check: async (ctx) => refused(
+          await helper(ctx, [key === 'githubAppBotUserId' ? 'identity' : 'token']),
+          new RegExp('`' + key + '` must (?:each be|be) a whole number above 0'),
+          ctx,
+        ),
+      })),
+    ),
+    {
       name: "`identity` prints the App's bot account as user.name and its noreply address as user.email, calling nobody and reading no key",
       check: async (ctx) => {
         const r = await helper(ctx, ['identity'], { env: { GITHUB_APP_KEY_DIR: join(ctx.dir, 'no-such-directory') } })
@@ -691,8 +726,8 @@ function cases() {
     },
     {
       name: '`identity` with a `githubAppBotLogin` that is not a bot\'s login is refused, naming it',
-      doctor: (root) => editPolicy(root, (policy) => (policy.githubAppBotLogin = 'asdlc-agent-j')),
-      check: async (ctx) => refused(await helper(ctx, ['identity']), /`githubAppBotLogin` must be a bot account's login, ending \[bot\], not "asdlc-agent-j"/, ctx),
+      doctor: (root) => editPolicy(root, (policy) => (policy.githubAppBotLogin = 'example-agent')),
+      check: async (ctx) => refused(await helper(ctx, ['identity']), /`githubAppBotLogin` must be a bot account's login, ending \[bot\], not "example-agent"/, ctx),
     },
     {
       name: 'an unknown command prints the usage and exits 2',
@@ -894,7 +929,7 @@ function cases() {
     {
       name: "the entrypoint's clone, with the template's placeholder as `githubAppRepositoryOwner`, clones nothing, warns and fails",
       wrapper: true,
-      doctor: (root) => editPolicy(root, (policy) => (policy.githubAppRepositoryOwner = '<REPLACE_ME>')),
+      doctor: (root) => editPolicy(root, (policy) => (policy.githubAppRepositoryOwner = '<REPLACE' + '_ME:githubAppRepositoryOwner>')),
       check: async (ctx) => {
         const { r, workspace } = await cloneStep(ctx)
         return r.status === 1 && !existsSync(join(workspace, '.git')) && /cannot clone: .* names no githubAppRepositoryOwner and githubAppTokenRepository/.test(r.stdout) ? null : said(r)
@@ -959,19 +994,25 @@ function cases() {
 }
 
 /**
- * The repository the cases run against, in place of the one the live policy names, which a project
- * bootstrapped from the template sets for itself and which may still be the placeholder: so no case
- * depends on that value, or reaches the project's own repository.
+ * The App and repository the cases run against, in place of the identifiers a Target project sets
+ * for itself. The Template's identifiers remain placeholders: no case depends on a real App or
+ * reaches the project's own repository.
  */
-const FIXTURE_REPOSITORY = { githubAppRepositoryOwner: 'example-owner', githubAppTokenRepository: 'example-repo' }
+const FIXTURE_APP = {
+  githubAppId: 12345,
+  githubAppInstallationId: 23456,
+  githubAppBotLogin: 'example-agent[bot]',
+  githubAppBotUserId: 34567,
+  githubAppRepositoryOwner: 'example-owner',
+  githubAppTokenRepository: 'example-repo',
+}
 
 async function selftest() {
   const base = mkdtempSync(join(tmpdir(), 'github-app-token-'))
   const results = []
   const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
   const pem = privateKey.export({ type: 'pkcs8', format: 'pem' })
-  const live = readPolicy(REPO_ROOT)
-  const stub = await stubGitHub(publicKey, live.githubAppId)
+  const stub = await stubGitHub(publicKey, FIXTURE_APP.githubAppId)
   // A port that nothing listens on: bound once, then let go.
   const closed = await new Promise((done) => {
     const probe = createServer().listen(0, '127.0.0.1', () => {
@@ -997,8 +1038,8 @@ async function selftest() {
       mkdirSync(root, { recursive: true })
       copyPolicy(REPO_ROOT, root)
       const copied = readPolicy(root)
-      if (Object.entries(FIXTURE_REPOSITORY).some(([key, value]) => copied[key] !== value)) {
-        editPolicy(root, (policy) => Object.assign(policy, FIXTURE_REPOSITORY))
+      if (Object.entries(FIXTURE_APP).some(([key, value]) => copied[key] !== value)) {
+        editPolicy(root, (policy) => Object.assign(policy, FIXTURE_APP))
       }
       if (doctor) doctor(root)
       const kept = join(dir, 'kept', 'token.json')
@@ -1011,10 +1052,10 @@ async function selftest() {
         pem,
         stub: stub.state,
         closedUrl: closed,
-        installationId: live.githubAppInstallationId,
-        repository: FIXTURE_REPOSITORY.githubAppTokenRepository,
-        botLogin: live.githubAppBotLogin,
-        botUserId: live.githubAppBotUserId,
+        installationId: FIXTURE_APP.githubAppInstallationId,
+        repository: FIXTURE_APP.githubAppTokenRepository,
+        botLogin: FIXTURE_APP.githubAppBotLogin,
+        botUserId: FIXTURE_APP.githubAppBotUserId,
         env: { ...env, GITHUB_APP_TOKEN_ROOT: root, GITHUB_APP_API_URL: stub.url, GITHUB_APP_KEY_DIR: keyDir, GITHUB_APP_TOKEN_CACHE: kept },
         gitEnv: { ...env, GITHUB_APP_TOKEN_ROOT: root, GITHUB_APP_API_URL: stub.url, GITHUB_APP_KEY_DIR: keyDir, GITHUB_APP_TOKEN_CACHE: kept, HOME: dir },
         ghEnv: { GITHUB_APP_WORKSPACE: REPO_ROOT, GITHUB_APP_REAL_GH: fakeGh },

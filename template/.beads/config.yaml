@@ -1,5 +1,5 @@
 agent.profile: "conservative"
-sync.remote: "<REPLACE_ME>"
+sync.remote: "<REPLACE_ME:trackerRemote>"
 dolt:
     auto-commit: "on"
 validation:

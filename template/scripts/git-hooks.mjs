@@ -1031,6 +1031,22 @@ async function gitCases(base, env, record) {
     return
   }
 
+  await check('the shipped pre-commit jobs allow a clean staged file', () => {
+    const { repo } = scratch(readFileSync(join(REPO_ROOT, JOB_FILE), 'utf8'))
+    const committed = commit(repo, 'clean.txt', 'clean\n')
+    expect(committed.status === 0, `the shipped pre-commit jobs refused a clean commit: ${both(committed)}`)
+    expect(/git-hooks pre-commit: .*0 failed/.test(both(committed)), `the shipped pre-commit jobs did not run: ${both(committed)}`)
+    return 'plain commit passes'
+  })
+
+  await check('the shipped pre-commit jobs refuse whitespace errors in staged files', () => {
+    const { repo } = scratch(readFileSync(join(REPO_ROOT, JOB_FILE), 'utf8'))
+    const committed = commit(repo, 'whitespace.txt', 'trailing space \n')
+    expect(committed.status !== 0 && /trailing whitespace/.test(both(committed)), `the staged whitespace error was not refused for its reason: ${both(committed)}`)
+    expect(!ok(repo, ['ls-tree', '--name-only', 'HEAD']).includes('whitespace.txt'), 'the refused file reached HEAD')
+    return 'staged whitespace refused'
+  })
+
   await check('GIT_HOOKS_FORCE=1 runs a job whose glob matches nothing staged', () => {
     const { repo } = scratch()
     clear(repo)
