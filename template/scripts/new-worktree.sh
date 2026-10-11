@@ -2,9 +2,7 @@
 # scripts/new-worktree.sh <task-ref> <slug>
 #
 # Creates one isolated worktree per agent task: a branch off origin/main, a checked pair of
-# ports, a rendered .worktree/CONTEXT.md briefing that the committed AGENTS.md @-imports, and a copy
-# of each of the primary checkout's Vale styles the worktree lacks: the synced ones, which git
-# ignores (the block that copies them says why).
+# ports, and a rendered .worktree/CONTEXT.md briefing that the committed AGENTS.md @-imports.
 #
 # There is no database, container stack or .env to provision -- this repository is a Node/TypeScript
 # toolchain. An earlier version of this script copied .env, certs and appsettings.Development.json
@@ -115,54 +113,6 @@ CREATED=1
 # the incidents). The worktree's copy is the base's, template and all.
 RENDER="$(node "$WORKTREE_PATH/scripts/render-worktree-context.mjs" \
   "$WORKTREE_PATH" "$BRANCH" "$BASE_SHA" "$TASK_REF" "$LIFETIME_HOURS")"
-
-# Vale's styles, copied from the primary checkout. `.vale.ini` names a StylesPath that `.gitignore`
-# ignores, because `vale sync` downloads it, so `git worktree add` brings none across. Without this
-# copy, the vale@agent-tools plugin's hook answered every Write and Edit in a worktree with "E201: The
-# path '<worktree>/.vale-styles' does not exist", a notice that reads like a check that ran, while no
-# prose written in a worktree was checked (seen on 2026-09-30 in two worktrees).
-# A copy, and not `vale sync`, because the WorktreeCreate hook runs this where the
-# network can be unreachable (the fetch above). And not a symlink: `.gitignore`'s directory rule does
-# not ignore one, Git Bash on Windows makes a copy anyway, and an absolute target dangles wherever the
-# dev container and the host see the checkout at different paths. The copy is the primary's styles
-# at the moment the worktree is cut; a later `vale sync` there reaches a worktree cut after it.
-# The path is read from the worktree's own `.vale.ini`, so it is stated once. An absolute or `..`
-# path is shared by every checkout already, and is left alone.
-#
-# Each entry of the primary's StylesPath that the worktree lacks is copied, one by one, so a style the
-# base tracks there stays the base's and the synced ones still arrive. The copy once skipped the whole
-# directory whenever the worktree had it, and a tracked style, `Layout`, makes it always have it: the
-# worktree would get that one style and none of the synced ones `.vale.ini` names, and Vale would load
-# no config. A failed copy warns and carries on: it costs the check, not the
-# worktree. Nothing copied is warned of too, since the tracked style alone is not a config Vale loads.
-STYLES=''
-if [ -f "$WORKTREE_PATH/.vale.ini" ]; then
-  STYLES="$(sed -n '/^[[:space:]]*StylesPath[[:space:]]*=/{s/^[^=]*=[[:space:]]*//;s/[[:space:]]*$//;p;q;}' \
-    "$WORKTREE_PATH/.vale.ini")"
-fi
-case "$STYLES" in
-  '' | /* | ..* | */..*) ;;
-  *)
-    COPIED=0
-    if [ -d "$REPO_ROOT/$STYLES" ] && mkdir -p "$WORKTREE_PATH/$STYLES"; then
-      for entry in "$REPO_ROOT/$STYLES"/* "$REPO_ROOT/$STYLES"/.[!.]*; do
-        if [ ! -e "$entry" ] || [ -e "$WORKTREE_PATH/$STYLES/$(basename "$entry")" ]; then
-          continue
-        fi
-        if cp -R "$entry" "$WORKTREE_PATH/$STYLES/"; then
-          COPIED=$((COPIED + 1))
-        else
-          echo "warning: could not copy $entry, so Vale may check no prose in this worktree" >&2
-        fi
-      done
-    fi
-    if [ "$COPIED" -eq 0 ]; then
-      echo "warning: $REPO_ROOT/$STYLES holds no synced styles, so Vale checks no prose in this" \
-        "worktree and its hook answers every edit with E201; \`vale sync\`, in the primary checkout" \
-        "before the next worktree or here now, fetches the styles, and needs the network" >&2
-    fi
-    ;;
-esac
 
 value_of() { printf '%s\n' "$RENDER" | sed -n "s/^$1=//p"; }
 

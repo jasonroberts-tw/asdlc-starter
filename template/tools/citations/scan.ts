@@ -29,14 +29,9 @@
  * complements, and the division is deliberate:
  *
  *   - resolution -> here, a gate: catches the pointer that now lands on nothing, on a line past the
- *     end of the file, on a blank, or on a file that has since been RETIRED out from under its old name
+ *     end of the file, or on a blank
  *   - support -> a judgment over the citing lines and the cited section, which needs a reader rather
  *     than a rule and so can never be part of this gate
- *
- * That last one was added after review, and it is the case where resolving too helpfully would have
- * been worse than not checking: retirement moves a file without rewriting the pointers into it, so
- * the basename fallback below finds the retired copy, checks the line inside it, and reports a
- * citation healthy that a reader following it as written cannot follow at all. See `RETIRED_ROOTS`.
  *
  * WHY IT SCANS EVERYTHING BY DEFAULT. The phrase registry's selftest in the repository this gate was
  * copied from (not tracked here) scanned an allowlist of two directories, and the history of that
@@ -49,9 +44,9 @@
  *
  * WHAT IT DELIBERATELY DOES NOT CHECK.
  *
- *   - QUOTATIONS. A retest log quotes stale citations on purpose, and `docs/retired/` records what a
- *     retired document said. A gate that fails on the record of a past defect is a gate nobody can
- *     make green, so it gets deleted and checks nothing. See `HISTORY`.
+ *   - QUOTATIONS. A retest log quotes stale citations on purpose. A gate that fails on the record of
+ *     a past defect is a gate nobody can make green, so it gets deleted and checks nothing. See
+ *     `HISTORY` and `QUOTED`.
  *   - WHETHER THE CITED LINE SAYS WHAT THE CITER CLAIMS. That needs a judgment over two texts, not a
  *     rule, so it is left to a reader. Resolution is the half that can be checked deterministically,
  *     which is why it is the gate.
@@ -63,11 +58,8 @@
  *     citation used here. **That was measured and refused, not overlooked.** A survey walked every
  *     one of them. A blanket rule produces 327 findings, of which the large
  *     majority are correct writing: shorthand for a path the document states once, and deliberate
- *     mentions of deleted files (where the mention IS the record). The
- *     narrow version -- a live file naming a RETIRED file by bare basename must spell the
- *     `docs/retired/` path -- flags 11, of which 10 are correct; one of those 10 is a frozen grep
- *     result its own document declares literal, so the rule would demand falsifying evidence.
- *     **Do not add either rule here.** The residue is real but semantic -- a bare name is a defect
+ *     mentions of deleted files (where the mention IS the record).
+ *     **Do not add that rule here.** The residue is real but semantic -- a bare name is a defect
  *     only when the passage presents the file as extant -- so it stays a review habit, with one
  *     mechanical shape worth fixing on sight: a source attribution, "per `X.md`",
  *     with no locator.
@@ -110,39 +102,6 @@ export const SCAN_ROOT = process.env.CITATIONS_ROOT ? resolve(process.env.CITATI
 const SCANNED_EXTENSIONS = /\.(ts|tsx|js|mjs|cjs|md|json|ya?ml|cs|sql|tmpl|sh|toml)$/
 
 /**
- * Where a RETIRED document lives once it stops being the live one.
- *
- * Two directions, and only one of them is history:
- *
- *   - a citation written INSIDE one of these is history, and is exempt (see `HISTORY` below);
- *   - a citation FROM a live file INTO one of these is a FINDING, unless it spells the path.
- *
- * The second half is what `retiredWithoutPath` exists for, and it is not a nicety. Retirement moves
- * a file; it does not rewrite the pointers into it. A live comment that still says
- * `verify-layout.md:96` names a file that is no longer at the root, and a reader who follows it as
- * written arrives nowhere -- which is the whole defect this gate is for. The basename fallback in
- * `resolveTarget` would otherwise paper over exactly that: it finds the only file with that name,
- * which is the retired copy, checks line 96 of it, and reports the pointer healthy.
- *
- * Spelling `docs/retired/verify-layout.md:96` is fine and stays fine. That citation is honest about
- * where it points, which is all this asks for.
- */
-export const RETIRED_ROOTS = ['docs/retired/', 'history/', 'openspec/changes/archive/'] as const
-
-/** Whether `path` is a retired or historical document. */
-export const isRetired = (path: string): boolean => RETIRED_ROOTS.some((r) => path.startsWith(r))
-
-/**
- * A live file citing a retired one WITHOUT naming the `docs/retired/` or `history/` path it now
- * lives under. The citation reads as a pointer to a file that is not there any more.
- */
-export function retiredWithoutPath(from: string, target: string, resolved: string): boolean {
-  if (!isRetired(resolved)) return false
-  if (isRetired(from)) return false
-  return !isRetired(target)
-}
-
-/**
  * Files whose `<file>.md:NN` and `§<Name>` occurrences are HISTORY, not live pointers.
  *
  * Every entry is a path or a path prefix, and every entry states why. The bar is that the document's
@@ -154,30 +113,8 @@ export function retiredWithoutPath(from: string, target: string, resolved: strin
  */
 export const HISTORY: ReadonlyArray<{ path: string; why: string }> = [
   {
-    path: 'docs/retired/',
-    why:
-      'A retired document and its retirement note record what the document SAID. Its citations' +
-      ' are frozen with it -- repointing them would be editing the historical record rather than' +
-      ' fixing a pointer anyone follows.',
-  },
-  {
-    path: 'history/',
-    why:
-      'A history directory, whose whole purpose is holding what live documents used to say --' +
-      ' superseded figures, withdrawn citations. Its citations quote superseded readings, and' +
-      ' several name files that were deleted with the thing being recorded.',
-  },
-  {
     path: 'tools/citations/',
     why: 'This gate and its selftest. Both quote the citations they exist to catch.',
-  },
-  {
-    path: 'openspec/changes/archive/',
-    why:
-      'An archived OpenSpec change records what the change proposed, on the day it was archived' +
-      ' (`docs/decisions.md` § D-02). Its citations name the living spec as it stood then; the' +
-      ' living spec moves on with every later change, and repointing an archived proposal would' +
-      ' rewrite the record of what was decided.',
   },
   // ADD YOUR OWN ENTRIES HERE, one at a time, each with its reason: a retest log that quotes the
   // defective citations it records, the working behind a decision whose subject was deleted, an
@@ -201,13 +138,6 @@ export const HISTORY: ReadonlyArray<{ path: string; why: string }> = [
  * stable under every edit that does not change the citation itself.
  */
 export const QUOTED: ReadonlyArray<{ from: string; cites: string; why: string }> = [
-  {
-    from: 'scripts/hooks/_shared.mjs',
-    cites: 'generate-screen.md:15',
-    why:
-      'A hook comment explaining a heuristic by the case that defeated it. The prompt it names was' +
-      ' retired with its generator; the example is why the code is shaped as it is.',
-  },
   // ADD YOUR OWN ENTRIES HERE, keyed by (citing file, citation as written) and never by line
   // number: a register entry quoting a file a later decision deleted, a frozen record citing a
   // regenerated artifact by line, a prompt naming a file its own node has not emitted yet. A
@@ -222,9 +152,16 @@ export const QUOTED: ReadonlyArray<{ from: string; cites: string; why: string }>
  * whose captured name is the whole rest of the clause. Requiring an exact match would mean writing
  * that clause into the registry and re-writing it whenever the prose was edited, which is a line
  * number by another name.
+ *
+ * `quoted` is the registry, and the gate always passes the live one by default. The selftest passes a
+ * synthetic one, so the match stays exercised whatever this repository has registered today.
  */
-export function isQuoted(from: string, cites: string): string | null {
-  for (const q of QUOTED) if (q.from === from && cites.startsWith(q.cites)) return q.why
+export function isQuoted(
+  from: string,
+  cites: string,
+  quoted: ReadonlyArray<{ from: string; cites: string; why: string }> = QUOTED,
+): string | null {
+  for (const q of quoted) if (q.from === from && cites.startsWith(q.cites)) return q.why
   return null
 }
 

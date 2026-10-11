@@ -58,8 +58,7 @@
  * loopback, and runs `git credential fill` and `.devcontainer/gh` through real `git` and `sh`, which
  * it skips, saying why, on Windows, where the container's wrappers never run. Since it is the
  * selftest that sources `.devcontainer/entrypoint.sh` and reads the Dockerfile, it also holds the
- * rest of the container's start that needs no image: the entrypoint's `tracing`, against a stub
- * `claude` and a canary secret no output may carry, its `statusline`,
+ * rest of the container's start that needs no image: the entrypoint's `statusline`,
  * `.devcontainer/statusline.sh` through `sh`, and the Dockerfile's `NO_COLOR` for `bd` alone;
  * and the entrypoint's `clone`, against a local repository git reads as GitHub's address.
  */
@@ -167,7 +166,7 @@ async function mint({ appId, installationId, repository }) {
     Accept: 'application/vnd.github+json',
     'Content-Type': 'application/json',
     'X-GitHub-Api-Version': '2022-11-28',
-    'User-Agent': 'asdlc-openspec/github-app-token',
+    'User-Agent': `${repository}/github-app-token`,
   }
   let response
   try {
@@ -410,51 +409,6 @@ async function statusLine(ctx, content) {
   return { r, after: readFileSync(settings, 'utf8'), tmp: existsSync(`${settings}.tmp`) }
 }
 const STATUS_LINE = { type: 'command', command: `sh '${join(REPO_ROOT, '.devcontainer', 'statusline.sh')}'` }
-
-/** The Langfuse keys a case's `langfuse.json` holds; the secret is a canary no output may carry. */
-const LANGFUSE_KEYS = { LANGFUSE_PUBLIC_KEY: 'pk-canary-public', LANGFUSE_SECRET_KEY: 'sk-canary-secret', LANGFUSE_BASE_URL: 'https://us.cloud.langfuse.com' }
-const LANGFUSE_ID = 'langfuse-observability@langfuse-observability'
-
-/**
- * `.devcontainer/entrypoint.sh`'s `tracing`, run under bash with the file sourced for its functions
- * alone, with a key directory of the case's own that holds `keys` as `langfuse.json` when given, and
- * a stub `claude` first on PATH. The stub logs each call's arguments, a line each, answers
- * `plugin marketplace list --json` with `markets` and `plugin list --json` with `installed`, keeps
- * what `plugin configure` reads on stdin, and fails that call when `configureFails` and
- * `plugin disable` when `disableFails`. Returns the run,
- * the calls, and what `configure` read, or null when it was not called.
- */
-async function tracingStep(ctx, { keys = null, markets = [], installed = [], configureFails = false, disableFails = false } = {}) {
-  const keyDir = join(ctx.dir, 'tracing-keys')
-  const bin = join(ctx.dir, 'tracing-bin')
-  const calls = join(ctx.dir, 'claude-calls.log')
-  const stdin = join(ctx.dir, 'claude-configure.stdin')
-  mkdirSync(keyDir, { recursive: true })
-  mkdirSync(bin, { recursive: true })
-  if (keys !== null) writeFileSync(join(keyDir, 'langfuse.json'), typeof keys === 'string' ? keys : JSON.stringify(keys))
-  writeFileSync(join(ctx.dir, 'markets.json'), JSON.stringify(markets))
-  writeFileSync(join(ctx.dir, 'installed.json'), JSON.stringify(installed))
-  const stub = [
-    '#!/usr/bin/env bash',
-    `printf '%s\\n' "$*" >> '${calls}'`,
-    `case "$*" in`,
-    `  'plugin marketplace list --json') cat '${join(ctx.dir, 'markets.json')}' ;;`,
-    `  'plugin list --json') cat '${join(ctx.dir, 'installed.json')}' ;;`,
-    `  'plugin configure '*) cat > '${stdin}'; ${configureFails ? 'exit 1' : 'exit 0'} ;;`,
-    `  'plugin disable '*) ${disableFails ? 'exit 1' : 'exit 0'} ;;`,
-    'esac',
-    '',
-  ].join('\n')
-  writeFileSync(join(bin, 'claude'), stub, { mode: 0o755 })
-  const r = await run('bash', ['-c', 'ENTRYPOINT_FUNCTIONS_ONLY=1 . "$1" && tracing', 'tracing', ENTRYPOINT], {
-    env: { ...ctx.gitEnv, PATH: `${bin}:${ctx.gitEnv.PATH ?? process.env.PATH}`, GITHUB_APP_KEY_DIR: keyDir },
-    cwd: ctx.dir,
-  })
-  const logged = existsSync(calls) ? readFileSync(calls, 'utf8').split('\n').filter(Boolean) : []
-  return { r, calls: logged, configured: existsSync(stdin) ? readFileSync(stdin, 'utf8') : null }
-}
-/** True when nothing a run printed carries either key of the keys file. */
-const keepsKeys = (r) => ![LANGFUSE_KEYS.LANGFUSE_PUBLIC_KEY, LANGFUSE_KEYS.LANGFUSE_SECRET_KEY].some((key) => `${r.stdout}${r.stderr}`.includes(key))
 
 /**
  * `.devcontainer/entrypoint.sh`'s `clone`, run under bash with the file sourced for its functions
@@ -754,8 +708,8 @@ function cases() {
         const image = await imageGitEnv(ctx)
         if (image.problem) return image.problem
         const urls = [
-          ['ssh://git@github.com/jasonroberts-tw/asdlc-openspec.git', 'https://github.com/jasonroberts-tw/asdlc-openspec.git'],
-          ['git@github.com:jasonroberts-tw/asdlc-openspec.git', 'https://github.com/jasonroberts-tw/asdlc-openspec.git'],
+          ['ssh://git@github.com/example-owner/example-repo.git', 'https://github.com/example-owner/example-repo.git'],
+          ['git@github.com:example-owner/example-repo.git', 'https://github.com/example-owner/example-repo.git'],
         ]
         for (const [from, to] of urls) {
           const r = await run('git', ['ls-remote', '--get-url', from], { env: image.env, cwd: ctx.dir })
@@ -898,82 +852,6 @@ function cases() {
       },
     },
     {
-      name: "the entrypoint's tracing, with no langfuse.json beside the App key and no plugin installed, logs that tracing is off and only lists the plugins",
-      wrapper: true,
-      check: async (ctx) => {
-        const { r, calls } = await tracingStep(ctx)
-        return r.status === 0 && JSON.stringify(calls) === JSON.stringify(['plugin list --json']) && /Langfuse tracing is off: no langfuse\.json beside the App key/.test(r.stdout) ? null : `${said(r)}; claude called ${JSON.stringify(calls)}`
-      },
-    },
-    {
-      name: "the entrypoint's tracing, with no langfuse.json and the plugin installed and enabled, disables it, so the log that tracing is off is true",
-      wrapper: true,
-      check: async (ctx) => {
-        const { r, calls } = await tracingStep(ctx, { installed: [{ id: LANGFUSE_ID, scope: 'user', enabled: true }] })
-        const want = ['plugin list --json', `plugin disable ${LANGFUSE_ID} --scope user`]
-        return r.status === 0 && JSON.stringify(calls) === JSON.stringify(want) && /Langfuse tracing is off: no langfuse\.json beside the App key[^;]*; the langfuse-observability@langfuse-observability plugin is disabled/.test(r.stdout)
-          ? null
-          : `${said(r)}; claude called ${JSON.stringify(calls)}`
-      },
-    },
-    {
-      name: "the entrypoint's tracing, with no langfuse.json and a disable that fails, warns that tracing may still be on",
-      wrapper: true,
-      check: async (ctx) => {
-        const { r } = await tracingStep(ctx, { installed: [{ id: LANGFUSE_ID, scope: 'user', enabled: true }], disableFails: true })
-        return /Langfuse tracing may still be on: no langfuse\.json beside the App key[^,]*, and the langfuse-observability@langfuse-observability plugin could not be disabled/.test(r.stdout) && !/tracing is off/.test(r.stdout) ? null : said(r)
-      },
-    },
-    {
-      name: "the entrypoint's tracing adds the marketplace, installs the plugin at user scope, and configures it with the file's three keys alone on stdin, printing none of them",
-      wrapper: true,
-      check: async (ctx) => {
-        const { r, calls, configured } = await tracingStep(ctx, { keys: { ...LANGFUSE_KEYS, EXTRA: 'not passed on' } })
-        const want = ['plugin list --json', 'plugin marketplace list --json', 'plugin marketplace add langfuse/Claude-Observability-Plugin', `plugin install ${LANGFUSE_ID} --scope user`, `plugin configure ${LANGFUSE_ID} --values-stdin`]
-        const read = configured === null ? null : JSON.parse(configured)
-        return r.status === 0 && JSON.stringify(calls) === JSON.stringify(want) && JSON.stringify(read) === JSON.stringify(LANGFUSE_KEYS) && keepsKeys(r) && /Langfuse tracing is on/.test(r.stdout)
-          ? null
-          : `${said(r)}; claude called ${JSON.stringify(calls)}; configure read ${configured === null ? 'nothing' : 'the wrong keys'}`
-      },
-    },
-    {
-      name: "the entrypoint's tracing, with the marketplace and the plugin already in ~/.claude, only configures it",
-      wrapper: true,
-      check: async (ctx) => {
-        const { r, calls, configured } = await tracingStep(ctx, { keys: LANGFUSE_KEYS, markets: [{ name: 'langfuse-observability' }], installed: [{ id: LANGFUSE_ID, scope: 'user', enabled: true }] })
-        const want = ['plugin list --json', 'plugin marketplace list --json', `plugin configure ${LANGFUSE_ID} --values-stdin`]
-        return r.status === 0 && JSON.stringify(calls) === JSON.stringify(want) && configured !== null && keepsKeys(r) ? null : `${said(r)}; claude called ${JSON.stringify(calls)}`
-      },
-    },
-    {
-      name: "the entrypoint's tracing, with the file back and the plugin installed but disabled, enables it before it configures it",
-      wrapper: true,
-      check: async (ctx) => {
-        const { r, calls, configured } = await tracingStep(ctx, { keys: LANGFUSE_KEYS, markets: [{ name: 'langfuse-observability' }], installed: [{ id: LANGFUSE_ID, scope: 'user', enabled: false }] })
-        const want = ['plugin list --json', 'plugin marketplace list --json', `plugin enable ${LANGFUSE_ID} --scope user`, `plugin configure ${LANGFUSE_ID} --values-stdin`]
-        return r.status === 0 && JSON.stringify(calls) === JSON.stringify(want) && configured !== null && /Langfuse tracing is on/.test(r.stdout) ? null : `${said(r)}; claude called ${JSON.stringify(calls)}`
-      },
-    },
-    {
-      name: "the entrypoint's tracing, with a langfuse.json that lacks the secret key and the plugin enabled, disables it, warns, and prints no key",
-      wrapper: true,
-      check: async (ctx) => {
-        const { LANGFUSE_SECRET_KEY: _, ...noSecret } = LANGFUSE_KEYS
-        const { r, calls, configured } = await tracingStep(ctx, { keys: noSecret, installed: [{ id: LANGFUSE_ID, scope: 'user', enabled: true }] })
-        return JSON.stringify(calls) === JSON.stringify(['plugin list --json', `plugin disable ${LANGFUSE_ID} --scope user`]) && configured === null && keepsKeys(r) && /Langfuse tracing is off: .*langfuse\.json is not an object whose LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY and LANGFUSE_BASE_URL are each a non-empty string[^;]*; the langfuse-observability@langfuse-observability plugin is disabled/.test(r.stdout)
-          ? null
-          : `${said(r)}; claude called ${JSON.stringify(calls)}`
-      },
-    },
-    {
-      name: "the entrypoint's tracing, when configure fails, warns that the plugin keeps what it held before, and prints no key",
-      wrapper: true,
-      check: async (ctx) => {
-        const { r, configured } = await tracingStep(ctx, { keys: LANGFUSE_KEYS, markets: [{ name: 'langfuse-observability' }], installed: [{ id: LANGFUSE_ID, scope: 'user', enabled: true }], configureFails: true })
-        return configured !== null && keepsKeys(r) && /could not configure the langfuse-observability@langfuse-observability plugin from \S+, so it keeps whatever it held before/.test(r.stdout) && !/tracing is on/.test(r.stdout) ? null : said(r)
-      },
-    },
-    {
       name: "the entrypoint's clone clones the repository the policy names into an empty workspace, and logs it",
       wrapper: true,
       check: async (ctx) => {
@@ -1008,6 +886,15 @@ function cases() {
       name: "the entrypoint's clone, with a policy without `githubAppRepositoryOwner`, clones nothing, warns and fails",
       wrapper: true,
       doctor: (root) => editPolicy(root, (policy) => delete policy.githubAppRepositoryOwner),
+      check: async (ctx) => {
+        const { r, workspace } = await cloneStep(ctx)
+        return r.status === 1 && !existsSync(join(workspace, '.git')) && /cannot clone: .* names no githubAppRepositoryOwner and githubAppTokenRepository/.test(r.stdout) ? null : said(r)
+      },
+    },
+    {
+      name: "the entrypoint's clone, with the template's placeholder as `githubAppRepositoryOwner`, clones nothing, warns and fails",
+      wrapper: true,
+      doctor: (root) => editPolicy(root, (policy) => (policy.githubAppRepositoryOwner = '<REPLACE_ME>')),
       check: async (ctx) => {
         const { r, workspace } = await cloneStep(ctx)
         return r.status === 1 && !existsSync(join(workspace, '.git')) && /cannot clone: .* names no githubAppRepositoryOwner and githubAppTokenRepository/.test(r.stdout) ? null : said(r)
@@ -1071,6 +958,13 @@ function cases() {
   ]
 }
 
+/**
+ * The repository the cases run against, in place of the one the live policy names, which a project
+ * bootstrapped from the template sets for itself and which may still be the placeholder: so no case
+ * depends on that value, or reaches the project's own repository.
+ */
+const FIXTURE_REPOSITORY = { githubAppRepositoryOwner: 'example-owner', githubAppTokenRepository: 'example-repo' }
+
 async function selftest() {
   const base = mkdtempSync(join(tmpdir(), 'github-app-token-'))
   const results = []
@@ -1102,6 +996,10 @@ async function selftest() {
       const root = join(dir, 'root')
       mkdirSync(root, { recursive: true })
       copyPolicy(REPO_ROOT, root)
+      const copied = readPolicy(root)
+      if (Object.entries(FIXTURE_REPOSITORY).some(([key, value]) => copied[key] !== value)) {
+        editPolicy(root, (policy) => Object.assign(policy, FIXTURE_REPOSITORY))
+      }
       if (doctor) doctor(root)
       const kept = join(dir, 'kept', 'token.json')
       Object.assign(stub.state, { mode: 'ok', minted: 0, requests: [] })
@@ -1114,7 +1012,7 @@ async function selftest() {
         stub: stub.state,
         closedUrl: closed,
         installationId: live.githubAppInstallationId,
-        repository: live.githubAppTokenRepository,
+        repository: FIXTURE_REPOSITORY.githubAppTokenRepository,
         botLogin: live.githubAppBotLogin,
         botUserId: live.githubAppBotUserId,
         env: { ...env, GITHUB_APP_TOKEN_ROOT: root, GITHUB_APP_API_URL: stub.url, GITHUB_APP_KEY_DIR: keyDir, GITHUB_APP_TOKEN_CACHE: kept },

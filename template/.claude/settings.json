@@ -26,12 +26,6 @@
             "command": "node \"$CLAUDE_PROJECT_DIR\"/scripts/hooks/block-generated-edit.mjs",
             "timeout": 15,
             "statusMessage": "Checking the target is not generated output"
-          },
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR\"/scripts/hooks/guard-workflow-edit.mjs",
-            "timeout": 15,
-            "statusMessage": "Checking a workflow edit cannot approve a pull request or forge the required check"
           }
         ]
       }

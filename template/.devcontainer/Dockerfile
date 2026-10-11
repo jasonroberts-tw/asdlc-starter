@@ -1,8 +1,8 @@
 # The whole "new machine setup", baked into an image.
 #
-# Everything a person would otherwise do by hand -- the toolchain `mise.toml` pins (Node, Python,
-# `bd`, `gh`, Vale, uv and graphify) and Claude Code -- is a layer here rather than a
-# devcontainer.json `feature` or `postCreateCommand`. That is deliberate: features resolve at
+# Everything a person would otherwise do by hand -- the toolchain `mise.toml` pins (Node, `bd` and
+# `gh`) and Claude Code -- is a layer here rather than a devcontainer.json `feature` or
+# `postCreateCommand`. That is deliberate: features resolve at
 # container-create time over the network and fail differently on every machine, and a
 # `postCreateCommand` re-runs on every rebuild. A layer is built once, cached, and identical for
 # everyone. devcontainer.json next to this file does little but point at it.
@@ -17,8 +17,7 @@
 # still owned by the image, and devcontainer.json still has no lifecycle command in it.
 #
 # Versions are the base tag below, and `mise.toml`, whose every tool installs here through
-# `mise.lock`, graphify's dependencies through its uv lock under
-# `.mise/locks/`; this file states no tool's version. The build context is the repository's
+# `mise.lock`; this file states no tool's version. The build context is the repository's
 # root, so the image can read those files, and `Dockerfile.dockerignore` beside this file admits
 # them, the entrypoint and the App's two wrappers, and nothing else. After a pin moves, rebuild:
 # entrypoint.sh warns while the image's tools lag `mise.toml`.
@@ -137,12 +136,10 @@ USER vscode
 # not from the PATH it was handed, takes one of two routes: it gives that `mise.toml` the clone's node
 # pin, or it names node by its path. A global default would be a second home for the pin.
 ENV PATH="/home/vscode/.local/share/mise/shims:/home/vscode/.local/bin:${PATH}"
-# `.mise/locks/` beside them: a `pypi:` tool's locked install reads its uv lock there.
 COPY --chown=vscode:vscode mise.toml mise.lock /tmp/toolchain/
-COPY --chown=vscode:vscode .mise/locks /tmp/toolchain/.mise/locks
 RUN MISE_TRUSTED_CONFIG_PATHS=/tmp/toolchain mise -C /tmp/toolchain install --locked \
     && MISE_TRUSTED_CONFIG_PATHS=/tmp/toolchain mise -C /tmp/toolchain exec -- \
-        sh -c 'node -v && npm -v && python --version && vale --version && bd --version && gh --version && uv --version && GRAPHIFY_NO_AUTO_REFRESH=1 graphify --version' \
+        sh -c 'node -v && npm -v && bd --version && gh --version' \
     && rm -rf /tmp/toolchain
 
 # --- Claude Code ---------------------------------------------------------------------------------

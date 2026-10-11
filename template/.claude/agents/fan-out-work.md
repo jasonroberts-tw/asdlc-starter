@@ -63,10 +63,6 @@ each lane, regenerate every generated file more than one lane touched, re-derive
 measured without the others' work, then run
 `mise run gates`.
 
-Then run `mise run worktree:gc --discard <lane's branch>`, dry run first as the `open-pr`
-skill says, and the same for a lane you drop unless a person
-should see it. Nothing else removes a lane whose pick needed a resolution.
-
 ## 6. Open the pull request and watch its checks
 
 Once `open-pr` reports the merge, close each issue the lanes carried as the

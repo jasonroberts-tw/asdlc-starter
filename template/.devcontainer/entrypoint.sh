@@ -73,8 +73,8 @@ clone() {
     return 1
   fi
   take_ownership "$repo"
-  if ! slug="$(jq -er 'select((.githubAppRepositoryOwner | type) == "string" and (.githubAppTokenRepository | type) == "string") | "\(.githubAppRepositoryOwner)/\(.githubAppTokenRepository)"' "$policy" 2>/dev/null)"; then
-    warn "cannot clone: $policy names no githubAppRepositoryOwner and githubAppTokenRepository -- rebuild the container"
+  if ! slug="$(jq -er 'select([.githubAppRepositoryOwner, .githubAppTokenRepository] | all(type == "string" and test("^[A-Za-z0-9_.-]+$"))) | "\(.githubAppRepositoryOwner)/\(.githubAppTokenRepository)"' "$policy" 2>/dev/null)"; then
+    warn "cannot clone: $policy names no githubAppRepositoryOwner and githubAppTokenRepository -- set both in policy/tool-settings.json, then rebuild the container"
     return 1
   fi
   log "cloning https://github.com/$slug into $repo"
@@ -84,20 +84,20 @@ clone() {
   fi
 }
 
-# TODO: templatize the repo name
 setup() {
   clone || return 0
   local repo="${REPO_WORKSPACE:-}"
 
-  # Which mounted directory is this repository? Named by package.json rather than by path, because
-  # the mount point is the clone's directory name and people clone into whatever they like. The
-  # marker is package.json's "name", "asdlc-openspec": a rename there is a rename here. Until
-  # 2026-09-25 this matched the placeholder "<package-name>", which no package.json carried, so
-  # every container skipped setup with a warning that read like a mount problem.
+  # Which directory under /workspaces is this repository, when REPO_WORKSPACE does not say? The one
+  # whose own policy names the repository the image's copy names: a directory's name is whatever the
+  # clone was made into, and the repository's name is what the project sets in
+  # policy/tool-settings.json. Until 2026-09-25 this matched a package.json name, and a placeholder
+  # there made every container skip setup with a warning that read like a mount problem.
   if [ -z "$repo" ]; then
-    local candidate
+    local candidate name
+    name="$(jq -er '.githubAppTokenRepository | strings' "$policy" 2>/dev/null)" || name=''
     for candidate in /workspaces/*/; do
-      if grep -Eqs '"name"[[:space:]]*:[[:space:]]*"asdlc-openspec"' "${candidate}package.json"; then
+      if [ -n "$name" ] && [ "$(jq -r '.githubAppTokenRepository // empty' "${candidate}policy/tool-settings.json" 2>/dev/null)" = "$name" ]; then
         repo="${candidate%/}"
         break
       fi
@@ -275,7 +275,7 @@ statusline() {
 }
 
 # Sourced with ENTRYPOINT_FUNCTIONS_ONLY=1, as scripts/github-app-token.mjs's selftest sources it to
-# run clone, commit_identity, tracing and statusline, this file defines its functions and runs none
+# run clone, commit_identity and statusline, this file defines its functions and runs none
 # of its steps.
 if [ "${ENTRYPOINT_FUNCTIONS_ONLY:-}" = 1 ]; then
   return 0

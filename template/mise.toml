@@ -4,7 +4,7 @@
 # every platform `toolchainLockPlatforms` in policy/tool-settings.json names, and no second install
 # of any of them. After a change here,
 # run `mise install`, which records a new or moved pin in the lock, then `mise lock --platform` with
-# that list, comma-separated, and commit both files and `.mise/locks/`.
+# that list, comma-separated, and commit both files.
 #
 # Not here, each on purpose: Git, a system prerequisite whose floor scripts/git-hooks.mjs holds;
 # Claude Code, which updates itself; the npm packages, which package.json and its lockfile pin; and

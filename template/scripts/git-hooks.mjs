@@ -773,7 +773,7 @@ async function readingCases(base, record) {
     {
       name: 'a job key this runner does not read is refused',
       doctor: (t) => t.replace('    - name: beads\n      env:', '    - name: beads\n      skip: true\n      env:'),
-      expect: /`pre-commit\/beads` has the key `skip`, which this runner does not read/,
+      expect: /`pre-push\/beads` has the key `skip`, which this runner does not read/,
     },
     {
       name: 'an event this runner does not install is refused',
@@ -781,34 +781,14 @@ async function readingCases(base, record) {
       expect: /`commit-msg` is not an event this runner installs/,
     },
     {
-      name: 'a run token this runner does not expand is refused',
-      doctor: (t) => t.replace('run: mise run check:jobs\n', 'run: mise run check:jobs {push_files}\n'),
-      expect: /`pre-push\/check-jobs` uses `\{push_files\}`, which this runner does not expand/,
-    },
-    {
-      name: '{staged_files} outside pre-commit is refused',
-      doctor: (t) => t.replace('run: mise run check:jobs\n', 'run: mise run check:jobs {staged_files}\n'),
-      expect: /`pre-push\/check-jobs` uses `\{staged_files\}`, which only pre-commit has/,
-    },
-    {
-      name: 'a glob on an event with no files is refused',
-      doctor: (t) => t.replace('post-merge:\n  jobs:\n    - name: beads\n', "post-merge:\n  jobs:\n    - name: beads\n      glob: '*.md'\n"),
-      expect: /`post-merge\/beads` has a glob, but post-merge has no files for it to match/,
-    },
-    {
       name: 'a hook key this runner does not read is refused',
       doctor: (t) => t.replace('pre-push:\n', 'pre-push:\n  piped: true\n'),
       expect: /`pre-push` has the key `piped`, which this runner does not read/,
     },
     {
-      name: 'a job with both run and group is refused',
-      doctor: (t) => t.replace('    - name: calculator-suites\n      group:', '    - name: calculator-suites\n      run: echo x\n      group:'),
-      expect: /`pre-push\/calculator-suites` must have exactly one of `run` and `group`/,
-    },
-    {
       name: 'an env value that is not a string is refused',
       doctor: (t) => t.replace("NO_COLOR: '1'", 'NO_COLOR: 1'),
-      expect: /`pre-commit\/beads\.env\.NO_COLOR` is not a string/,
+      expect: /`pre-push\/beads\.env\.NO_COLOR` is not a string/,
     },
     {
       name: 'a policy without the cap is refused',
@@ -846,8 +826,8 @@ async function readingCases(base, record) {
     },
     {
       name: 'a job name used twice in one event is refused',
-      doctor: (t) => `${t}    - name: check-jobs\n      run: mise run check:jobs\n`,
-      expect: /`pre-push` names the job `check-jobs` twice/,
+      doctor: (t) => `${t}    - name: citations\n      run: mise run citations:check\n`,
+      expect: /`pre-push` names the job `citations` twice/,
     },
     {
       name: 'a job with no name is refused',
@@ -855,24 +835,9 @@ async function readingCases(base, record) {
       expect: /`pre-push\.jobs\[\d+\]` has no name/,
     },
     {
-      name: 'a group that carries a glob is refused',
-      doctor: (t) => t.replace('    - name: calculator-suites\n      group:', "    - name: calculator-suites\n      glob: '*.md'\n      group:"),
-      expect: /the group `pre-push\/calculator-suites` carries a glob or an env/,
-    },
-    {
       name: 'a group inside a group is refused',
       doctor: (t) => `${t}    - name: outer\n      group:\n        jobs:\n          - name: inner\n            group:\n              jobs:\n                - name: deepest\n                  run: echo deepest\n`,
       expect: /`pre-push\/outer` holds a group inside a group/,
-    },
-    {
-      name: 'an empty run is refused',
-      doctor: (t) => t.replace('run: mise run check:jobs\n', "run: ''\n"),
-      expect: /`pre-push\/check-jobs` has an empty `run`/,
-    },
-    {
-      name: 'a glob that is not a string or a list of them is refused',
-      doctor: (t) => t.replace("      glob: 'artifacts/**'\n", '      glob: 7\n'),
-      expect: /`pre-commit\/generated-files-are-not-hand-edited` has a glob that is not a string or a list of them/,
     },
     {
       name: 'a policy that cannot be read is refused',
@@ -883,7 +848,7 @@ async function readingCases(base, record) {
   ]
   for (const [index, { name, doctor, policy, removeJobs, removePolicy, expect }] of cases.entries()) {
     const dir = join(base, `reading-${index}`)
-    mkdirSync(join(dir, 'tools'), { recursive: true })
+    mkdirSync(dir, { recursive: true })
     const doctored = doctor(real)
     if (expect !== 'pass' && !policy && !removeJobs && !removePolicy && doctored === real) {
       record(name, false, 'the doctoring changed nothing, so the fixture is broken')

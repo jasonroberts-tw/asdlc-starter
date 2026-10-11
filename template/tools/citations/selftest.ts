@@ -49,12 +49,9 @@ import {
   historyReason,
   indexByName,
   isQuoted,
-  isRetired,
   looksLikeSectionName,
   namesSection,
   resolveTarget,
-  retiredWithoutPath,
-  RETIRED_ROOTS,
   SCAN_ROOT,
   trackedFiles,
 } from './scan.ts'
@@ -346,7 +343,7 @@ console.log('citation scanner selftest\n')
   const tracked = new Set([
     'README.md',
     'docs/README.md',
-    'docs/retired/fixture-overview.md',
+    'docs/notes/fixture-overview.md',
     'reference/fixture-mirror/skill-tree/SKILL.md',
     '.claude/skills/bead/SKILL.md',
   ])
@@ -361,7 +358,7 @@ console.log('citation scanner selftest\n')
   const s = at('docs/plans/Foo.md', 'fixture-overview.md')
   ok(
     'a basename resolves to the nearest file with that name',
-    'path' in s && s.path === 'docs/retired/fixture-overview.md',
+    'path' in s && s.path === 'docs/notes/fixture-overview.md',
   )
 
   const k = at('reference/fixture-mirror/README.md', 'SKILL.md')
@@ -371,10 +368,10 @@ console.log('citation scanner selftest\n')
     'path' in k ? k.path : k.error,
   )
 
-  const repo = at('anywhere.md', `${SCAN_ROOT.split(/[\\/]/).pop() as string}/docs/retired/fixture-overview.md`)
+  const repo = at('anywhere.md', `${SCAN_ROOT.split(/[\\/]/).pop() as string}/docs/notes/fixture-overview.md`)
   ok(
     'a path over-qualified with the repository name still resolves',
-    'path' in repo && repo.path === 'docs/retired/fixture-overview.md',
+    'path' in repo && repo.path === 'docs/notes/fixture-overview.md',
   )
 
   const gone = at('a.md', 'deleted-prompt.md')
@@ -385,60 +382,11 @@ console.log('citation scanner selftest\n')
 }
 
 /* --------------------------------------------------------------------------------------------- *
- * 4b. A live file pointing at a retired one by its OLD name
- *
- * The hole this closes was found by review, and it is the one that would have mattered most: the
- * basename fallback resolves `verify-layout.md:96` to `docs/retired/verify-layout.md`, checks line
- * 96 of the retired copy, and reports the pointer healthy -- while a reader following the citation
- * as WRITTEN finds no such file. Papering over a dead pointer is the exact failure this gate exists
- * to catch, so resolution succeeding is not sufficient; the citation has to name where the file
- * actually is now.
- * --------------------------------------------------------------------------------------------- */
-
-{
-  ok(
-    'a live file citing a retired file by its bare name is a finding',
-    retiredWithoutPath(
-      'tools/citations/scan.ts',
-      'verify-layout.md',
-      'docs/retired/verify-layout.md',
-    ),
-  )
-  ok(
-    'the same citation is fine once it spells the retired path',
-    !retiredWithoutPath(
-      'tools/citations/scan.ts',
-      'docs/retired/verify-layout.md',
-      'docs/retired/verify-layout.md',
-    ),
-  )
-  ok(
-    'history/ counts as retired too',
-    retiredWithoutPath('claude-code-prompts.md', 'throughput.md', 'history/throughput.md'),
-  )
-  ok(
-    'a retired file citing its own neighbour is history, not a finding',
-    !retiredWithoutPath('docs/retired/a.md', 'b.md', 'docs/retired/b.md'),
-  )
-  ok(
-    'a live file citing a live file is untouched by this rule',
-    !retiredWithoutPath('tools/x.ts', 'model.md', 'model.md'),
-  )
-  // Not `RETIRED_ROOTS.length === 2` -- `as const` makes that statically true, so it asserts
-  // nothing. Exercise the predicate instead: every declared root must actually be recognised.
-  ok(
-    'every declared retired root is recognised by isRetired',
-    RETIRED_ROOTS.every((r) => isRetired(`${r}anything.md`)),
-  )
-  ok('a live path is not', !isRetired('tools/citations/scan.ts'))
-}
-
-/* --------------------------------------------------------------------------------------------- *
  * 5. The exemptions are exemptions, not holes
  * --------------------------------------------------------------------------------------------- */
 
 {
-  ok('a history directory is exempt', historyReason('docs/retired/verify-layout.md') !== null)
+  ok('a path under a HISTORY entry is exempt', historyReason('tools/citations/scan.ts') !== null)
   ok('a live file is not', historyReason('tools/journey/model.ts') === null)
 
   // A DELIVERED-HANDOFF-PACKAGE EXEMPTION was asserted here on both sides, and was removed with
@@ -494,10 +442,14 @@ console.log('citation scanner selftest\n')
     QUOTED.every((q) => q.why.trim().length > 20),
   )
 
-  const q = QUOTED[0] as { from: string; cites: string }
-  ok('a registered quotation is exempt in its own file', isQuoted(q.from, q.cites) !== null)
-  ok('the same quotation elsewhere is NOT exempt', isQuoted('some/other/file.ts', q.cites) === null)
-  ok('a different citation in that file is not exempt', isQuoted(q.from, 'unrelated.md:1') === null)
+  // A SYNTHETIC REGISTRY, so the match is held whatever `QUOTED` registers today: the live list may
+  // legitimately be empty, and a case reading its first entry would then read nothing.
+  const registry = [
+    { from: 'scripts/fixture.mjs', cites: 'gone-prompt.md:15', why: 'A fixture quotation of a dead pointer, kept as the evidence.' },
+  ]
+  ok('a registered quotation is exempt in its own file', isQuoted('scripts/fixture.mjs', 'gone-prompt.md:15', registry) !== null)
+  ok('the same quotation elsewhere is NOT exempt', isQuoted('some/other/file.ts', 'gone-prompt.md:15', registry) === null)
+  ok('a different citation in that file is not exempt', isQuoted('scripts/fixture.mjs', 'unrelated.md:1', registry) === null)
 }
 
 /* --------------------------------------------------------------------------------------------- *
@@ -546,8 +498,8 @@ console.log('citation scanner selftest\n')
   // Three line citations (two in a markdown file, one in a source comment); eight section citations
   // (two in a markdown file; two in a source comment, one of them split by a line break; two in a
   // shell script, one of them with its file name not backticked; one in a template; one in a task's
-  // description in `tasks.toml`, split by a line break); one dead citation inside a history
-  // directory, one inside an extension the gate does not scan.
+  // description in `tasks.toml`, split by a line break); one dead citation under a `HISTORY`
+  // entry, one inside an extension the gate does not scan.
   const TREE: Readonly<Record<string, string>> = {
     'docs/target.md': [
       '# Target',
@@ -588,9 +540,9 @@ console.log('citation scanner selftest\n')
       'run = "node scripts/fixture.mjs"',
       '',
     ].join('\n'),
-    'docs/retired/old.md': [
-      '# Old',
-      'It once cited docs/target.md:999, which this record keeps as written.',
+    'tools/citations/fixture-history.ts': [
+      '// It once cited docs/target.md:999, which this record keeps as written.',
+      'export {}',
       '',
     ].join('\n'),
     'notes.txt': 'docs/target.md:999 is not read here: .txt is not a scanned extension.\n',
@@ -644,7 +596,7 @@ console.log('citation scanner selftest\n')
     n(3) === 8,
     `${n(3)} files`,
   )
-  ok('the dead citation inside a history directory is exempt, and counted', n(4) === 1, `${n(4)} files`)
+  ok('the dead citation under a HISTORY entry is exempt, and counted', n(4) === 1, `${n(4)} files`)
   ok('the roster has prompt files to scan -- exactly the two the tree holds', n(6) === 2, `${n(6)} files`)
   ok(
     'a mention inside each registered AGENTS.md region is exempted rather than absent',
@@ -734,19 +686,12 @@ console.log('citation scanner selftest\n')
       problems: 1,
     },
     {
-      what: 'a live file citing a retired file by its bare name',
-      doctor: edit('docs/citer.md', '`docs/target.md:4`', '`old.md:2`'),
-      where: 'docs/citer.md:2',
-      reason: 'which was RETIRED to docs/retired/old.md',
-      problems: 1,
-    },
-    {
-      what: 'the same dead citation, moved out of the history directory',
+      what: 'the same dead citation, moved out from under its HISTORY entry',
       doctor: (tree) => {
-        tree['docs/old.md'] = tree['docs/retired/old.md'] ?? ''
-        delete tree['docs/retired/old.md']
+        tree['tools/fixture-history.ts'] = tree['tools/citations/fixture-history.ts'] ?? ''
+        delete tree['tools/citations/fixture-history.ts']
       },
-      where: 'docs/old.md:2',
+      where: 'tools/fixture-history.ts:1',
       reason: 'The pointer is past the end of the file.',
       problems: 1,
     },

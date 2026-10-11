@@ -23,9 +23,8 @@ run = "node scripts/check-beads.mjs --selftest"
 description = '''
 Refuses a record under `policy/` without its five header fields, a constant without its
 `Means` sibling and a `Means` without its constant, a key two records define, a record
-`policy/README.md` does not name and any other file in the directory, and `tools/policy.json`
-back beside the records. Without it a key lands with no reason beside it, two records give one key
-two values and each reader takes one, and a key added to the retired file reaches no reader.'''
+`policy/README.md` does not name, and any other file in the directory. Without it a key lands with
+no reason beside it, and two records give one key two values and each reader takes one.'''
 run = "node scripts/check-policy.mjs"
 
 ["check:policy:selftest"]
@@ -90,3 +89,12 @@ and commits, pushes, a linked worktree, the install, `mise run gates`, an older 
 through real Git in scratch repositories with a bare remote, beside a control commit and push.
 Without it a glob the runner misread, or a skip it did not print, would read as a pass.'''
 run = "node scripts/git-hooks.mjs --selftest"
+
+["worktree:selftest"]
+description = '''
+The worktree hooks, the git guard and the unprovisioned-worktree guard, negative-tested against a
+scratch repository it builds; the worktree briefing rendered from its template into a scratch
+directory; new-worktree.sh beside a held `.git/config.lock`; and every hook `.claude/settings.json`
+registers, loaded from another working directory. Without it a guard could stop refusing what it
+exists to refuse, or a hook stop loading, and every commit and push would still pass.'''
+run = "node scripts/hooks/worktree-hooks.selftest.mjs"

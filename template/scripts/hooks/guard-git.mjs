@@ -169,7 +169,7 @@ function realpathOr(p) {
  * the first file the session writes there recreates it with no `.git` file in it. Git run from that
  * directory then walks upward and finds the PRIMARY checkout, so `inLinkedWorktree` answers false
  * and every git rule above is skipped. On 2026-09-28 a lane lost its
- * worktree `.claude/worktrees/agent-a844b327378a4720e` to `npm run worktree:gc`, wrote
+ * worktree `.claude/worktrees/agent-a844b327378a4720e` to a branch sweep, wrote
  * `scripts/test-trace.mjs` at that path, and ran `git fetch origin` and `git rebase origin/main`
  * there, which rebased the primary checkout's `main` (its reflog: `rebase (finish): refs/heads/main
  * onto f09c923`). It was a fast-forward, so nothing was lost. THE SIGNAL IS

@@ -15,7 +15,6 @@ pre-push:
     - name: check-policy
       glob:
         - 'policy/**'
-        - 'tools/policy.json'
         - 'tools/lib/policy.ts'
         - 'scripts/check-policy.mjs'
         - 'tasks.toml'
@@ -54,6 +53,16 @@ pre-push:
         - 'tools/lib/git-env.ts'
         - 'tasks.toml'
       run: mise run github-app-token:selftest
+    - name: worktree-hooks
+      glob:
+        - 'scripts/hooks/**'
+        - 'scripts/new-worktree.sh'
+        - 'scripts/render-worktree-context.mjs'
+        - '.claude/worktree-CONTEXT.md.tmpl'
+        - '.claude/settings.json'
+        - '.devcontainer/Dockerfile'
+        - 'tasks.toml'
+      run: mise run worktree:selftest
     - name: beads
       env:
         NO_COLOR: '1'

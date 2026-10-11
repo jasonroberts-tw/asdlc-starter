@@ -88,13 +88,10 @@ with a checklist, not a tidy-up.
 
 A directory that holds more than one file of one kind has a `README.md`: a bolded one-sentence
 thesis of the directory's role, then a table with one row per file saying what it is or, for a
-gate, what it refuses. The row lands in the same change as the file. `docs/decisions/` alone has no
-table, since a row every entry appends conflicts. Every dated document opens with a `**Written:**`
+gate, what it refuses. The row lands in the same change as the file. Every dated document opens with a `**Written:**`
 line and, once something amends it, a `**Status:**` line naming what did; it stays true about its
 date and is superseded rather than refreshed. Every document that can
-disagree with another says, in one sentence, which wins. The documentation index and its
-conventions are `docs/README.md` § Conventions. The glossary is `CONTEXT.md`, and each term in it
-cites the file that decides it, or nothing shows when the term drifts from that file.
+disagree with another says, in one sentence, which wins.
 
 ## Three kinds of file, and never a fourth
 

@@ -65,8 +65,7 @@
  *
  * NOTHING IS EXEMPT AS HISTORY. The rule once exempted a directory of prompt reviews, which quoted
  * the memory keys a skill cited in order to record that none resolved. The directory was deleted,
- * and the exemption went with it. Widen the roster to `docs/` and
- * `docs/retired/` needs one, on the argument `HISTORY` in `scan.ts` makes for it.
+ * and the exemption went with it.
  *
  * Reads only this repository, needs no `../sibling` checkout and no network.
  */

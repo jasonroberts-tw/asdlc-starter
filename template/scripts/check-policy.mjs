@@ -9,9 +9,7 @@
  *     `<key>Means` has its constant there;
  *   - no key is defined in two records, so every reader of the merged policy reads one value;
  *   - `policy/README.md` names every record and no record that is not there, and the directory
- *     holds nothing else, which the loader would read past;
- *   - `tools/policy.json`, the single file the records replaced, has not come back: a key added there
- *     would reach no reader, and its gate would pass.
+ *     holds nothing else, which the loader would read past.
  *
  * Its selftest also holds the loader, `tools/lib/policy.ts`, which every reader and this gate stand
  * on: what its command line prints and refuses, a key two records define refused for every reader,
@@ -20,8 +18,8 @@
  * What a constant's value must be is each reader's to hold, by the gates the record's `gatedBy`
  * names. This gate holds only what every record shares.
  *
- * THE FAILURE IT EXISTS TO PREVENT. No incident yet: the gate came with the split of
- * `tools/policy.json`. Before it, no code read that file's five header fields, and seven gates
+ * THE FAILURE IT EXISTS TO PREVENT. No incident yet: the gate came with the split of the policy
+ * into records. Before it, no code read the five header fields, and seven gates
  * each held the `Means` of their own keys, so a key that no gate read could land with no reason beside
  * it, and a header could go stale or missing with nothing to say so. Were this gate wrong, a record
  * would reach readers with a constant whose reason is gone, or two records would define one key,
@@ -38,7 +36,7 @@
  * run each) on a macOS 26.7.1 laptop with Node 26.8.1, 2026-10-02.
  */
 import { spawnSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -48,8 +46,6 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const LOADER = join(REPO_ROOT, 'tools/lib/policy.ts')
 const ROOT = process.env.POLICY_CHECK_ROOT ?? REPO_ROOT
 const README = `${POLICY_DIR}/README.md`
-/** The one file the records replaced; a key added there would reach no reader. */
-const RETIRED = 'tools/policy.json'
 const RULE_HOME = '`AGENTS.md` § Three kinds of file, and never a fourth'
 
 const byCodePoint = (a, b) => (a < b ? -1 : a > b ? 1 : 0)
@@ -62,9 +58,6 @@ export function runCheck(root) {
   if (!existsSync(dir)) return [`${POLICY_DIR}/ is missing under ${root}: the policy has no record.`]
   const names = readdirSync(dir).sort(byCodePoint)
   const problems = []
-  if (existsSync(join(root, RETIRED))) {
-    problems.push(`${RETIRED} is back, and no reader reads it: it was split into the records under ${POLICY_DIR}/. Move each key to the record that holds its kind.`)
-  }
   const recordNames = names.filter((name) => name.endsWith('.json'))
   if (recordNames.length === 0) return [`${POLICY_DIR}/ under ${root} holds no record (no .json file).`]
   for (const name of names.filter((n) => !n.endsWith('.json') && n !== 'README.md')) {
@@ -146,10 +139,7 @@ const editRecord = (name, change) => (dir) => {
   if (after === before) throw new Error(`selftest fixture for ${name} changed nothing -- the doctoring missed its target`)
   writeFileSync(path, after)
 }
-const write = (relative, text) => (dir) => {
-  mkdirSync(dirname(join(dir, relative)), { recursive: true })
-  writeFileSync(join(dir, relative), text)
-}
+const write = (relative, text) => (dir) => writeFileSync(join(dir, relative), text)
 const appendRow = (name) => (dir) => writeFileSync(join(dir, README), `${readFileSync(join(dir, README), 'utf8')}| \`${name}\` | a fixture record |\n`)
 const both = (...doctors) => (dir) => doctors.forEach((doctor) => doctor(dir))
 const header = Object.fromEntries(HEADER_FIELDS.map((field) => [field, `a fixture ${field}`]))
@@ -183,7 +173,6 @@ function cases() {
     { name: 'the README names a record that is not there', doctor: appendRow('gone.json'), expect: /^policy\/README\.md names `gone\.json`, which is not a record/ },
     { name: 'a file that is neither a record nor the README', doctor: write(`${POLICY_DIR}/notes.yaml`, 'a: 1\n'), expect: /^policy\/notes\.yaml is neither a record \(\.json\) nor the README/ },
     { name: 'no README', doctor: (dir) => rmSync(join(dir, README)), expect: /^policy\/README\.md is missing/ },
-    { name: 'the retired single file back beside the records', doctor: write(RETIRED, '{"specChangeLabel": "spec-change"}\n'), expect: /^tools\/policy\.json is back, and no reader reads it/ },
     { name: 'no record at all', doctor: (dir) => rmSync(join(dir, POLICY_DIR), { recursive: true }), expect: /^policy\/ is missing under / },
   ]
 }

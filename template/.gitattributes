@@ -14,26 +14,3 @@
 # binary is left byte-exact; a baseline PNG is `i/-text` and stays untouched. (A plain-ASCII script
 # that git scored binary once sat beside them, so re-measure rather than assume.)
 * text=auto eol=lf
-
-# THE CARVE-OUT, AND WHY IT IS THE WHOLE MIRROR RATHER THAN THE CSVs.
-#
-# `reference/` is other people's bytes. Each import's `MANIFEST.sha256` records a sha256 and a byte
-# count per file, and `reference/README.md` calls that manifest half the import contract -- so the
-# bytes ARE the artifact, and any end-of-line conversion in either direction breaks the digest the
-# gate re-derives. `npm run reference:check` would go red on every clone whose git had rewritten the
-# file it is verifying, which is worse than no gate at all.
-#
-# This is not hypothetical for `data/`: those eleven CSVs are UTF-8 with BOM and CRLF, and
-# `reference/data/.gitattributes` has said `*.csv -text` since the first two arrived. That nested
-# file is the local, load-bearing statement and stays authoritative -- a subdirectory's
-# `.gitattributes` outranks this one, so it would win here regardless. The rule is repeated at the
-# root so the exemption is visible from the file that creates the need for it.
-#
-# The earlier skill mirror under `reference/` was LF and needed no conversion, but it was pinned by
-# the same kind of manifest and it is the import that actually drifted once: `prettier --write .`
-# reformatted `ui-enforcement-policy.json` on the way in and the README went on claiming 6 of 6
-# digests reproduced. A mirror-wide `-text` keeps the next byte-exact import
-# protected from the moment it lands rather than from the moment somebody remembers to add a pattern.
-# (a later decision deleted that mirror on 2026-09-07; `data/` is the one import today, and the rule stays for
-# the next.)
-reference/** -text

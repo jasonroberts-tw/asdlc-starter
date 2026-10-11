@@ -42,7 +42,6 @@ import {
   indexByName,
   isQuoted,
   lineReader,
-  retiredWithoutPath,
   namesSection,
   resolveTarget,
   trackedFiles,
@@ -109,24 +108,6 @@ for (const file of tracked) {
     const resolved = resolveTarget(c.from, c.target, trackedSet, byName)
     if ('error' in resolved) {
       problems.push({ where, what: resolved.error, context: c.context })
-      continue
-    }
-
-    // A LIVE FILE POINTING AT A RETIRED ONE BY ITS OLD NAME. Resolution succeeded only because the
-    // basename fallback found the retired copy; the citation as WRITTEN names a file that is no
-    // longer there. Checking the line inside the retired copy and reporting the pointer healthy is
-    // the one way this gate could paper over the exact defect it exists to catch.
-    if (retiredWithoutPath(c.from, c.target, resolved.path)) {
-      problems.push({
-        where,
-        what:
-          `names "${c.target}", which was RETIRED to ${resolved.path}. A reader following this` +
-          ' pointer as written arrives nowhere. Spell the `' +
-          resolved.path.split('/').slice(0, -1).join('/') +
-          '/` path, or -- if the citation is quoting what a dead pointer SAID -- register it in' +
-          ' `QUOTED` in `tools/citations/scan.ts` with the reason.',
-        context: c.context,
-      })
       continue
     }
 
