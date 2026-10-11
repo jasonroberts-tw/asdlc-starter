@@ -1,0 +1,6 @@
+agent.profile: "conservative"
+sync.remote: "<REPLACE_ME>"
+dolt:
+    auto-commit: "on"
+validation:
+    on-create: warn

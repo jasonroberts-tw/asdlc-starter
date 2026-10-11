@@ -1,0 +1,19 @@
+# The dev container's build context is the repository's root, so that the image can install the
+# toolchain from `mise.toml` and `mise.lock` (docs/decisions.md § D-31). Everything else in the
+# checkout -- node_modules, .git, the worktrees under .claude/worktrees/ -- stays out of the context,
+# which keeps the build fast and keeps the image from depending on anything the Dockerfile does not
+# name. Docker reads this file, not a root .dockerignore, because its name is the Dockerfile's plus
+# `.dockerignore`. `.mise/locks/` holds the uv lock of each `pypi:` tool `mise.toml` pins, which
+# `mise install --locked` reads beside the two files and fails without (docs/decisions.md § D-35).
+# `gh` and `git-credential-github-app` are the wrappers through which the image's `gh` and `git`
+# act as the agents' GitHub App (docs/decisions.md § D-51). `tools/policy/tool-settings.json` names
+# the repository the entrypoint clones into the workspace's volume at the first start
+# (docs/decisions.md § D-54).
+*
+!mise.toml
+!mise.lock
+!.mise/locks/**
+!.devcontainer/entrypoint.sh
+!.devcontainer/gh
+!.devcontainer/git-credential-github-app
+!tools/policy/tool-settings.json

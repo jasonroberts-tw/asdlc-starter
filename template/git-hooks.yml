@@ -1,0 +1,71 @@
+pre-push:
+  parallel: true
+  jobs:
+    - name: hooks-selftest
+      glob:
+        - 'scripts/git-hooks.mjs'
+        - 'git-hooks.yml'
+        - 'tools/policy/**'
+        - 'tools/lib/policy.ts'
+        - 'tools/lib/git-env.ts'
+        - 'tasks.toml'
+        - 'package.json'
+        - 'package-lock.json'
+      run: mise run hooks:selftest
+    - name: check-policy
+      glob:
+        - 'tools/policy/**'
+        - 'tools/policy.json'
+        - 'tools/lib/policy.ts'
+        - 'scripts/check-policy.mjs'
+        - 'tasks.toml'
+      run: mise run check:policy
+    - name: check-policy-selftest
+      glob:
+        - 'tools/policy/**'
+        - 'tools/lib/policy.ts'
+        - 'scripts/check-policy.mjs'
+        - 'tasks.toml'
+      run: mise run check:policy:selftest
+    - name: citations
+      run: mise run citations:check
+    - name: citations-selftest
+      glob:
+        - 'tools/citations/**'
+        - 'tools/lib/**'
+        - 'CLAUDE.md'
+        - 'README.md'
+        - '.claude/**'
+        - '.beads/formulas/**'
+        - '.beads/PRIME.md'
+        - 'tasks.toml'
+      run: mise run citations:selftest
+    - name: github-app-token-selftest
+      glob:
+        - 'scripts/github-app-token.mjs'
+        - '.devcontainer/gh'
+        - '.devcontainer/git-credential-github-app'
+        - '.devcontainer/Dockerfile'
+        - '.devcontainer/entrypoint.sh'
+        - '.devcontainer/statusline.sh'
+        - 'tools/policy/**'
+        - 'tools/lib/policy.ts'
+        - 'tools/lib/git-env.ts'
+        - 'tasks.toml'
+      run: mise run github-app-token:selftest
+    - name: beads
+      env:
+        NO_COLOR: '1'
+      run: bd hooks run pre-push {1} {2}
+    - name: beads-check
+      env:
+        NO_COLOR: '1'
+      run: mise run beads:check
+    - name: beads-selftest
+      glob:
+        - 'scripts/check-beads.mjs'
+        - 'tools/policy/**'
+        - 'tools/lib/policy.ts'
+        - 'tools/lib/bd-launcher.ts'
+        - 'tasks.toml'
+      run: mise run beads:selftest

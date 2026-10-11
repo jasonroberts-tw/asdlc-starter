@@ -1,0 +1,92 @@
+
+["beads:check"]
+description = '''
+Refuses an open issue with no label naming where its work lands; an open issue filed
+`discovered-from` another with no label `assetLabels` in `tools/policy/vocabulary.json` lists or, if
+created since the instant `foundAtLabelsSince` there names, none that `foundAtLabels` lists; an open
+issue whose type no row of `issueTypes` there names; and an issue citing an identifier that does not
+resolve here. Without the second, a found issue drops out of `bd count --by-label`, or out of the
+count by the stage that found it, and the count still reads as complete. Without the third, an issue
+takes a type no filer was told when to use. It reads the tracker's database, which a fresh clone in
+CI does not have.'''
+run = "node scripts/check-beads.mjs"
+
+["beads:selftest"]
+description = '''
+The tracker gate, negative-tested: each refusal over a fixture export and a copy of the committed
+policy, read through `BEADS_CHECK_ROOT`, with an undoctored control that must name the fixture's
+bead count. It runs no `bd`, so it runs in CI too. Without it the gate could lose a rule, or read
+the live tracker when pointed at a copy, and still pass.'''
+run = "node scripts/check-beads.mjs --selftest"
+
+["check:policy"]
+description = '''
+Refuses a record under `tools/policy/` without its five header fields, a constant without its
+`Means` sibling and a `Means` without its constant, a key two records define, a record
+`tools/policy/README.md` does not name and any other file in the directory, and `tools/policy.json`
+back beside the records. Without it a key lands with no reason beside it, two records give one key
+two values and each reader takes one, and a key added to the retired file reaches no reader.'''
+run = "node scripts/check-policy.mjs"
+
+["check:policy:selftest"]
+description = '''
+The policy gate, negative-tested over copies of the live records.'''
+run = "node scripts/check-policy.mjs --selftest"
+
+["citations:check"]
+description = '''
+Resolves every line and section pointer in every tracked text file, and refuses a pointer into a
+memory store this repository does not use. Without it a renamed heading leaves pointers that still
+look authoritative.'''
+run = "node tools/citations/check.ts"
+
+["citations:selftest"]
+description = '''
+The citations gate, negative-tested: its scanner held to fixtures, and the gate run end to end over
+a synthetic tree through `CITATIONS_ROOT`, with exact counts in the control and one break per
+doctored copy. Without it the gate can go quietly green over a repository it has stopped reading.'''
+run = "node tools/citations/selftest.ts"
+
+["gates"]
+description = '''
+The forced full pre-push suite, run through `git hook run` with the branch's push line, so it sees a
+real push's environment and input. It refuses a clone whose hooks are not installed, and a Git older
+than 2.54.0, rather than report a clean run that ran nothing.'''
+run = "node scripts/git-hooks.mjs --gates"
+
+["github-app-token:selftest"]
+description = '''
+The dev container's GitHub App helper, over a stub of GitHub's endpoint on loopback and a key it
+makes: the token minted with a JSON Web Token GitHub would take, for the installation and the one
+repository the policy names, kept where only its user reads it, handed out again and replaced once
+less than the policy's margin is left; git's credential protocol answered for https://github.com
+alone, through real git, under the git config `.devcontainer/Dockerfile` writes, where no helper a
+later scope adds is asked; `.devcontainer/gh` running `gh` with the token and running none without
+one; the App's bot account printed as git's commit identity, and set by the entrypoint's
+`commit_identity` under bash where no email is; and each refusal by its reason. Beside them, the
+rest of the container's start that needs no image: the entrypoint's `statusline` setting Claude
+Code's status line only where none is, `.devcontainer/statusline.sh` through `sh`, the
+Dockerfile setting `NO_COLOR` for `bd` alone, and the entrypoint's `clone` making the container's
+clone in an empty workspace, leaving one with a commit alone and refusing an unfinished one, or a
+policy without the repository's owner. The helper itself
+reads the App's private key and GitHub's API, so this is the job and the step in its place. Without
+it a session in the container could lose `git` and `gh` an hour in, or hand the App's token to
+another host, and nothing would say so before it did.'''
+run = "node scripts/github-app-token.mjs --selftest"
+
+["hooks:install"]
+description = '''
+Writes the five `hook.asdlc-*` entries into the repository's config, the same from any checkout, and
+removes lefthook's shims from `.git/hooks`; it reports a `.old` or `.backup` file and a tracker
+section it leaves. `npm ci` runs it through `prepare`; run it by hand after an install that skipped
+scripts. Without it no commit or push here runs a gate. It refuses a Git older than 2.54.0, under
+which the entries run nothing.'''
+run = "node scripts/git-hooks.mjs --install"
+
+["hooks:selftest"]
+description = '''
+The hook runner, negative-tested: each refusal of the job file and the policy over a doctored copy,
+and commits, pushes, a linked worktree, the install, `mise run gates`, an older Git and a signal
+through real Git in scratch repositories with a bare remote, beside a control commit and push.
+Without it a glob the runner misread, or a skip it did not print, would read as a pass.'''
+run = "node scripts/git-hooks.mjs --selftest"
