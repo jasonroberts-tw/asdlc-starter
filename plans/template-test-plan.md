@@ -1,15 +1,16 @@
 # The Template test: a plan
 
-**Status:** The Template test is not being implemented. Its existing Template blockers (work items
-2–7) were repaired on 2026-10-11. Deploy and the probe work remain separate; this document retains
-the draft Deploy contract.
+**Status:** Implemented on 2026-10-12, including Deploy, the seven-step driver, and negative controls.
+The container run passes Deploy through Guards. Canary and Work run are implemented but were
+skipped because no model credential was available; a paid agent sign-off requires `-RequireAgent`.
+The prerequisite Template blockers (work items 2–7) were repaired on 2026-10-11.
 
 **The Template test deploys the Template into a new, empty git repository inside a container. It
 checks that the Target project it makes works on a second machine: Bootstrap succeeds, the gates
 pass, and the guards are live. Then an agent writes a small Node script there twice, once from a
 bare prompt and once through the harness's own issue-to-merge workflow. The test's main subject is
-Deploy, which does not exist yet. This plan states what the test requires of Deploy, and the deploy
-work builds to that.**
+Deploy. This plan states its acceptance criteria; [deploy-plan.md](deploy-plan.md) describes the
+implementation.**
 
 ## Terms
 
@@ -48,6 +49,8 @@ No Pluggable component is deployed yet. The Deploy contract below leaves room fo
 - **The Template under test** is the asdlc-starter working tree, mounted read-only at `/src`, so a
   change can be tested before it is committed. `-Ref <ref>` tests a named revision instead: the
   driver checks that ref out into a temporary detached worktree, and builds and mounts that.
+  Its Git metadata is also mounted read-only at the absolute path its `.git` file names. The
+  current checkout's test controls are mounted separately at `/tests`, so they can test older refs.
 - **Claude Code** gets a fresh, empty `CLAUDE_CONFIG_DIR`, and `DISABLE_AUTOUPDATER=1`. A host
   `~/.claude` would bring in personal skills, plugins and instructions that could hide a Template
   defect.
@@ -63,8 +66,7 @@ No Pluggable component is deployed yet. The Deploy contract below leaves room fo
 ## What the Template test requires of Deploy
 
 This section is the one home of Deploy's contract. The deploy plan cites it as its acceptance
-criteria and changes it by editing it here, rather than restating it. Until that plan exists, this
-section is a draft.
+criteria and changes it by editing it here, rather than restating it.
 
 ### How it is invoked
 
@@ -77,10 +79,9 @@ section is a draft.
 - It accepts `--integrations claude`, `--integrations codex`, or `--integrations claude,codex`.
   A first Deploy defaults to Claude. After copying the common files, it calls
   `template/scripts/render-integrations.mjs` or the `writeIntegrations` API in
-  `template/tools/integrations/write.mjs`. These renderers are implemented; Deploy remains separate.
-- The test finds it through `TEMPLATE_TEST_DEPLOY`. The default is the path the deploy plan
-  chooses. Until then, the variable is required, and its absence fails the Deploy step with "Deploy
-  not found".
+  `template/tools/integrations/write.mjs`.
+- The test uses `/src/scripts/deploy.mjs`. `TEMPLATE_TEST_DEPLOY` can override that container path;
+  a missing file fails the Deploy step with "Deploy not found".
 
 ### What it takes
 
@@ -124,11 +125,12 @@ The Structure step checks each of these:
    by the value of `name`. CLI entry points are rendered from the shared `.harness/` definitions,
    with paths and native formats determined by the selected integrations; the tree holds those
    outputs and their `.harness/integrations.json` ownership manifest. There are no outputs for an
-   unselected integration. The tree also holds exactly the files that creating the Tracker adds. A
-   probe lists those files (work item 1), and this section then names them, along with any Template
-   file that creating the Tracker edits.
+   unselected integration. Tracker creation adds `.beads/README.md` and `.beads/metadata.json`.
+   Metadata records the Dolt backend, embedded mode, project database name and a generated UUID.
+   Deploy restores the substituted Template bytes after bd's incidental configuration and
+   `.gitignore` edits; no edited Template file is an exception to the comparison.
 3. No `<REPLACE_ME` remains anywhere in that tree.
-4. Origin holds the Tracker. The ref bd uses for it is to be confirmed by a probe.
+4. Origin holds the Tracker at `refs/dolt/data`; bd also creates `refs/heads/__dolt_remote_info__`.
 5. Alice's clone has a clean working tree.
 
 A file that is not tracked is not deployed. A new Template file is deployed only after `git add`,
@@ -223,7 +225,7 @@ non-zero.
 | `guard-unprovisioned-worktree.mjs` | Bash `git status`, run from a linked worktree whose branch does not start with `agent/` | the same command from the primary checkout |
 | `block-generated-edit.mjs` | a Write of `probe.mjs` whose first line says it is generated and not to be edited by hand | a Write of `echo.mjs` with plain content |
 | `worktree-create.mjs` | a `name` of two path segments: it must exit non-zero and make no worktree | `name: "probe"`: it prints a worktree path, on branch `agent/probe` |
-| `worktree-remove.mjs` | a payload its header says it refuses (a probe confirms which) | the worktree made above: afterwards it is gone |
+| `worktree-remove.mjs` | a payload with no `worktree_path` | the worktree made above: afterwards it is gone |
 
 The payloads live in `tests/template/fixtures/hook-payloads/`, one pair per hook script. A hook in
 `settings.json` with no pair fails the step with "no fixture for `<command>`", so a hook added later
@@ -277,18 +279,20 @@ The step passes when every one of these holds:
 - **Model.** `claude-sonnet-5-5`, which `TEMPLATE_TEST_MODEL` overrides. The test checks the
   harness, not the model.
 - **Permissions.** `--permission-mode bypassPermissions`. The Template's settings grant no
-  permissions, the container is thrown away, and PreToolUse hooks still run in this mode (a probe
-  confirms that).
+  permissions, the container is thrown away, and PreToolUse hooks still run in this mode (confirmed
+  with the actual CLI and a simulated API response).
 - **Output.** `--output-format stream-json --verbose`, saved as the run's transcript.
 - **Limits.**
 
-  | Run | Time | Turns |
-  |---|---|---|
-  | Canary | 5 min | 15 |
-  | Work run | 30 min | 100 |
+  | Run | Time | Turns | Spend |
+  |---|---|---|---|
+  | Canary | 5 min | 15 | USD 2 |
+  | Work run | 30 min | 100 | USD 10 |
 
-  A spend cap is added too, if the CLI offers one (a probe confirms whether it does). Each limit has
-  an override variable. A run that hits a limit fails with the reason "budget", not "wrong answer".
+  The CLI supports `--max-turns` and `--max-budget-usd`. Override limits with
+  `TEMPLATE_TEST_CANARY_SECONDS`, `TEMPLATE_TEST_CANARY_TURNS`, `TEMPLATE_TEST_CANARY_USD`, and the
+  corresponding `TEMPLATE_TEST_WORK_*` variables. A run that hits a limit fails with the reason
+  "budget", not "wrong answer". Transcript and stderr streams redact the supplied credentials.
 
 ### The echo test
 
@@ -326,8 +330,13 @@ Template change.
 | File | What it is |
 |---|---|
 | `tests/template/run.ps1` | the host driver: checks Docker, builds the image, makes the run directory, runs the container. Its switches are `-Ref`, `-RequireAgent`, `-NoCache` and `-Selftest` |
+| `tests/template/driver.selftest.ps1` | host-only checks of Docker recovery messages and refusal exit codes |
 | `tests/template/steps.sh` | the steps, in POSIX `sh`, run inside the container |
 | `tests/template/checks.sh` | the pure checks the steps call, sourced by `steps.sh` and `selftest.sh` |
+| `tests/template/checks.mjs` | byte/mode comparisons, Bootstrap checks, deployed CI execution, Guards and Work evidence |
+| `tests/template/transcripts.mjs` | matches Bash calls to tool results by id, checks the terminal result, and scans bypasses |
+| `tests/template/agent.mjs` | starts Claude with time, turn and spend limits and redacts credentials from output |
+| `tests/template/*.selftest.mjs` | positive and negative controls for the checks, transcripts, process limits and Work history |
 | `tests/template/selftest.sh` | the checks, negative-tested over fixtures |
 | `tests/template/fixtures/` | the values file, the Work run's issue body, and the Guards payloads |
 | `tests/template/prompts/canary.md` | the Canary's prompt |
@@ -353,6 +362,9 @@ case must pass. The cases cover:
   - the gates call missing, and the gates call failed.
 - **The Bootstrap warning list:** an unexpected warning.
 - **The Guards fixture coverage:** a hook in `settings.json` with no fixture pair.
+- **Agent process limits and logs:** a stalled child, invalid limits, and secrets split across writes.
+- **Work evidence:** an open issue, missing or unreachable closure commit, absent merged agent
+  branch, unchanged local main, or an unexpectedly pushed origin main.
 
 ## What has to be true before it can pass
 
@@ -383,36 +395,56 @@ placeholder filled and an initialized Tracker. A normal `npm ci` installed the h
 commit passed, and `mise run gates` passed every job without a skip. Every `mise run` step in
 `verify.yml` is covered by that suite. The App helper's new tests also rejected an inverted
 ID-validation condition; the source was restored afterward. This verification did not implement
-the Template test or Deploy.
+the Template test or Deploy; the subsequent implementation and verification are recorded below.
 
 One more question belongs to the Template, not to this test. `policy/vocabulary.json` says a change
 to what the product does is filed as an epic, with tasks under it. Read strictly, that makes the Work
 run's one-file echo script an epic. The test files a `task`, which `beads:check` accepts, and leaves
 the vocabulary to its owners.
 
-## Facts to probe first
+## Probe findings and verification
 
-These probes remain separate work. Blocker verification confirmed that pinned bd 1.3.0 accepts
-`--skip-agents --skip-hooks` and initializes an embedded Tracker, but did not check its exact write
-set, remote synchronization or second-machine Bootstrap. Each probe below shapes a check above;
-they run in the image with a throwaway config directory, and their full findings belong here.
+The probes ran in the Template image with bd 1.3.0 and Claude Code 2.1.296. No live model credential
+was present. CLI probes used a local HTTP server that supplied simulated Anthropic responses;
+they verify the installed client's behavior, rather than model quality or upstream authentication.
 
-- PreToolUse hooks run under `--permission-mode bypassPermissions`, and an exit 2 there blocks the
-  call.
-- Whether `claude -p` offers a spend cap, and whether it honours `--max-turns`.
-- `claude -p "/work <id> via-merge"` invokes the project's skill, and `EnterWorktree` and the
-  `WorktreeCreate` hook work in print mode.
-- `CLAUDE_CODE_OAUTH_TOKEN` alone authenticates `claude -p` with an empty config directory.
-- How `stream-json` records a Bash call and a hook's refusal, so the transcript scans read the right
-  fields.
-- What `bd init --skip-agents --skip-hooks` writes into `.beads/` with bd 1.3.0, the pinned version.
-  Those flags were read from 1.3.1's help. Also whether it edits a Template file.
-- Whether bd's Dolt remote works against a local bare repository, both for the push at Deploy and for
-  `bd bootstrap`, and which ref it uses.
-- Whether `MISE_TRUSTED_CONFIG_PATHS` trusts the directories under a path, so a worktree under
-  `.claude/worktrees/` resolves `node`.
-- Whether a copy of a clone with an embedded Dolt database still works, or holds absolute paths.
-- Which payload `worktree-remove.mjs` refuses.
+- PreToolUse ran with `bypassPermissions` and refused `gh pr create` with the actual repository
+  policy message. The transcript recorded assistant `tool_use` and user `tool_result` blocks linked
+  by `tool_use_id`, including `is_error`. Checkers require that association, not assistant prose.
+- `--max-turns 1` produced `error_max_turns`. A simulated usage response above the spend limit
+  produced `error_max_budget_usd`. Both CLI runs exited non-zero; the process selftest separately
+  verifies wall-time termination and credential redaction across stream chunks.
+- A print-mode `/work fixture-probe via-merge` expanded the deployed work skill in the API request.
+  A simulated `EnterWorktree` tool call invoked WorktreeCreate and made branch `agent/cli-probe`.
+  Native `ExitWorktree` refused removal until its own state check could succeed; the direct Guards
+  step independently verifies the repository's WorktreeRemove hook and branch preservation.
+- With an empty config and only a fake `CLAUDE_CODE_OAUTH_TOKEN`, the CLI sent that token as the
+  Bearer credential to the simulated API. Authentication against the real API remains unverified.
+- `bd init --skip-agents --skip-hooks --non-interactive` creates the embedded database, tracked
+  README and metadata, and a root git commit. It also edits `.gitignore` and strips the final newline
+  from `.beads/config.yaml`. Runtime lock files are ignored; Deploy restores Template bytes.
+  Bootstrap preserves the config's original bytes when bd's only change is trailing newlines.
+- Dolt pushes and hydrates from a local bare Git remote using `refs/dolt/data` and the auxiliary
+  `__dolt_remote_info__` branch. The first main push must precede `bd dolt push`; an entirely empty
+  bare remote rejects the Tracker push. Bob then reads the hydrated Tracker successfully.
+- A copied clone reads its copied embedded Tracker, and mise's trusted `/work` prefix resolves
+  the pinned Node from a nested `.claude/worktrees/` checkout.
+- WorktreeRemove refuses a missing `worktree_path` without changing the worktree registry.
+
+The TDD runs caught and repaired root Tracker lock files appearing in the tree, Bootstrap changing
+the config newline, a no-exec `/work` tmpfs preventing credential helpers, integration fixtures
+copying installed hooks without dependencies, linked `-Ref` Git metadata being unavailable in the
+container, and lost executable index modes with `core.filemode=false`.
+
+Deploy's CLI selftest passes 14 cases, including Codex and both integrations, tracked working-tree
+bytes, binary data, index modes, refusals and fresh-machine Tracker hydration. The harness selftest
+passes 44 positive and negative cases. The normal and detached-revision container runs pass all
+checks in steps 1–5 and report the two agent steps as skipped. Logs, summaries, tool versions and
+all-ref bundles are saved under `tests/template/out/`. `-RequireAgent` intentionally fails when
+credentials are absent. Paid Canary and Work-run validation remains to be run with a credential.
+The host driver selftest passes both Docker refusal cases. An isolated mutation that inverted the
+echo-output equality check failed the control test; restoring the source made its suite pass again.
+The pure suite also passes with forced external commit signing after isolating fixture Git processes.
 
 ## What this plan leaves alone
 
@@ -462,11 +494,14 @@ they run in the image with a throwaway config directory, and their full findings
 ## Work items
 
 Each item is one issue. The last column names the items that must land first.
-Items 2–7 were implemented independently on 2026-10-11; the remaining items are outside that work.
+Items 2–7 landed on 2026-10-11. Deploy and the harness in items 8–10 are implemented. Item 1's local
+probe findings are recorded above; real API authentication and the paid agent run remain unverified.
+Item 11 has a credential-free green summary under `tests/template/out/`; no tracking issue was
+available here to attach it to.
 
 | # | Item | Lands in | After |
 |---|---|---|---|
-| 1 | The probes in § "Facts to probe first", with their findings written into this plan | this plan | none |
+| 1 | The probes in § "Probe findings and verification", with their findings written into this plan | this plan | none |
 | 2 | Commit `mise.lock` and `package-lock.json` | `template/` | none |
 | 3 | Make a plain commit pass, and make `AGENTS.md` § "The gate ladder" true | `template/git-hooks.yml` or `template/scripts/git-hooks.mjs`, `template/AGENTS.md` | none |
 | 4 | Resolve the references to the `bead` skill | `template/` | none |
@@ -478,5 +513,5 @@ Items 2–7 were implemented independently on 2026-10-11; the remaining items ar
 | 10 | The agent steps: the Canary, the Work run, the prompt, the issue fixture and the transcript scans | `tests/template/` | 1, 9 |
 | 11 | The first green run, with its `summary.txt` attached to the issue | none | 2 to 10 |
 
-The harness can land before Deploy does. Until then it fails at step 1 with "Deploy not found",
-which is the right answer.
+The harness retains the explicit "Deploy not found" failure so older revisions and an invalid
+`TEMPLATE_TEST_DEPLOY` cannot produce a false pass.

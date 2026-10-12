@@ -1,7 +1,7 @@
 # Deploy implementation
 
 **Written:** 2026-10-12
-**Status:** Implementation in progress, driven by the Template test.
+**Status:** Implemented and verified on 2026-10-12 through the Template test and Deploy selftest.
 
 The acceptance criteria live in [template-test-plan.md](template-test-plan.md) under
 "What the Template test requires of Deploy"; that contract wins if this document disagrees.
@@ -17,6 +17,8 @@ apart from `.git`, and an origin. An occupied origin is refused rather than repl
 The Tracker probe found that bd 1.3.0 adds `.beads/README.md` and `.beads/metadata.json`, strips the
 configuration's final newline, and commits automatically. Deploy restores the substituted Template
 bytes after init, stages the complete result, and amends that newly created local root commit.
+It sets committed executable modes explicitly, including rendered assets, so `core.filemode=false`
+cannot change the source index's contract.
 It never amends a pre-existing commit. It pushes `main`, then publishes the Tracker with
 `bd dolt push`: the local git remote transport needs a branch before accepting Dolt data.
 Success requires both pushes and a clean working tree.
