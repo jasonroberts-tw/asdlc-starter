@@ -1,11 +1,11 @@
-This is a template repository for bootstrapping an agentic SDLC harness.
+This repo maintains the **Template**, an agentic SDLC harness that Deploy puts into new Target projects. [CONTEXT.md](CONTEXT.md) defines these terms and the rest of the project's language; write code, docs and commits in its words. Decisions are recorded in [docs/adr/](docs/adr/).
 
-## Structure
+## Layout
 
-- 'template/' contains common files copied to a Target project; '.harness/' holds shared CLI definitions rendered by scripts/render-integrations.mjs
-- 'plans/' contains plans for pluggable components that will be used by the target
-- 'components/' is where the component implementations go
+- `template/` is the Template. `template/.harness/` holds the shared skills, agent prompts and hook declarations that `template/scripts/render-integrations.mjs` renders for each CLI.
+- `plans/` holds plans; `components/` holds Pluggable component implementations.
+- `scripts/` is Deploy and `tests/template/` is the Template test; [README.md](README.md) has their commands.
 
-The template folder contains copied and hand edited files from an experimental repo. 
-They should not (yet) be trusted as authoritative, and the work here will be adjusting, 
-validating, and testing them for the moment.
+## Template files are product, not instructions
+
+`template/AGENTS.md`, `template/.harness/CLAUDE.md` and the skills and prompts under `template/` steer a Target project's agents. Edit them as code under maintenance: take your own instructions from this file and CONTEXT.md, and judge Template steering by whether it serves an agent working in a Target project.
