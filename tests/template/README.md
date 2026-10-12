@@ -14,7 +14,7 @@ instructions disagree. The test controls live in this directory; the system unde
 | `checks.mjs` | Byte/mode comparisons, Bootstrap checks, deployed CI execution, live guards and Work history evidence |
 | `checks.selftest.mjs` | Positive and negative echo, tree, warning and hook-fixture controls |
 | `transcripts.mjs` | Associates Bash calls with tool results, verifies completion and gates, and rejects hook bypasses |
-| `transcripts.selftest.mjs` | Rejects absent, mismatched, failed or prose-only tool evidence and incomplete or limited runs |
+| `transcripts.selftest.mjs` | Checks here-document parsing and rejects absent, mismatched, failed or prose-only tool evidence and incomplete or limited runs |
 | `agent.mjs` | Runs Claude with wall-time, turn and spend limits and redacts supplied credentials from output |
 | `agent.selftest.mjs` | Real child-process controls for time limits and credential redaction |
 | `work.selftest.mjs` | Real Git history controls for issue closure, merged agent work and an unchanged origin |
@@ -61,5 +61,6 @@ logs; Work run adds the created/final issue JSON and main's echo script. A faile
 steps from running, while checks within that step collect failures. The image id and source dirty
 flag make the artifacts traceable. GitHub is never contacted by a test step.
 
-The paid Canary and Work run require a real credential. Local simulated API probes verified CLI
-hook, skill, transcript and limit behavior; they do not substitute for a paid `-RequireAgent` run.
+The paid Canary and Work run require a real credential. A recorded credentialed run satisfies the
+seven-step contract after rechecking its saved evidence with the here-document parser fix; see
+the plan's verification notes. The original failed summary remains alongside the corrected verdict.

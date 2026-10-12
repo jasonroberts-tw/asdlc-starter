@@ -38,17 +38,48 @@ function evidence(file) {
 }
 // Only recognize direct shell invocations. Quoted prose such as printf 'mise run gates' is one
 // argument, not three commands; compound commands split only at unquoted shell separators.
+// Here-document bodies are data: quotes and command-looking lines there cannot affect the scan.
 function invocations(command) {
-  const segments = [], words = []
-  let word = '', quote = '', escaped = false
-  const flushWord = () => { if (word) words.push(word); word = '' }
+  const segments = [], words = [], hereDocs = []
+  let word = '', quote = '', escaped = false, hereDoc = null
+  const flushWord = () => {
+    if (word) {
+      words.push(word)
+      if (hereDoc) { hereDocs.push({ ...hereDoc, delimiter: word }); hereDoc = null }
+    }
+    word = ''
+  }
   const flushSegment = () => { flushWord(); if (words.length) segments.push(words.splice(0)) }
-  for (const char of command) {
+  for (let index = 0; index < command.length; index++) {
+    const char = command[index]
     if (escaped) { word += char; escaped = false }
     else if (char === '\\' && quote !== "'") escaped = true
     else if (quote) { if (char === quote) quote = ''; else word += char }
     else if (char === "'" || char === '"') quote = char
-    else if (/[;&|()\n]/.test(char)) flushSegment()
+    else if (char === '<' && command.slice(index, index + 3) === '<<<') {
+      flushWord()
+      words.push('<<<')
+      index += 2
+    }
+    else if (char === '<' && command[index + 1] === '<' && command[index + 2] !== '<') {
+      flushWord()
+      hereDoc = { stripTabs: command[index + 2] === '-' }
+      words.push('<<')
+      index += hereDoc.stripTabs ? 2 : 1
+    }
+    else if (char === '\n') {
+      flushSegment()
+      for (const { delimiter, stripTabs } of hereDocs.splice(0)) {
+        while (index < command.length) {
+          const next = command.indexOf('\n', index + 1)
+          const end = next === -1 ? command.length : next
+          const line = command.slice(index + 1, end)
+          index = end
+          if ((stripTabs ? line.replace(/^\t+/, '') : line) === delimiter) break
+        }
+      }
+    }
+    else if (/[;&|()]/.test(char)) flushSegment()
     else if (/\s/.test(char)) flushWord()
     else word += char
   }

@@ -1,8 +1,9 @@
 # The Template test: a plan
 
 **Status:** Implemented on 2026-10-12, including Deploy, the seven-step driver, and negative controls.
-The container run passes Deploy through Guards. Canary and Work run are implemented but were
-skipped because no model credential was available; a paid agent sign-off requires `-RequireAgent`.
+The credentialed run `20261012T145236082Z-adf1b386` satisfies all seven steps after fixing and
+rechecking a here-document parsing error in the transcript checker. The original failed summary
+is preserved alongside `rechecked-summary.txt`; the recheck made no new model calls.
 The prerequisite Template blockers (work items 2–7) were repaired on 2026-10-11.
 
 **The Template test deploys the Template into a new, empty git repository inside a container. It
@@ -419,7 +420,7 @@ they verify the installed client's behavior, rather than model quality or upstre
   Native `ExitWorktree` refused removal until its own state check could succeed; the direct Guards
   step independently verifies the repository's WorktreeRemove hook and branch preservation.
 - With an empty config and only a fake `CLAUDE_CODE_OAUTH_TOKEN`, the CLI sent that token as the
-  Bearer credential to the simulated API. Authentication against the real API remains unverified.
+  Bearer credential to the simulated API. This probe did not verify upstream OAuth authentication.
 - `bd init --skip-agents --skip-hooks --non-interactive` creates the embedded database, tracked
   README and metadata, and a root git commit. It also edits `.gitignore` and strips the final newline
   from `.beads/config.yaml`. Runtime lock files are ignored; Deploy restores Template bytes.
@@ -438,13 +439,23 @@ container, and lost executable index modes with `core.filemode=false`.
 
 Deploy's CLI selftest passes 14 cases, including Codex and both integrations, tracked working-tree
 bytes, binary data, index modes, refusals and fresh-machine Tracker hydration. The harness selftest
-passes 44 positive and negative cases. The normal and detached-revision container runs pass all
+passes 50 positive and negative cases. The normal and detached-revision container runs pass all
 checks in steps 1–5 and report the two agent steps as skipped. Logs, summaries, tool versions and
 all-ref bundles are saved under `tests/template/out/`. `-RequireAgent` intentionally fails when
-credentials are absent. Paid Canary and Work-run validation remains to be run with a credential.
+credentials are absent.
 The host driver selftest passes both Docker refusal cases. An isolated mutation that inverted the
 echo-output equality check failed the control test; restoring the source made its suite pass again.
 The pure suite also passes with forced external commit signing after isolating fixture Git processes.
+
+The credentialed run `20261012T145236082Z-adf1b386` passed Canary, produced main's echo script,
+closed its issue with a reachable commit, merged an agent branch and left origin main unchanged.
+Its only failed check was "gates call missing": an apostrophe in a here-document body confused the
+shell scanner, even though the associated tool result reported 11 passed, 0 failed, 0 skipped.
+Six new regression cases verify here-document quoting, data-only commands, here-strings, tab
+stripping and multiple delimiters. The corrected checker passes the actual saved transcript.
+Rechecking both agent transcripts, main's script and the Work evidence from all-ref bundles and
+issue JSON produced `rechecked-summary.txt` beside the original summary. An inverted delimiter
+registration condition fails the tests, and the restored scanner passes.
 
 ## What this plan leaves alone
 
@@ -495,9 +506,9 @@ The pure suite also passes with forced external commit signing after isolating f
 
 Each item is one issue. The last column names the items that must land first.
 Items 2–7 landed on 2026-10-11. Deploy and the harness in items 8–10 are implemented. Item 1's local
-probe findings are recorded above; real API authentication and the paid agent run remain unverified.
-Item 11 has a credential-free green summary under `tests/template/out/`; no tracking issue was
-available here to attach it to.
+probe findings and the credentialed run's recheck are recorded above. Item 11 has the recorded
+credentialed run and its corrected verdict under `tests/template/out/`; no tracking issue was
+available here to attach them to.
 
 | # | Item | Lands in | After |
 |---|---|---|---|

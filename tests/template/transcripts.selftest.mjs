@@ -62,6 +62,26 @@ test('a gates call without a tool result is not success', (t) => {
 test('printing a gates command is not running the gates', (t) => {
   assert.throws(() => checkGatesTranscript(transcript(t, [call('fake', "printf 'mise run gates'"), result('fake', '11 passed, 0 failed, 0 skipped')])), /gates call missing/)
 })
+for (const delimiter of ["'EOF'", '"EOF"', 'EOF']) {
+  test('gates after a here-document are recognized with delimiter ' + delimiter, (t) => {
+    const command = 'cat > echo.mjs <<' + delimiter + '\n' +
+      "// Preserve each argument's internal spaces.\n" +
+      'process.stdout.write(process.argv.slice(2).join(" ") + "\\n");\n' +
+      'EOF\n(npm ci >/dev/null 2>&1; mise run gates 2>&1 | tail -15)'
+    checkGatesTranscript(transcript(t, [call('gates', command), result('gates', '11 passed, 0 failed, 0 skipped')]))
+  })
+}
+test('a gates command inside a here-document is data rather than a tool invocation', (t) => {
+  const command = "cat <<'EOF'\nmise run gates\nEOF"
+  assert.throws(() => checkGatesTranscript(transcript(t, [call('fake', command), result('fake', '11 passed, 0 failed, 0 skipped')])), /gates call missing/)
+})
+test('a here-string does not hide commands on the next line', (t) => {
+  checkGatesTranscript(transcript(t, [call('gates', 'cat <<< "data"\nmise run gates'), result('gates', '11 passed, 0 failed, 0 skipped')]))
+})
+test('tab-stripped and multiple here-documents end at their exact delimiter lines', (t) => {
+  const command = "cat <<-'FIRST' <<SECOND\n\tFIRST-extra\n\tFIRST\nargument's data\nSECOND\nmise run gates"
+  checkGatesTranscript(transcript(t, [call('gates', command), result('gates', '11 passed, 0 failed, 0 skipped')]))
+})
 test('a successful shell exit without the full gates summary is insufficient', (t) => {
   assert.throws(() => checkGatesTranscript(transcript(t, [call('fake', 'mise run gates'), result('fake', 'all good')])), /last gates call failed/)
 })
