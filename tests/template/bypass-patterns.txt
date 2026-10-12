@@ -1,0 +1,6 @@
+# Regular expression<TAB>reason; applied only to Bash tool input commands.
+--no-verify	Skips git's verification hooks.
+GIT_HOOKS_SKIP	Tells the installed gate runner to skip its jobs.
+core\.hooksPath	Replaces or disables the configured hook route.
+-c\s+hook\.	Overrides a config-based hook for one git invocation.
+\bgit\s+commit\b[^\n]*(?:\s-n\b|\s-[A-Za-z]*n[A-Za-z]*(?:\s|$))	Uses git commit's short no-verify flag, including combined flags.

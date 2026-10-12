@@ -6,4 +6,4 @@
 set -eu
 TEST_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 . "$TEST_ROOT/checks.sh"
-node --test "$TEST_ROOT/checks.selftest.mjs"
+node --test "$TEST_ROOT/checks.selftest.mjs" "$TEST_ROOT/transcripts.selftest.mjs" "$TEST_ROOT/agent.selftest.mjs" "$TEST_ROOT/work.selftest.mjs"

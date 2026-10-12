@@ -41,7 +41,8 @@ test('Guards refuses a command hook with no fixture pair', (t) => {
 })
 function git(root, ...args) {
   return execFileSync('git', ['-C', root, ...args], {
-    encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_NAME: 'Template Test', GIT_AUTHOR_EMAIL: 'template-test@example.invalid',
+    encoding: 'utf8', env: { ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_'))),
+      GIT_CONFIG_GLOBAL: '/dev/null', GIT_AUTHOR_NAME: 'Template Test', GIT_AUTHOR_EMAIL: 'template-test@example.invalid',
       GIT_COMMITTER_NAME: 'Template Test', GIT_COMMITTER_EMAIL: 'template-test@example.invalid' },
   })
 }

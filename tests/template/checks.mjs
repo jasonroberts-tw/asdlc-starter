@@ -216,6 +216,25 @@ export function runGuards(root, fixtures) {
   }
   if (failures.length) throw new Error('Guards failed: ' + failures.join('; '))
 }
+export function checkWorkEvidence(root, issueFile, deployCommit, origin) {
+  const data = JSON.parse(readFileSync(issueFile))
+  const issue = Array.isArray(data) ? data[0] : data
+  const problems = []
+  const ancestor = (commit) => {
+    try { git(root, ['merge-base', '--is-ancestor', commit, 'main']); return true } catch { return false }
+  }
+  if (issue?.status !== 'closed') problems.push('issue is not closed')
+  const named = [...String(issue?.close_reason ?? '').matchAll(/\b[0-9a-f]{7,40}\b/gi)].map((match) => match[0])
+  if (!named.some(ancestor)) problems.push('closure names no reachable commit')
+  const main = git(root, ['rev-parse', 'main']).trim()
+  if (main === deployCommit || !ancestor(deployCommit)) problems.push('main did not advance past Deploy')
+  const branches = git(root, ['for-each-ref', '--format=%(refname)', 'refs/heads/agent/']).trim().split('\n').filter(Boolean)
+  if (!branches.some((branch) => git(root, ['rev-parse', branch]).trim() !== deployCommit && ancestor(branch))) {
+    problems.push('no merged agent work branch')
+  }
+  if (git(origin, ['rev-parse', 'main']).trim() !== deployCommit) problems.push('origin main changed')
+  if (problems.length) throw new Error(problems.join('; '))
+}
 
 if (resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) {
   try {
@@ -226,6 +245,7 @@ if (resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) {
     else if (check === 'bootstrap') checkBootstrap(...args)
     else if (check === 'ci') runCI(...args)
     else if (check === 'guards') runGuards(...args)
+    else if (check === 'work-evidence') checkWorkEvidence(...args)
     else throw new Error('Unknown check: ' + check)
     console.log('PASS ' + check)
   } catch (error) {

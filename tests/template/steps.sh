@@ -4,7 +4,7 @@
 #   mise exec -- sh tests/template/steps.sh (through run.ps1 inside the Template image)
 # Needs git, bd, Node, npm, mise and the image's Bootstrap entrypoint; no GitHub or key.
 set -u
-TEST_ROOT=/src/tests/template
+TEST_ROOT=${TEMPLATE_TEST_HARNESS_ROOT:-/src/tests/template}
 . "$TEST_ROOT/checks.sh"
 OUT=/out
 mkdir -p "$OUT/steps" /work/claude
@@ -15,6 +15,13 @@ VERDICT=FAIL
 AGENT_SKIP=0
 if [ -z "${ANTHROPIC_API_KEY:-}${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then AGENT_SKIP=1; fi
 finish() {
+    number=0
+    for name in Deploy Structure Bootstrap Gates Guards Canary Work-run; do
+        number=$((number + 1))
+        if ! grep -E "^(PASS|FAIL|SKIP) $number $name" "$RESULTS" >/dev/null; then
+            printf 'SKIP %s %s: an earlier step failed\n' "$number" "$name" >>"$RESULTS"
+        fi
+    done
     {
         if [ "$AGENT_SKIP" = 1 ]; then printf 'AGENT STEPS SKIPPED: no model credential\n'; fi
         printf 'VERDICT: %s\n' "$VERDICT"
@@ -126,9 +133,52 @@ guards() {
     check 'Guards fixture coverage and live hook commands' node "$TEST_ROOT/checks.mjs" guards /work/bob "$TEST_ROOT/fixtures/hook-payloads"
     check 'Guards leaves Bob clean' clean_bob
 }
+agent_command() {
+    phase=$1; root=$2; prompt=$3; transcript=$4
+    node "$TEST_ROOT/agent.mjs" "$phase" "$root" "$prompt" "$transcript" "$OUT/$phase.stderr.log"
+    agent_status=$?
+    cat "$OUT/$phase.stderr.log"
+    return "$agent_status"
+}
+canary_no_commit() { [ "$(git -C /work/canary rev-parse HEAD)" = "$DEPLOY_COMMIT" ]; }
+canary() {
+    cp -R /work/bob /work/canary || return 1
+    check 'Canary completes within limits' agent_command canary /work/canary "$TEST_ROOT/prompts/canary.md" "$OUT/canary.jsonl"
+    check 'Canary echo behavior' mise -C /work/canary exec -- node "$TEST_ROOT/checks.mjs" echo /work/canary/echo.mjs
+    check 'Canary live policy refusal' check_guard_transcript "$OUT/canary.jsonl"
+    check 'Canary commits nothing' canary_no_commit
+}
+work_run() {
+    if ! NO_COLOR=1 bd -C /work/bob create --title 'Add a Node echo script' --type task --labels asset:product \
+        --body-file "$TEST_ROOT/fixtures/issue.md" --json >"$OUT/issue-created.json"; then
+        cat "$OUT/issue-created.json"
+        return 1
+    fi
+    issue_id=$(node -e 'const fs=require("node:fs");const value=JSON.parse(fs.readFileSync(process.argv[1]));const id=value.id; if(typeof id!=="string" || !/^[A-Za-z0-9-]+$/.test(id)) process.exit(1); console.log(id)' "$OUT/issue-created.json") || return 1
+    printf '/work %s via-merge\n' "$issue_id" >"$OUT/work-prompt.txt"
+    check 'Work run completes within limits' agent_command work /work/bob "$OUT/work-prompt.txt" "$OUT/work-run.jsonl"
+    check 'main contains echo.mjs' sh -c 'git -C /work/bob show main:echo.mjs >"$1/echo-main.mjs"' sh "$OUT"
+    check 'Work run echo behavior on main' mise -C /work/bob exec -- node "$TEST_ROOT/checks.mjs" echo "$OUT/echo-main.mjs"
+    check 'read Work run issue status' sh -c 'NO_COLOR=1 bd -C /work/bob show "$1" --json >"$2/issue-final.json"' sh "$issue_id" "$OUT"
+    check 'Work run closed issue and merged agent work, with origin unchanged' check_work_evidence /work/bob "$OUT/issue-final.json" "$DEPLOY_COMMIT" /work/origin.git
+    check 'Work run final gates succeeded' check_gates_transcript "$OUT/work-run.jsonl"
+    check 'Work run used no hook bypass' check_bypasses "$OUT/work-run.jsonl" "$TEST_ROOT/bypass-patterns.txt"
+}
 step 1 Deploy deploy
+DEPLOY_COMMIT=$(git --git-dir=/work/origin.git rev-parse main) || exit 1
+printf 'Deploy commit: %s\n' "$DEPLOY_COMMIT" >>"$OUT/versions.txt"
 step 2 Structure structure
 step 3 Bootstrap bootstrap
 step 4 Gates gates
 step 5 Guards guards
+if [ "$AGENT_SKIP" = 1 ]; then
+    printf 'SKIP 6 Canary: no model credential\nSKIP 7 Work-run: no model credential\n' >>"$RESULTS"
+    if [ "${TEMPLATE_TEST_REQUIRE_AGENT:-0}" = 1 ]; then
+        printf 'FAIL -RequireAgent: model credential required\n' >>"$RESULTS"
+        exit 1
+    fi
+else
+    step 6 Canary canary
+    step 7 Work-run work_run
+fi
 VERDICT=PASS
