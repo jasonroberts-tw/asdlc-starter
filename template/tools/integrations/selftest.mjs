@@ -231,7 +231,10 @@ test('Codex hooks resolve from a subdirectory and Codex worktrees use the shared
   const dir = target()
   cpSync(ROOT, dir, {
     recursive: true,
-    filter: (file) => file !== join(ROOT, 'node_modules') && file !== join(ROOT, '.claude') && !file.endsWith('.DS_Store'),
+    // A deployed Target has .git and installed hooks; copying them makes this fixture inherit
+    // Bob's hooks, remotes and index while excluding the dependencies those hooks require.
+    filter: (file) => file !== join(ROOT, '.git') && file !== join(ROOT, 'node_modules') &&
+      file !== join(ROOT, '.claude') && file !== join(ROOT, '.beads/embeddeddolt') && !file.endsWith('.DS_Store'),
   })
   writeIntegrations({ root: dir, target: dir, integrations: ['codex'] })
   const env = {
