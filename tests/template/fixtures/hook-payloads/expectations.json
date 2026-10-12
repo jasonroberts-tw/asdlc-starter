@@ -1,0 +1,7 @@
+{
+  "guard-git": {"exit":2,"reason":"BLOCKED by repository policy:"},
+  "guard-unprovisioned-worktree": {"exit":2,"reason":"not an agent/* branch"},
+  "block-generated-edit": {"exit":2,"reason":"do not edit by hand"},
+  "worktree-create": {"exit":"non-zero","reason":"WorktreeCreate: refusing the name"},
+  "worktree-remove": {"exit":"non-zero","reason":"WorktreeRemove: no worktree_path on stdin"}
+}
