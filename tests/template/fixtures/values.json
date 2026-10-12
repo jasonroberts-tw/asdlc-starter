@@ -1,0 +1,9 @@
+{
+  "projectName": "template-test",
+  "githubAppRepositoryOwner": "template-test",
+  "githubAppTokenRepository": "template-test",
+  "githubAppId": "1",
+  "githubAppInstallationId": "2",
+  "githubAppBotLogin": "template-test[bot]",
+  "githubAppBotUserId": "3"
+}
