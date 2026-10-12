@@ -9,4 +9,6 @@
 .worktree/
 .scratch/
 node_modules/
+# bd's physical-workspace lock sits beside .beads rather than inside its ignored database.
+*.gate.lock*
 **/.DS_Store

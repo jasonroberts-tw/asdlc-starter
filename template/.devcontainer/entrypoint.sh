@@ -152,10 +152,32 @@ setup() {
   # `bd init` -- that creates a new tracker rather than joining this one.
   if [ ! -d .beads/embeddeddolt ]; then
     log 'hydrating the beads issue database'
-    bd bootstrap >/dev/null 2>&1 \
-      || warn 'bd bootstrap failed -- once the GitHub App mints a token (a warning below says so if it cannot), run `bd bootstrap` (never `bd init`)'
+    hydrate_tracker
   fi
 
+}
+
+# bd 1.3.0 rewrites config.yaml without its final newline even when sync.remote is unchanged.
+# Preserve its original bytes when only trailing newlines changed, so a fresh clone stays clean;
+# retain an actual configuration change made by Bootstrap. The Template test reproduced the diff
+# on 2026-10-12. No database is created here: bd bootstrap joins Deploy's remote Tracker.
+hydrate_tracker() {
+  local saved=''
+  if [ -f .beads/config.yaml ]; then
+    saved="$(mktemp)" || saved=''
+    if [ -n "$saved" ] && ! cp .beads/config.yaml "$saved"; then
+      rm -f "$saved"
+      saved=''
+    fi
+  fi
+  bd bootstrap >/dev/null 2>&1 \
+    || warn 'bd bootstrap failed -- once the GitHub App mints a token (a warning below says so if it cannot), run `bd bootstrap` (never `bd init`)'
+  if [ -n "$saved" ]; then
+    if [ -f .beads/config.yaml ] && [ "$(cat "$saved")" = "$(cat .beads/config.yaml)" ]; then
+      cat "$saved" >.beads/config.yaml
+    fi
+    rm -f "$saved"
+  fi
 }
 
 # The container's `git` and `gh` act as the agents' GitHub App, through the wrappers the Dockerfile
