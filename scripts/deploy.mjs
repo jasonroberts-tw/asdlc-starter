@@ -111,6 +111,15 @@ function writeFiles(target, files) {
     chmodSync(destination, mode)
   }
 }
+function stageFiles(target, files) {
+  git(target, 'add', '--all')
+  // core.filemode=false makes git ignore chmod, including on new files. The source index,
+  // rather than the Target filesystem's capabilities, defines the committed Template modes.
+  for (const [mode, flag] of [[0o755, '+x'], [0o644, '-x']]) {
+    const paths = files.filter((file) => file.mode === mode).map((file) => file.file)
+    if (paths.length) git(target, 'update-index', '--chmod=' + flag, '--', ...paths)
+  }
+}
 
 try {
   const { valuesFile, target, integrations } = argumentsOf(process.argv.slice(2))
@@ -121,8 +130,11 @@ try {
   const { writeIntegrations } = await import(pathToFileURL(join(target, 'tools/integrations/write.mjs')))
   const rendered = writeIntegrations({ root: target, target, integrations })
   for (const warning of rendered.warnings) console.error(warning)
+  const indexedFiles = [...files, ...[...rendered.files.keys()].map((file) => ({
+    file, mode: (rendered.modes.get(file) ?? 0o644) & 0o111 ? 0o755 : 0o644,
+  }))]
   git(target, 'symbolic-ref', 'HEAD', 'refs/heads/main')
-  git(target, 'add', '--all')
+  stageFiles(target, indexedFiles)
   console.log(command('bd', ['init', '--skip-agents', '--skip-hooks', '--non-interactive', '--prefix', String(input.projectName)], target).trim())
   if (!existsSync(join(target, '.beads/metadata.json')) || !existsSync(join(target, '.beads/embeddeddolt'))) {
     throw new Error('Tracker init failed: no embedded database or metadata')
@@ -131,7 +143,7 @@ try {
   // input bytes keeps those incidental edits out of the Template contract. Only bd's new files stay.
   // Source: https://github.com/gastownhall/beads/blob/v1.3.0/cmd/bd/init.go
   writeFiles(target, files)
-  git(target, 'add', '--all')
+  stageFiles(target, indexedFiles)
   const created = spawnSync('git', ['-C', target, 'rev-parse', '--verify', 'HEAD'])
   if (created.status === 0) git(target, 'commit', '--amend', '-m', 'Deploy project harness')
   else git(target, 'commit', '-m', 'Deploy project harness')

@@ -42,7 +42,9 @@ function fixture(t) {
   writeFileSync(input, JSON.stringify(values))
   return { directory, target, origin, input }
 }
-function deploy(f, extra = []) { return run(process.execPath, [cli, '--values', f.input, ...extra, f.target], source) }
+function deploy(f, extra = [], checkout = source) {
+  return run(process.execPath, [join(checkout, 'scripts/deploy.mjs'), '--values', f.input, ...extra, f.target], checkout)
+}
 
 test('Deploy publishes one clean main commit and a Tracker that Bob can hydrate', (t) => {
   const f = fixture(t)
@@ -64,7 +66,46 @@ test('Deploy publishes one clean main commit and a Tracker that Bob can hydrate'
   assert.equal(run('bd', ['list', '--json'], bob).status, 0)
 })
 
-for (const [name, change, reason] of [
+for (const integrations of ['codex', 'claude,codex']) {
+  test('Deploy renders only the selected integrations: ' + integrations, (t) => {
+    const f = fixture(t)
+    const result = deploy(f, ['--integrations', integrations])
+    assert.equal(result.status, 0, result.stdout + result.stderr)
+    assert.equal(existsSync(join(f.target, '.claude/settings.json')), integrations.includes('claude'))
+    assert.ok(existsSync(join(f.target, '.codex/config.toml')))
+    assert.ok(existsSync(join(f.target, '.agents/skills/work/SKILL.md')))
+    assert.equal(git(f.target, 'status', '--porcelain'), '')
+  })
+}
+
+test('Deploy uses tracked working-tree bytes and index modes even when the Target ignores chmod', (t) => {
+  const f = fixture(t)
+  const checkout = join(f.directory, 'source')
+  git(f.directory, 'clone', '--no-local', source, checkout)
+  // This checkout supplies the tracked Template; use the CLI under test, including uncommitted fixes.
+  writeFileSync(join(checkout, 'scripts/deploy.mjs'), readFileSync(cli))
+  const packageFile = join(checkout, 'template/package.json')
+  const pkg = JSON.parse(readFileSync(packageFile))
+  pkg.description = 'Changed in the working tree before committing'
+  writeFileSync(packageFile, JSON.stringify(pkg, null, 2) + '\n')
+  const binary = Buffer.from([0, 255, 128, 10, 13])
+  writeFileSync(join(checkout, 'template/tracked.bin'), binary)
+  writeFileSync(join(checkout, 'template/tracked.sh'), '#!/bin/sh\nexit 0\n')
+  writeFileSync(join(checkout, 'template/.harness/skills/work/helper.sh'), '#!/bin/sh\nexit 0\n')
+  git(checkout, 'add', 'template/tracked.bin', 'template/tracked.sh', 'template/.harness/skills/work/helper.sh')
+  git(checkout, 'update-index', '--chmod=+x', 'template/tracked.sh', 'template/.harness/skills/work/helper.sh')
+  writeFileSync(join(checkout, 'template/untracked.txt'), 'must not deploy')
+  git(f.target, 'config', 'core.filemode', 'false')
+  const result = deploy(f, [], checkout)
+  assert.equal(result.status, 0, result.stdout + result.stderr)
+  assert.equal(JSON.parse(readFileSync(join(f.target, 'package.json'))).description, pkg.description)
+  assert.deepEqual(readFileSync(join(f.target, 'tracked.bin')), binary)
+  assert.ok(!existsSync(join(f.target, 'untracked.txt')))
+  assert.match(git(f.target, 'ls-tree', 'main', 'tracked.sh'), /^100755 /)
+  assert.match(git(f.target, 'ls-tree', 'main', '.claude/skills/work/helper.sh'), /^100755 /)
+})
+
+for (const [name, change, reason, extra] of [
   ['non-repository', (f) => rmSync(join(f.target, '.git'), { recursive: true }), /not a git repository/i],
   ['existing commit', (f) => git(f.target, 'commit', '--allow-empty', '-m', 'existing'), /has a commit/i],
   ['missing origin', (f) => git(f.target, 'remote', 'remove', 'origin'), /no origin/i],
@@ -73,12 +114,13 @@ for (const [name, change, reason] of [
   ['empty value', (f) => writeFileSync(f.input, JSON.stringify({ ...values, projectName: '' })), /empty value: projectName/i],
   ['existing file', (f) => writeFileSync(join(f.target, 'keep.txt'), 'keep me'), /target is not empty/i],
   ['symlink destination', (f) => symlinkSync(f.directory, join(f.target, 'policy')), /target is not empty/i],
+  ['unknown integration', () => {}, /unknown CLI integration: unknown/i, ['--integrations', 'unknown']],
 ]) {
   test('Deploy refuses ' + name + ' before copying', (t) => {
     const f = fixture(t)
     change(f)
     const before = readdirSync(f.target)
-    const result = deploy(f)
+    const result = deploy(f, extra)
     assert.notEqual(result.status, 0)
     assert.match(result.stderr, reason)
     assert.deepEqual(readdirSync(f.target), before)
