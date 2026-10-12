@@ -4,6 +4,7 @@
 
 | Directory | Role |
 |---|---|
+| `add-skill/` | Admit, re-pin or remove an outside skill through its checks, and list what a tracked skill's change touches |
 | `add-task/` | Add, rename, or remove a public task and its gate wiring |
 | `open-pr/` | Open a pull request, watch checks, and finish integration |
 | `root-cause/` | Diagnose failures before attempting a fix; includes the source license |

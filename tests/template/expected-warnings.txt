@@ -1,2 +1,2 @@
-# Literal entrypoint warning<TAB>reason. New warnings fail until their cause is resolved.
-the GitHub App could not mint a token, so git and gh cannot reach GitHub -- run `node scripts/github-app-token.mjs token` in the clone to see why	No GitHub App key is mounted; the test uses only its local bare origin.
+# Literal entrypoint, bootstrap, doctor or sync warning<TAB>reason. New warnings fail until their cause is resolved.
+[doctor] warn container: the GitHub App mints a token -- git and gh cannot reach GitHub; fix: `node scripts/github-app-token.mjs token` in the clone says why	No GitHub App key is mounted; the test uses only its local bare origin.

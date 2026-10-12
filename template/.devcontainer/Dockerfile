@@ -9,10 +9,11 @@
 #
 # The only steps NOT in a layer are those that need the repository itself, which does not exist at
 # build time: the container's own clone, in a volume, which entrypoint.sh makes at the first start
-# and no host checkout is mounted over. They are `npm ci`, the git hooks, hydrating the issue
-# database, installing the beads and vale plugins, whose project-scope install record names the
-# clone's path, the App's commit identity, read from the clone's policy, and the status
-# line, which runs a script in the clone.
+# and no host checkout is mounted over. They are the App's commit identity, read from the clone's
+# policy, the status line, which runs a script in the clone, and scripts/bootstrap.mjs, which the
+# host runs too: `npm ci`, the git hooks, hydrating the issue database, the plugins and installed
+# skills of policy/skill-sources.json, whose project-scope install records name the clone's path,
+# and the doctor. No marketplace is registered here: bootstrap registers each from that record.
 # Those live in entrypoint.sh, which this file copies in and wires to ENTRYPOINT -- so the setup is
 # still owned by the image, and devcontainer.json still has no lifecycle command in it.
 #
@@ -20,7 +21,7 @@
 # `mise.lock`; this file states no tool's version. The build context is the repository's
 # root, so the image can read those files, and `Dockerfile.dockerignore` beside this file admits
 # them, the entrypoint and the App's two wrappers, and nothing else. After a pin moves, rebuild:
-# entrypoint.sh warns while the image's tools lag `mise.toml`.
+# the doctor, which the entrypoint runs, warns while the image's tools lag `mise.toml`.
 
 # The base image's major version, on its Ubuntu 24.04 codename tag. `3-noble` takes every 3.x
 # release devcontainers/images publishes and never crosses a major. The codename form is the tag that
@@ -91,8 +92,7 @@ RUN git config --system --add safe.directory '*' \
     && git config --system gc.worktreePruneExpire never
 
 # --- workspace setup, deferred to container start ------------------------------------------------
-# npm ci, the git hooks, the issue database, the plugins' install records, the commit identity and
-# the status line all need the workspace, which arrives only when it is mounted, so they cannot be layers. ENTRYPOINT is how they stay in the
+# Bootstrap's steps, the commit identity and the status line all need the workspace, which arrives only when it is mounted, so they cannot be layers. ENTRYPOINT is how they stay in the
 # image anyway: the devcontainer CLI replaces the container's *command* with a sleep, and leaves the
 # image's entrypoint alone.
 COPY .devcontainer/entrypoint.sh /usr/local/bin/workspace-entrypoint

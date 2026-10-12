@@ -11,8 +11,8 @@ instructions disagree. The test controls live in this directory; the system unde
 | `driver.selftest.ps1` | Checks missing Docker and an unreachable daemon without contacting Docker |
 | `steps.sh` | Runs Deploy, Structure, Bootstrap, Gates, Guards, Canary and Work run in order |
 | `checks.sh` | POSIX shell entry points for the Node checks |
-| `checks.mjs` | Byte/mode comparisons, Bootstrap checks, deployed CI execution, live guards and Work history evidence |
-| `checks.selftest.mjs` | Positive and negative echo, tree, warning and hook-fixture controls |
+| `checks.mjs` | Byte/mode comparisons, Bootstrap checks (the doctor's summary and the checkout-hook skill sync), deployed CI execution, live guards and Work history evidence |
+| `checks.selftest.mjs` | Positive and negative echo, tree, warning, doctor-summary, skill-sync hook and hook-fixture controls |
 | `transcripts.mjs` | Associates Bash calls with tool results, verifies completion and gates, and rejects hook bypasses |
 | `transcripts.selftest.mjs` | Checks here-document parsing and rejects absent, mismatched, failed or prose-only tool evidence and incomplete or limited runs |
 | `agent.mjs` | Runs Claude with wall-time, turn and spend limits and redacts supplied credentials from output |
@@ -21,7 +21,7 @@ instructions disagree. The test controls live in this directory; the system unde
 | `selftest.sh` | Runs the pure selftests without Deploy or a model |
 | `fixtures/` | Dummy project values, pinned Tracker README, issue body and hook payloads |
 | `prompts/canary.md` | Bare echo prompt plus one explicitly requested policy-refusal probe |
-| `expected-warnings.txt` | Allowed Bootstrap warnings, each with a reason |
+| `expected-warnings.txt` | Allowed entrypoint, bootstrap, doctor and sync warnings, each with a reason |
 | `bypass-patterns.txt` | Refused Work-run Bash bypass patterns, each with a reason |
 | `out/` | Gitignored run summaries, logs, transcripts, versions and all-ref bundles |
 

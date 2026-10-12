@@ -10,13 +10,14 @@
  * KIND: deterministic integration emitter, separate from writing its result.
  * INVARIANTS: no writes; unknown selections, source shapes, and CLI placeholders fail.
  * RE-ENTRY: identical sources and selections yield byte-identical output; the CLI offers --check.
- * STALE WHEN: .harness sources or tools/integrations adapter code changes.
+ * STALE WHEN: .harness sources, policy `claudeEnabledPlugins`, or tools/integrations adapter code changes.
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { adapters, renderCliText, selectIntegrations } from './adapters.mjs'
 import { compare, generatedMarkdown, markdown } from './formats.mjs'
+import { readPolicy, recordPaths } from '../lib/policy.ts'
 
 export const TEMPLATE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const EVENTS = new Set(['before-command', 'before-edit', 'worktree-create', 'worktree-remove'])
@@ -59,6 +60,10 @@ export function renderIntegrations({ root = TEMPLATE_ROOT, integrations } = {}) 
   const modes = new Map()
   const warnings = []
   const groups = hookGroups(root)
+  const plugins = (recordPaths(root).length ? readPolicy(root).claudeEnabledPlugins : undefined) ?? []
+  if (!Array.isArray(plugins) || plugins.some((id) => typeof id !== 'string' || !/^[^@\s]+@[^@\s]+$/.test(id))) {
+    throw new Error('Invalid policy claudeEnabledPlugins: ' + JSON.stringify(plugins))
+  }
   const skills = filesUnder(root, '.harness/skills')
   const agents = filesUnder(root, '.harness/agents').filter((file) => file.endsWith('.md') && !file.endsWith('/README.md'))
   for (const id of selected) {
@@ -86,7 +91,7 @@ export function renderIntegrations({ root = TEMPLATE_ROOT, integrations } = {}) 
     for (const [source, output] of Object.entries(adapter.entryPoints)) {
       files.set(output, renderCliText(readFileSync(join(root, source), 'utf8'), id))
     }
-    const hooks = adapter.hooks(groups)
+    const hooks = adapter.hooks(groups, plugins)
     files.set(hooks.file, hooks.contents)
     warnings.push(...hooks.warnings)
   }

@@ -3,11 +3,12 @@
  */
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
-import { checkEcho, compareTrees, checkWarnings, checkFixtureCoverage } from './checks.mjs'
+import { checkEcho, compareTrees, checkWarnings, checkFixtureCoverage, checkDoctor, checkSkillsHook } from './checks.mjs'
 
 function scratch(t) {
   const root = mkdtempSync(join(tmpdir(), 'template-check-'))
@@ -94,3 +95,66 @@ for (const [name, change, reason] of [
     assert.match(compareTrees(expected, actual, 'main').join('\n'), reason)
   })
 }
+
+test('Bootstrap warning control accepts a listed doctor warning', (t) => {
+  const root = scratch(t)
+  writeFileSync(join(root, 'warnings.txt'), '[doctor] warn container: listed\tfixture reason\n')
+  writeFileSync(join(root, 'bootstrap.log'), '[doctor] ok   checkout: fine\n[doctor] warn container: listed\n[bootstrap] 3. packages: nothing to do\n')
+  checkWarnings(join(root, 'bootstrap.log'), join(root, 'warnings.txt'))
+})
+for (const line of ['[doctor] fail tracker: the Tracker is hydrated', '[bootstrap] fail packages: npm ci exited 1', 'held: helper stays off this machine', 'skip: claude not found']) {
+  test('Bootstrap refuses an unlisted ' + line.slice(0, 18), (t) => {
+    const root = scratch(t)
+    writeFileSync(join(root, 'warnings.txt'), '# none\n')
+    writeFileSync(join(root, 'bootstrap.log'), line + '\n')
+    assert.throws(() => checkWarnings(join(root, 'bootstrap.log'), join(root, 'warnings.txt')), /unexpected Bootstrap warning/)
+  })
+}
+test('doctor control accepts a summary with no fail', (t) => {
+  const root = scratch(t)
+  writeFileSync(join(root, 'log'), '[doctor] 8 ok, 1 warn, 0 fail\n')
+  checkDoctor(join(root, 'log'))
+})
+for (const [name, log, reason] of [
+  ['a fail', '[doctor] 7 ok, 0 warn, 1 fail\n', /found 1 fail/],
+  ['no doctor run', '[bootstrap] 7. the doctor: probe the result\n', /did not run the doctor/],
+  ['no probe', '[doctor] 0 ok, 0 warn, 0 fail\n', /ran no probe/],
+]) {
+  test('doctor refuses ' + name, (t) => {
+    const root = scratch(t)
+    writeFileSync(join(root, 'log'), log)
+    assert.throws(() => checkDoctor(join(root, 'log')), reason)
+  })
+}
+const TEMPLATE = [resolve(dirname(fileURLToPath(import.meta.url)), '../../template'), '/src/template'].find((dir) => existsSync(join(dir, 'scripts/skill-sources.mjs')))
+/** A committed clone holding the Template's sync, doctor and policy, with the checkout hook installed or not. */
+function skillsClone(t, hooked) {
+  const root = scratch(t)
+  for (const file of ['scripts/skill-sources.mjs', 'scripts/doctor.mjs', 'scripts/git-hooks.mjs', 'tools/lib/policy.ts', 'tools/lib/git-env.ts']) {
+    mkdirSync(dirname(join(root, file)), { recursive: true })
+    cpSync(join(TEMPLATE, file), join(root, file))
+  }
+  cpSync(join(TEMPLATE, 'policy'), join(root, 'policy'), { recursive: true })
+  git(root, 'init', '--quiet', '--initial-branch=main')
+  // checkSkillsHook commits with the clone's own identity, since selftest.sh sets no global one.
+  git(root, 'config', 'user.name', 'Template Test')
+  git(root, 'config', 'user.email', 'template-test@example.invalid')
+  if (hooked) {
+    mkdirSync(join(root, '.hooks'))
+    writeFileSync(join(root, '.hooks/post-checkout'), '#!/bin/sh\nexec node scripts/skill-sources.mjs sync --warn-only --since "$1"\n', { mode: 0o755 })
+    git(root, 'config', 'core.hooksPath', '.hooks')
+  }
+  git(root, 'add', '--all')
+  git(root, 'commit', '--quiet', '-m', 'fixture')
+  return root
+}
+test('skills hook control: a checkout hook running the Template sync hides and unhides the probe skill', { skip: !TEMPLATE && 'no Template source' }, (t) => {
+  const root = skillsClone(t, true)
+  checkSkillsHook(root)
+  assert.equal(git(root, 'branch', '--list', 'template-test/skills'), '')
+})
+test('skills hook refuses a clone whose checkout hook does not sync', { skip: !TEMPLATE && 'no Template source' }, (t) => {
+  const root = skillsClone(t, false)
+  assert.throws(() => checkSkillsHook(root), /post-checkout did not sync the changed record/)
+  assert.equal(git(root, 'branch', '--show-current').trim(), 'main')
+})

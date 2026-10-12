@@ -418,21 +418,6 @@ async function statusLine(ctx, content) {
 }
 const STATUS_LINE = { type: 'command', command: `sh '${join(REPO_ROOT, '.devcontainer', 'statusline.sh')}'` }
 
-/** Bootstrap's config preservation over a fake bd; never opens or modifies a real Tracker. */
-async function hydrateStep(ctx, body) {
-  const workspace = join(ctx.dir, 'hydrate')
-  const bin = join(ctx.dir, 'hydrate-bin')
-  mkdirSync(join(workspace, '.beads'), { recursive: true })
-  mkdirSync(bin)
-  const config = join(workspace, '.beads/config.yaml')
-  writeFileSync(config, 'sync.remote: "fixture"\n')
-  writeFileSync(join(bin, 'bd'), '#!/bin/sh\n' + body + '\n', { mode: 0o755 })
-  const r = await run('bash', ['-c', 'ENTRYPOINT_FUNCTIONS_ONLY=1 . "$1" && hydrate_tracker', 'hydrate', ENTRYPOINT], {
-    cwd: workspace, env: { ...ctx.gitEnv, PATH: bin + ':' + ctx.gitEnv.PATH },
-  })
-  return { r, after: readFileSync(config, 'utf8') }
-}
-
 /**
  * `.devcontainer/entrypoint.sh`'s `clone`, run under bash with the file sourced for its functions
  * alone, into a workspace of the case's own, with the case's copy of the policy as the one the image
@@ -864,30 +849,6 @@ function cases() {
         symlinkSync(join(REPO_ROOT, 'scripts'), join(clone, 'scripts'))
         const { r, name } = await commitIdentity(ctx, { workspace: clone })
         return name === ctx.botLogin && /the clone's own \.git\/config sets user\.email, so commits here carry me@work\.example\.invalid, not the App's/.test(r.stdout) ? null : `${said(r)}; left the name ${name}`
-      },
-    },
-    {
-      name: "the entrypoint's Tracker hydration control leaves unchanged config bytes alone",
-      wrapper: true,
-      check: async (ctx) => {
-        const { r, after } = await hydrateStep(ctx, 'exit 0')
-        return r.status === 0 && after === 'sync.remote: "fixture"\n' ? null : `${said(r)}; changed config`
-      },
-    },
-    {
-      name: "the entrypoint's Tracker hydration preserves the newline bd 1.3.0 removes",
-      wrapper: true,
-      check: async (ctx) => {
-        const { r, after } = await hydrateStep(ctx, 'printf \'sync.remote: "fixture"\' >.beads/config.yaml')
-        return r.status === 0 && after === 'sync.remote: "fixture"\n' ? null : `${said(r)}; lost final newline`
-      },
-    },
-    {
-      name: "the entrypoint's Tracker hydration retains an actual remote change",
-      wrapper: true,
-      check: async (ctx) => {
-        const { r, after } = await hydrateStep(ctx, 'printf \'sync.remote: "changed"\' >.beads/config.yaml')
-        return r.status === 0 && after === 'sync.remote: "changed"' ? null : `${said(r)}; overwrote a semantic change`
       },
     },
     {

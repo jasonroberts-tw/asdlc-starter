@@ -48,3 +48,11 @@ jobs:
         run: mise run integrations:selftest
       - name: the tracker gate, negative-tested over a fixture export
         run: mise run beads:selftest
+      - name: every plugin and installed skill row holds its pins, reason and assessment
+        run: mise run skills:check
+      - name: the skill-sources check and sync, negative-tested over stub CLIs and a stub skills.sh
+        run: mise run skills:selftest
+      - name: the doctor, negative-tested over a scratch checkout
+        run: mise run doctor:selftest
+      - name: bootstrap, negative-tested over stub tools
+        run: mise run bootstrap:selftest

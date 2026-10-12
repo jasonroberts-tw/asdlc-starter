@@ -107,6 +107,15 @@ BRANCH_MADE=1
 git -C "$REPO_ROOT" worktree add "$WORKTREE_PATH" "$BRANCH"
 CREATED=1
 
+# Installed skills (policy/skill-sources.json `installedSkills`) are untracked directories in the
+# primary checkout, so git does not bring them across; copy them from there, with no network. A
+# skill held by its audit is absent there, so it is not copied. A worktree cut before a change keeps
+# what it had. Diagnostics only, on stderr: the WorktreeCreate hook reads stdout as the path.
+if [ -f "$REPO_ROOT/scripts/skill-sources.mjs" ]; then
+  node "$REPO_ROOT/scripts/skill-sources.mjs" copy "$WORKTREE_PATH" >&2 \
+    || echo "warning: could not copy the installed skills into $WORKTREE_PATH" >&2
+fi
+
 # Ports, timestamps and the briefing. See the renderer's header for why this is not another `sed`.
 # The NEW worktree's renderer, never $REPO_ROOT's: the renderer reads the template beside itself, and
 # this checkout's working tree can trail the base, so running its copy handed a worktree cut from

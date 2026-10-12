@@ -13,9 +13,17 @@
       "words": 296,
       "means": "The most words `.harness/agents/adversarial-verifier.md` may hold: the agent `open-pr` § 3 hands a branch to before its push, loaded into each such run. Set to its count on 2026-10-11; a raise edits this value and says why here."
     },
+    ".harness/agents/skill-assessor.md": {
+      "words": 368,
+      "means": "The most words `.harness/agents/skill-assessor.md` may hold: the read-only agent the `add-skill` skill hands an outside skill to, loaded into each admission. Set to its count on 2026-10-12, when it was written; a raise edits this value and says why here."
+    },
     ".harness/agents/fan-out-work.md": {
       "words": 663,
       "means": "The most words `.harness/agents/fan-out-work.md` may hold: the agent a session runs as to dispatch ready issues to parallel lanes, loaded whenever one does. Set to its count on 2026-10-11; a raise edits this value and says why here."
+    },
+    ".harness/skills/add-skill/SKILL.md": {
+      "words": 709,
+      "means": "The most words `.harness/skills/add-skill/SKILL.md` may hold: loaded whenever a session admits, re-pins or removes an outside skill, or a tracked skill comes or goes. Set to its count on 2026-10-12, when it was written; a raise edits this value and says why here."
     },
     ".harness/skills/add-task/SKILL.md": {
       "words": 900,

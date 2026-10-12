@@ -2,14 +2,15 @@
 
 `devcontainer.json` remains the container's launch configuration. It supplies the workspace and
 credential mounts and the environment the entrypoint and wrappers read. The Dockerfile owns the
-image and the entrypoint owns Bootstrap; if this page and those files disagree, those files win.
+image, `scripts/bootstrap.mjs` owns Bootstrap and the entrypoint runs it; if this page and those
+files disagree, those files win.
 
 | File | Role |
 |---|---|
 | `devcontainer.json` | Builds the image, mounts the workspace and App key directory, and sets the container environment |
 | `Dockerfile` | Installs the toolchain from `mise.toml` and `mise.lock`, Claude Code and the App wrappers |
 | `Dockerfile.dockerignore` | Limits the image's build context to the files the Dockerfile reads |
-| `entrypoint.sh` | Makes the container's clone at first start and repeats Bootstrap at each start |
+| `entrypoint.sh` | Makes the container's clone at first start, sets the commit identity and status line, and runs `scripts/bootstrap.mjs --container --warn-only` at each start |
 | `gh` | Runs GitHub CLI with the App's installation token |
 | `git-credential-github-app` | Answers Git's credential protocol through the App token helper |
 | `statusline.sh` | Prints Claude Code's status line from the clone |

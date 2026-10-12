@@ -5,6 +5,8 @@ check_echo() { node "$TEST_ROOT/checks.mjs" echo "$@"; }
 check_structure() { node "$TEST_ROOT/checks.mjs" structure "$@"; }
 check_warnings() { node "$TEST_ROOT/checks.mjs" warnings "$@"; }
 check_bootstrap() { node "$TEST_ROOT/checks.mjs" bootstrap "$@"; }
+check_doctor() { node "$TEST_ROOT/checks.mjs" doctor "$@"; }
+check_skills_hook() { node "$TEST_ROOT/checks.mjs" skills-hook "$@"; }
 check_guard_transcript() { node "$TEST_ROOT/transcripts.mjs" guard "$@"; }
 check_gates_transcript() { node "$TEST_ROOT/transcripts.mjs" gates "$@"; }
 check_bypasses() { node "$TEST_ROOT/transcripts.mjs" bypasses "$@"; }

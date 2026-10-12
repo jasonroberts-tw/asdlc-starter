@@ -26,7 +26,7 @@ export const claude = {
   agent(agent, source, file) {
     return ['.claude/agents/' + agent.name + '.md', generatedMarkdown(source, file)]
   },
-  hooks(groups) {
+  hooks(groups, plugins = []) {
     const hooks = {}
     for (const group of groups) {
       const { event, ...match } = events[group.event]
@@ -41,6 +41,6 @@ export const claude = {
         })),
       })
     }
-    return { file: '.claude/settings.json', contents: json({ hooks }), warnings: [] }
+    return { file: '.claude/settings.json', contents: json(plugins.length ? { enabledPlugins: Object.fromEntries(plugins.map((id) => [id, true])), hooks } : { hooks }), warnings: [] }
   },
 }

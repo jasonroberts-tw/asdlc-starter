@@ -100,9 +100,60 @@ export function checkWarnings(log, allowFile) {
     if (!warning || !reason?.trim()) throw new Error('warning allowance needs a reason')
     return warning
   }))
-  const warnings = [...readFileSync(log, 'utf8').matchAll(/\x1b\[33m\[devcontainer\]\x1b\[0m (.*)/g)].map((match) => match[1])
+  const text = readFileSync(log, 'utf8')
+  // The entrypoint's own warnings, then bootstrap's and the doctor's, then the sync's, which
+  // bootstrap passes through unprefixed.
+  const warnings = [
+    ...[...text.matchAll(/\x1b\[33m\[devcontainer\]\x1b\[0m (.*)/g)].map((match) => match[1]),
+    ...[...text.matchAll(/^(\[(?:bootstrap|doctor)\] (?:warn|fail) .*|(?:warn|held|fail|skip): .*)$/gm)].map((match) => match[1]),
+  ]
   const unexpected = warnings.filter((warning) => !allowed.has(warning))
   if (unexpected.length) throw new Error('unexpected Bootstrap warning: ' + unexpected.join('; '))
+}
+export function checkDoctor(log) {
+  const summaries = [...readFileSync(log, 'utf8').matchAll(/\[doctor\] (\d+) ok, (\d+) warn, (\d+) fail/g)]
+  if (!summaries.length) throw new Error('Bootstrap did not run the doctor')
+  const [, ok, , fail] = summaries.at(-1)
+  if (Number(fail)) throw new Error('the doctor found ' + fail + ' fail(s)')
+  if (!Number(ok)) throw new Error('the doctor ran no probe')
+}
+/**
+ * A record change on a branch must reach the machine through the checkout hook alone: switching to
+ * the branch hides its installed skill in info/exclude, switching back unhides it, and while the
+ * skill cannot be installed the doctor reports the drift. The skill is never installed, because the
+ * Target has no skills CLI, so nothing is fetched.
+ */
+export function checkSkillsHook(root) {
+  const probe = '/.claude/skills/template-test-probe/'
+  const exclude = git(root, ['rev-parse', '--path-format=absolute', '--git-path', 'info/exclude']).trim()
+  const hidden = () => existsSync(exclude) && readFileSync(exclude, 'utf8').includes(probe)
+  const branch = git(root, ['branch', '--show-current']).trim()
+  const record = join(root, 'policy/skill-sources.json')
+  const head = git(root, ['rev-parse', 'HEAD']).trim()
+  git(root, ['switch', '--quiet', '-c', 'template-test/skills'])
+  try {
+    const policy = JSON.parse(readFileSync(record, 'utf8'))
+    policy.installedSkills = { 'template-test-probe': {
+      source: 'example/skills', commit: head, reason: 'Template test probe',
+      assessment: { commit: head, rulesCommit: head, findings: 0, issue: 'template-test' }, audit: {},
+    } }
+    writeFileSync(record, JSON.stringify(policy, null, 2) + '\n')
+    git(root, ['commit', '--quiet', '-am', 'Probe an installed skill'])
+    git(root, ['switch', '--quiet', branch])
+    if (hidden()) throw new Error('info/exclude hides the probe skill before any checkout named it')
+    git(root, ['switch', '--quiet', 'template-test/skills'])
+    if (!hidden()) throw new Error('post-checkout did not sync the changed record: info/exclude does not hide the probe skill')
+    const doctor = spawnSync(process.execPath, ['scripts/doctor.mjs'], { cwd: root, encoding: 'utf8' })
+    process.stdout.write(doctor.stdout)
+    if (!/\[doctor\] warn claude code: .*node_modules\/\.bin\/skills not found/.test(doctor.stdout)) {
+      throw new Error('the doctor did not report the installed skill it cannot install')
+    }
+    git(root, ['switch', '--quiet', branch])
+    if (hidden()) throw new Error('post-checkout did not sync back: info/exclude still hides the probe skill')
+  } finally {
+    if (git(root, ['branch', '--show-current']).trim() !== branch) git(root, ['switch', '--quiet', '--force', branch])
+    git(root, ['branch', '--quiet', '-D', 'template-test/skills'])
+  }
 }
 export function checkBootstrap(root) {
   const wanted = createHash('sha256').update(readFileSync(join(root, 'package-lock.json'))).digest('hex')
@@ -243,6 +294,8 @@ if (resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) {
     else if (check === 'structure') await checkStructure(...args)
     else if (check === 'warnings') checkWarnings(...args)
     else if (check === 'bootstrap') checkBootstrap(...args)
+    else if (check === 'doctor') checkDoctor(...args)
+    else if (check === 'skills-hook') checkSkillsHook(...args)
     else if (check === 'ci') runCI(...args)
     else if (check === 'guards') runGuards(...args)
     else if (check === 'work-evidence') checkWorkEvidence(...args)

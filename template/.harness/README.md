@@ -28,7 +28,8 @@ Skills keep their standard `SKILL.md` frontmatter and supporting directory conte
 and executable file modes are preserved. Each agent
 has a filename matching its `name`, and single-line string fields for `name` and `description`.
 Use plain strings, YAML single-quoted strings, or JSON double-quoted strings. Agent bodies are
-instructions; model and tool settings belong in the adapter when a CLI needs them.
+instructions; model and tool settings belong in the adapter when a CLI needs them, except `tools`,
+which Claude's adapter passes through to limit a read-only agent and Codex's ignores.
 
 CLI substitutions are `{{CLI_WORKTREE_CREATE}}`, `{{CLI_WORKTREE_REMOVE}}`, and
 `{{CLI_WORKTREE_ISOLATION}}`. Unknown CLI substitutions are errors. Briefing substitutions such

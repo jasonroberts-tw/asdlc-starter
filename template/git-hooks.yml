@@ -3,6 +3,16 @@ pre-commit:
     - name: staged-whitespace
       run: git diff --cached --check
 
+post-checkout:
+  jobs:
+    - name: skills-sync
+      run: node scripts/skill-sources.mjs sync --warn-only --since {1}
+
+post-merge:
+  jobs:
+    - name: skills-sync
+      run: node scripts/skill-sources.mjs sync --warn-only --since ORIG_HEAD
+
 pre-push:
   parallel: true
   jobs:
@@ -65,6 +75,7 @@ pre-push:
       glob:
         - 'scripts/hooks/**'
         - 'scripts/new-worktree.sh'
+        - 'scripts/skill-sources.mjs'
         - 'scripts/render-worktree-context.mjs'
         - '.harness/**'
         - 'tools/integrations/**'
@@ -75,6 +86,8 @@ pre-push:
       glob:
         - '.harness/**'
         - 'tools/integrations/**'
+        - 'policy/skill-sources.json'
+        - 'tools/lib/policy.ts'
         - 'scripts/render-integrations.mjs'
         - 'scripts/hooks/**'
         - 'scripts/new-worktree.sh'
@@ -83,6 +96,36 @@ pre-push:
         - 'package.json'
         - 'package-lock.json'
       run: mise run integrations:selftest
+    - name: skills-check
+      glob:
+        - 'policy/**'
+        - 'mise.toml'
+        - '.harness/skills/**'
+        - 'scripts/skill-sources.mjs'
+        - 'tools/lib/policy.ts'
+        - 'tasks.toml'
+      run: mise run skills:check
+    - name: skills-selftest
+      glob:
+        - 'scripts/skill-sources.mjs'
+        - 'scripts/hooks/**'
+        - '.harness/hooks.json'
+        - 'policy/**'
+        - 'tools/lib/policy.ts'
+        - 'tools/lib/git-env.ts'
+        - 'tasks.toml'
+      run: mise run skills:selftest
+    - name: doctor-selftest
+      glob:
+        - 'scripts/doctor.mjs'
+        - 'tasks.toml'
+      run: mise run doctor:selftest
+    - name: bootstrap-selftest
+      glob:
+        - 'scripts/bootstrap.mjs'
+        - 'scripts/doctor.mjs'
+        - 'tasks.toml'
+      run: mise run bootstrap:selftest
     - name: beads
       env:
         NO_COLOR: '1'

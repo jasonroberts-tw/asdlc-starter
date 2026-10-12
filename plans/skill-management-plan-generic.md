@@ -536,3 +536,30 @@ land first.
 
 Item 12 also fixes setup drift for every container, because bootstrap runs the steps the entrypoint
 skipped. An item that changes a protected path waits for a person's merge.
+
+## Where the Template stands
+
+Wired on 2026-10-12. The Template's `.claude/settings.json` is rendered, so `enabledPlugins` comes
+from `policy/skill-sources.json` `claudeEnabledPlugins`, beside the other two lists. All three
+start empty; a Target project adds rows through the `add-skill` skill.
+
+| # | State in the Template |
+|---|---|
+| 1 | Not written: the first admission in a Target writes it, as the `add-skill` skill says |
+| 2 | Not done: the `skills` CLI is not a dev dependency; sync skips installed skills while it is absent |
+| 3 | Not probed: the script headers mark each unverified behaviour |
+| 4 | `policy/skill-sources.json` and `mise run skills:check`; no protected-path config exists to add it to |
+| 5 | `.harness/agents/skill-assessor.md`, with Claude tools limited to Read, Grep and Glob; no stubbed-agent selftest |
+| 6 | `readAudit` in `scripts/skill-sources.mjs`, over a stub on loopback in its selftest |
+| 7 | `.harness/skills/add-skill/SKILL.md`, with the deterministic pass as `skill-sources.mjs scan` |
+| 8 | Nothing to except: the renderer judges only files it owns, and no check reads untracked skills |
+| 9 | `scripts/skill-sources.mjs sync`, `mise run skills:install`, `skills:selftest` in pre-push and CI |
+| 10 | `scripts/doctor.mjs`, `mise run doctor`, `doctor:selftest` in pre-push and CI; no linter probe, since the Template has no linter |
+| 11 | `scripts/bootstrap.mjs`, `mise run bootstrap`, `bootstrap:selftest` in pre-push and CI; the Template has no host setup README to rewrite |
+| 12 | The entrypoint runs bootstrap, which ends with the doctor; its plugin functions and the token and toolchain warnings are gone |
+| 13 | post-checkout and post-merge jobs run the sync with `--since`; the runner installs no post-rewrite hook, so a rebase pull does not sync |
+| 14 | `scripts/new-worktree.sh` runs `skill-sources.mjs copy` |
+| 15 | Not done |
+
+The Template test's Bootstrap step checks the doctor's summary, the host route's second run, and a
+branch's new `installedSkills` row reaching the clone through the post-checkout hook.

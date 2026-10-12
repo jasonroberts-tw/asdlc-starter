@@ -3,6 +3,8 @@
 A rule an agent has to follow has one and only one home: this file, skills, agent
 definitions, or the header of the tool or gate that enforces it. Change it there. 
 A rule with two homes has one that is stale.
+The one exception is outside text, loaded word for word: a plugin or an installed skill that
+`policy/skill-sources.json` names, which only the `add-skill` skill's checks admit.
 
 ## Memory tiers
 

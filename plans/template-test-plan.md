@@ -180,20 +180,28 @@ reimplement Deploy.
 
 ### 3. Bootstrap
 
-The test clones origin into `/work/bob`. It then runs the Template's own Bootstrap route there. Today
-that route is the entrypoint, run as `workspace-entrypoint true` with `REPO_WORKSPACE` set. When the
-skill-management plan's bootstrap script lands, the step runs that script instead. The test keeps no
-copy of the Bootstrap steps, because a copy would drift from the Template.
+The test clones origin into `/work/bob`. It then runs the Template's own Bootstrap route there: the
+entrypoint, run as `workspace-entrypoint true` with `REPO_WORKSPACE` set, which runs
+`scripts/bootstrap.mjs --container --warn-only` and so the doctor. The test keeps no copy of the
+Bootstrap steps, because a copy would drift from the Template.
 
-The entrypoint only warns and never fails, so the test checks what it made:
+The entrypoint and bootstrap only warn and never fail there, so the test checks what they made:
 
 - `node_modules/.devcontainer-lock-hash` equals the hash of `package-lock.json`;
 - the clone's config holds the five `hook.asdlc-*` command entries;
 - `.beads/embeddeddolt` exists, and bd reads it;
-- every warning in the entrypoint's log is on `tests/template/expected-warnings.txt`. Each line of
-  that file gives its reason. Today the list holds one warning: the GitHub App cannot mint a token,
-  because no key is mounted. The git identity is set before the step runs, so the entrypoint's
-  `commit_identity` leaves it alone and does not warn.
+- the doctor ran, at least one probe passed, and none failed;
+- the host's route, `mise run bootstrap`, run again over it, exits 0 and finds nothing to do for
+  packages, the git hooks and the Tracker;
+- a commit on a branch that adds a row to `policy/skill-sources.json` `installedSkills` reaches the
+  clone through the post-checkout hook alone: switching to the branch hides the skill in
+  `info/exclude`, the doctor then warns that it cannot install it (the Target has no `skills`
+  CLI, so nothing is fetched), and switching back unhides it;
+- every warning in the entrypoint's, bootstrap's, the doctor's and the sync's output, on both routes,
+  is on `tests/template/expected-warnings.txt`. Each line of that file gives its reason. Today the
+  list holds one warning: the doctor's, that the GitHub App cannot mint a token, because no key is
+  mounted. The git identity is set before the step runs, so the entrypoint's `commit_identity`
+  leaves it alone and does not warn.
 
 ### 4. Gates
 
@@ -361,7 +369,11 @@ case must pass. The cases cover:
   - the guard's refusal absent;
   - each bypass pattern present;
   - the gates call missing, and the gates call failed.
-- **The Bootstrap warning list:** an unexpected warning.
+- **The Bootstrap warning list:** an unexpected warning, from the entrypoint, bootstrap, the doctor
+  or the sync.
+- **The doctor's summary:** a fail, no doctor run, and no probe.
+- **The checkout-hook sync:** a clone whose post-checkout hook does not sync, beside a control clone
+  whose hook runs the Template's sync.
 - **The Guards fixture coverage:** a hook in `settings.json` with no fixture pair.
 - **Agent process limits and logs:** a stalled child, invalid limits, and secrets split across writes.
 - **Work evidence:** an open issue, missing or unreachable closure commit, absent merged agent

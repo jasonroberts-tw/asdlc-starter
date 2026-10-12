@@ -104,3 +104,62 @@ shared skills and assets, supported and unsupported hooks, selection, read-only 
 ownership conflicts, symlink destinations, and Codex patch edits. Without it a new CLI can load
 inert configuration or rendering can overwrite local settings.'''
 run = "node tools/integrations/selftest.mjs"
+
+["bootstrap"]
+description = '''
+Sets this machine up to work here: checks the tools only a person installs, installs mise's pins,
+runs `npm ci` when the lockfile changed, installs the git hooks, hydrates the Tracker, matches the
+plugins and installed skills to `policy/skill-sources.json`, and ends with the doctor. Each step
+checks first, so a second run is cheap. The dev container's entrypoint runs the same script with
+`--container --warn-only`. It changes the machine and reads the network, so no hook or CI job runs it.'''
+run = "node scripts/bootstrap.mjs"
+
+["bootstrap:selftest"]
+description = '''
+Bootstrap, negative-tested over a scratch clone with stub mise, npm, bd, hook installer and sync: a
+control whose second run does only the sync and the doctor; a person's missing tool and a failing
+step each stopping the run, and going on under `--warn-only`; the container's flags; the Tracker's
+config kept through bd's lost newline; and `--dry-run` changing nothing. Without it a step could
+stop running on one route, or a failure stop failing, and every machine would still start.'''
+run = "node scripts/bootstrap.mjs --selftest"
+
+["doctor"]
+description = '''
+Probes this machine's setup and changes nothing: Git's floor, mise and its pins, the PATH's node,
+node_modules against the lockfile, the git hooks, the Tracker, and the plugins and installed skills
+against `policy/skill-sources.json`; with `--container`, the GitHub App's token and the commit
+identity. One line per probe, each warn and fail naming its fix; exits 1 on a fail. It reads the
+machine, so no hook or CI job runs it.'''
+run = "node scripts/doctor.mjs"
+
+["doctor:selftest"]
+description = '''
+The doctor, negative-tested: each probe broken once in a scratch checkout with stub tools, asserting
+its line and exit, beside a control every probe passes on the host and in the container. Without it
+a probe could go quietly green over the drift it exists to report.'''
+run = "node scripts/doctor.mjs --selftest"
+
+["skills:check"]
+description = '''
+Refuses a row of `policy/skill-sources.json` that its `gatedBy` lists: an enabled plugin with no
+tagged marketplace source, a tag off its held mise pin, an unused marketplace, and an installed skill
+with no full commit, no reason, a tracked skill's name, an assessment of another commit, or a finding
+with no issue. It reads committed files only. Without it a pin could move with no new assessment.'''
+run = "node scripts/skill-sources.mjs check"
+
+["skills:install"]
+description = '''
+Makes this machine's Claude Code plugins and `skills`-CLI skills match `policy/skill-sources.json`,
+re-reading each installed skill's skills.sh audit, and prints one line per action; `-- --dry-run`
+changes nothing. It reads the Claude Code config directory and skills.sh, so no hook or CI job runs
+it; the post-checkout and post-merge jobs run it when the record changed.'''
+run = "node scripts/skill-sources.mjs sync"
+
+["skills:selftest"]
+description = '''
+The skill-sources check and sync, negative-tested: each refusal over a doctored record beside a
+control, and each sync action and rule over stub `claude` and `skills` CLIs and a stub skills.sh on
+loopback, with a control machine already in sync that must get no action; and admission's command
+scan, audit reader and worktree copy. Without it a sync could uninstall what it does not own, or
+install a skill whose audit worsened, and nothing would say so.'''
+run = "node scripts/skill-sources.mjs --selftest"

@@ -277,3 +277,18 @@ test('Codex hooks resolve from a subdirectory and Codex worktrees use the shared
   assert.equal(guarded.status, 2, guarded.stderr)
   assert.match(guarded.stderr, /git there answers for/)
 })
+
+test('policy claudeEnabledPlugins renders Claude enabledPlugins, and a malformed id fails', () => {
+  const source = copySource()
+  cpSync(join(ROOT, 'policy'), join(source, 'policy'), { recursive: true })
+  const record = join(source, 'policy/skill-sources.json')
+  const policy = JSON.parse(read(source, 'policy/skill-sources.json'))
+  assert.equal(JSON.parse(renderIntegrations({ root: source }).files.get('.claude/settings.json')).enabledPlugins, undefined)
+  writeFileSync(record, JSON.stringify({ ...policy, claudeEnabledPlugins: ['beads@beads-marketplace'] }))
+  const settings = JSON.parse(renderIntegrations({ root: source }).files.get('.claude/settings.json'))
+  assert.deepEqual(settings.enabledPlugins, { 'beads@beads-marketplace': true })
+  assert.ok(settings.hooks.PreToolUse)
+  assert.ok(!renderIntegrations({ root: source, integrations: ['codex'] }).files.get('.codex/config.toml').includes('beads'))
+  writeFileSync(record, JSON.stringify({ ...policy, claudeEnabledPlugins: ['beads'] }))
+  assert.throws(() => renderIntegrations({ root: source }), /Invalid policy claudeEnabledPlugins/)
+})

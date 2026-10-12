@@ -95,13 +95,27 @@ bootstrap_route() {
     cat "$OUT/bootstrap.log"
     return "$bootstrap_status"
 }
+# The host's route, run again over the container's: every install step finds nothing to do.
+host_bootstrap() {
+    (cd /work/bob && mise run bootstrap) >"$OUT/host-bootstrap.log" 2>&1
+    host_status=$?
+    cat "$OUT/host-bootstrap.log"
+    [ "$host_status" -eq 0 ] || return 1
+    for step in '3. packages' '4. the git hooks' '5. the Tracker'; do
+        grep -F "[bootstrap] $step: nothing to do" "$OUT/host-bootstrap.log" >/dev/null || return 1
+    done
+}
 clean_bob() { [ -z "$(git -C /work/bob status --porcelain)" ]; }
 bootstrap() {
     git clone /work/origin.git /work/bob || return 1
     check 'Bootstrap route exits 0' bootstrap_route
     check 'Bootstrap lock hash, git hooks and embedded Tracker' check_bootstrap /work/bob
     check 'Bob reads the hydrated Tracker' env NO_COLOR=1 bd -C /work/bob list --json
+    check 'Bootstrap ran the doctor, which found no fail' check_doctor "$OUT/bootstrap.log"
+    check 'host Bootstrap route repeats with nothing to install' host_bootstrap
+    check 'checkout hook syncs a changed skill-sources record, and the doctor reports its drift' check_skills_hook /work/bob
     check 'Bootstrap warnings are expected' check_warnings "$OUT/bootstrap.log" "$TEST_ROOT/expected-warnings.txt"
+    check 'host Bootstrap warnings are expected' check_warnings "$OUT/host-bootstrap.log" "$TEST_ROOT/expected-warnings.txt"
     check 'Bootstrap leaves Bob clean' clean_bob
 }
 bad_push() {
