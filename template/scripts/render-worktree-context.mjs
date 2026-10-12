@@ -2,7 +2,7 @@
  * Allocate a worktree's pair of ports and render its briefing from the template beside this file.
  *
  * Prints `KEY=value` lines on stdout for the caller to read, and writes two files into the
- * worktree: `.worktree/CONTEXT.md`, the briefing rendered from `.claude/worktree-CONTEXT.md.tmpl`,
+ * worktree: `.worktree/CONTEXT.md`, the briefing rendered from `.harness/worktree-CONTEXT.md.tmpl`,
  * and `.worktree/ports.env`, the pair. This script is the one reader of `ports.env`: it reads every
  * sibling worktree's copy, so as not to hand out a pair already promised. A server a person starts
  * in the worktree is given `APP_PORT` as its `PORT`.
@@ -38,9 +38,10 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { activeIntegration, renderCliText } from '../tools/integrations/adapters.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const TEMPLATE = join(ROOT, '.claude', 'worktree-CONTEXT.md.tmpl')
+const TEMPLATE = join(ROOT, '.harness', 'worktree-CONTEXT.md.tmpl')
 
 const [worktreePath, branch, baseSha, taskRef, hoursArg] = process.argv.slice(2)
 if (!worktreePath || !branch || !baseSha || !taskRef) {
@@ -150,7 +151,7 @@ const values = {
   SB_PORT: String(ports.SB_PORT),
 }
 
-const template = readFileSync(TEMPLATE, 'utf8')
+const template = renderCliText(readFileSync(TEMPLATE, 'utf8'), activeIntegration(ROOT))
 // A replacer function, so `&`, `$&` and `\` in a value are literal text and not sed/regex syntax.
 const rendered = template.replace(/\{\{([A-Z_]+)\}\}/g, (whole, key) =>
   Object.hasOwn(values, key) ? values[key] : whole,

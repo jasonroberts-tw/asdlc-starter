@@ -124,15 +124,9 @@ if (unprovisioned !== null) {
     'BLOCKED by repository policy: ' +
       `this worktree is on '${branch}', not an agent/* branch${distance}. Every worktree here is ` +
       `provisioned by scripts/new-worktree.sh, which cuts agent/<name> from ${TRUNK_REMOTE} and ` +
-      "renders the briefing .worktree/CONTEXT.md. A 'worktree-*' branch is the EnterWorktree " +
-      "tool's native fallback, which it uses when the settings file the session loaded registers " +
-      'no WorktreeCreate hook (not verified against the CLI); it takes its base from the ' +
-      'worktree.baseRef setting instead, and renders no briefing. Do not work here; the checkout ' +
-      "may not contain what you were sent to see, and nothing in it states this repository's " +
-      'rules. Leave with ExitWorktree (action: "remove"), and re-enter once that settings file ' +
-      'registers the hook: a running session picks up a hook added to it with no restart ' +
-      '(verified against the CLI, 2.1.294), and a restart re-reads ' +
-      'it if the edit was missed (not verified against the CLI).\n',
+      "renders the briefing .worktree/CONTEXT.md. This checkout may lack the expected code " +
+      "or briefing. Do not work here. Leave the worktree and re-create it through the " +
+      "provision script before continuing.\n",
   )
   process.exit(2)
 }

@@ -1,5 +1,5 @@
 /**
- * Shared helpers for the Claude Code hooks in this directory.
+ * Shared helpers for the CLI command hooks in this directory.
  *
  * These hooks run on EVERY matching tool call, so the budget is a few hundred milliseconds. This file
  * imports Node's built-in `fs`, `path`, `url` and `child_process` and nothing else, and it reads no
@@ -53,12 +53,27 @@ export async function readHookInput() {
  * Edit. Both are read because a Write to a path that does not exist yet has no file on disk to
  * inspect, and the incoming TEXT is then the only evidence available.
  */
-export function editTarget(input) {
+export function editTargets(input) {
   const ti = input?.tool_input ?? {}
-  return {
-    filePath: typeof ti.file_path === 'string' ? ti.file_path : null,
-    text: [ti.content, ti.file_text, ti.new_string].find((t) => typeof t === 'string') ?? '',
+  if (input?.tool_name !== 'apply_patch') {
+    return [{
+      filePath: typeof ti.file_path === 'string' ? ti.file_path : null,
+      text: [ti.content, ti.file_text, ti.new_string].find((t) => typeof t === 'string') ?? '',
+    }]
   }
+  // Codex sends a patch in tool_input.command. Every source and move destination is an edit.
+  const targets = []
+  let current
+  for (const line of (typeof ti.command === 'string' ? ti.command : '').split(/\r?\n/)) {
+    const match = /^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+)$/.exec(line)
+    if (match) {
+      current = { filePath: resolve(input.cwd ?? ROOT, match[1]), text: '' }
+      targets.push(current)
+    } else if (current && line.startsWith('+')) {
+      current.text += line.slice(1) + '\n'
+    }
+  }
+  return targets
 }
 
 /**

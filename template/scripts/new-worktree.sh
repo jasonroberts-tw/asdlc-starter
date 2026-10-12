@@ -2,7 +2,7 @@
 # scripts/new-worktree.sh <task-ref> <slug>
 #
 # Creates one isolated worktree per agent task: a branch off origin/main, a checked pair of
-# ports, and a rendered .worktree/CONTEXT.md briefing that the committed AGENTS.md @-imports.
+# ports, and a rendered .worktree/CONTEXT.md briefing that the committed AGENTS.md asks each session to read.
 #
 # There is no database, container stack or .env to provision -- this repository is a Node/TypeScript
 # toolchain. An earlier version of this script copied .env, certs and appsettings.Development.json
@@ -37,11 +37,12 @@ if [ -n "$SLUG" ]; then NAME="${TASK_REF}-${SLUG}"; else NAME="$TASK_REF"; fi
 # as ../worktrees/worktrees/<name>. `--git-common-dir` is shared by every worktree and is always
 # `<primary>/.git`, so stripping that suffix gives the primary working tree from anywhere.
 REPO_ROOT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
-# Worktrees live INSIDE the repository, at the path the Claude Code `EnterWorktree` tool uses
-# natively, so the tool and this script agree on WHERE and there is nothing left to fight about.
-# `.gitignore` covers `.claude/worktrees/`, which is what keeps each checkout's own `.git` from
-# reading to the parent as a gitlink and being committed as a phantom submodule.
-WORKTREE_ROOT="${WORKTREE_ROOT:-$REPO_ROOT/.claude/worktrees}"
+# Worktrees live inside the selected CLI's worktrees folder. Claude uses its native location;
+# Codex invokes this script explicitly. HARNESS_CLI overrides the recorded selection when both
+# integrations are deployed. Both folders are gitignored to prevent phantom gitlinks.
+HARNESS_CLI="$(node "$REPO_ROOT/tools/integrations/adapters.mjs" "$REPO_ROOT")"
+export HARNESS_CLI
+WORKTREE_ROOT="${WORKTREE_ROOT:-$REPO_ROOT/.$HARNESS_CLI/worktrees}"
 LIFETIME_HOURS="${LIFETIME_HOURS:-2}"
 
 BRANCH="agent/${NAME}"

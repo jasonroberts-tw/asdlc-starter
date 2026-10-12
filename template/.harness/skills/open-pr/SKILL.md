@@ -88,7 +88,7 @@ Run in the background, as the one watcher:
 It prints one line, and exits 0 once the pull request has merged. It exits 1 once it has closed
 unmerged.
 
-Once it has merged leave the worktree with `ExitWorktree`, action `remove`
+Once it has merged, leave and remove the worktree: {{CLI_WORKTREE_REMOVE}}.
 
 Hand the caller the pull request's number and URL, whether it merged, in `wait`'s line or the words
 of its review

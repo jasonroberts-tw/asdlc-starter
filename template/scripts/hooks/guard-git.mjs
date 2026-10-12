@@ -149,8 +149,8 @@ function inLinkedWorktree(dir) {
   return gitDir !== common
 }
 
-/** A worktree's directory under `.claude/worktrees/`, the one location this repository provisions. */
-const WORKTREE_PATH = /^(.*?[\\/]\.claude[\\/]worktrees[\\/][^\\/]+)(?:[\\/]|$)/
+/** A provisioned worktree directory under either CLI's worktrees folder. */
+const WORKTREE_PATH = /^(.*?[\\/]\.(?:claude|codex)[\\/]worktrees[\\/][^\\/]+)(?:[\\/]|$)/
 
 /** The path with symlinks resolved, or the path itself if it cannot be resolved. */
 function realpathOr(p) {
@@ -191,7 +191,7 @@ function strayWorktreeDir(dir) {
 function strayDenial({ worktree, toplevel }) {
   return (
     `this command runs git in ${worktree}, but git there answers for ${toplevel}. A directory ` +
-    'under .claude/worktrees/ with no checkout of its own is what is left of a worktree removed ' +
+    'under a CLI worktrees folder with no checkout of its own is what is left of a worktree removed ' +
     'under the session, and git run in it acts on another checkout. Do not run git here. Stop and ' +
     'report that the worktree was removed; anything it held that was not pushed is only in this ' +
     'directory now.'

@@ -812,6 +812,10 @@ console.log('citation scanner selftest\n')
   for (const f of [
     '.claude/agents/fixture.md',
     '.claude/settings.json',
+    '.codex/agents/fixture.toml',
+    '.codex/config.toml',
+    '.agents/skills/fixture/SKILL.md',
+    '.harness/skills/fixture/SKILL.md',
     '.beads/formulas/fixture.formula.toml',
     '.beads/PRIME.md',
     'AGENTS.md',

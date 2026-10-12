@@ -53,7 +53,7 @@ With several issues, use the `fan-out-work` sub-agent
 
 Claim the issue in the tracker (`bd update <id> --claim`); with several, claim every one step 2
 kept, in one bracket, before the first worktree. Make the worktree with the one worktree script,
-never natively: `EnterWorktree`. Read `.worktree/CONTEXT.md` there. Tracker writes that carry a
+never natively: `{{CLI_WORKTREE_CREATE}}`. Read `.worktree/CONTEXT.md` there. Tracker writes that carry a
 body, such as step 1's re-scoping, are made from here. Work agreed in conversation has no issue to
 claim yet, so the order turns round: make the worktree, search for an issue that already carries the
 work, then file it from here and claim it. Step 1

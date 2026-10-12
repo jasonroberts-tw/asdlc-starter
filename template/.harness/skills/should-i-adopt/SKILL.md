@@ -57,8 +57,7 @@ that matters.
    against that tier's
 4. **What it writes outside its own files:** 
 5. **How it behaves in a linked worktree:** paths baked to one checkout, per-machine state, and
-   `CLAUDE_PROJECT_DIR`, which names the directory a session started in and does not follow it
-   into a worktree .
+   hook paths that resolve against a different checkout from the command's current directory.
 6. **What it does to output an agent reads.** A filter, cap or rewrite breaks `AGENTS.md` §
    Verification before claiming, and output larger than a tool result holds is read in part
 7. **The commands a session would run:** which `scripts/hooks/guard-git.mjs` or the permission

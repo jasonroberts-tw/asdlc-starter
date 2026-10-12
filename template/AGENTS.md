@@ -36,10 +36,8 @@ worktree.
 
 ## Worktree-local context
 
-In a worktree the worktree script made, its briefing loads here and wins where it and this file
-disagree. Outside one the file does not exist, and nothing loads.
-
-@.worktree/CONTEXT.md
+Read `.worktree/CONTEXT.md` when it exists. Its briefing wins where it and this file disagree;
+outside a worktree the worktree script made, no briefing exists.
 
 ## Guards
 

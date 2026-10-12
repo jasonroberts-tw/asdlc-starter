@@ -9,45 +9,45 @@
       "words": 352,
       "means": "The most words `.beads/PRIME.md` may hold: what `bd prime` prints at every session start and before every compaction, in place of its own text, so every session pays for each word. Set to its count on 2026-10-11; a raise edits this value and says why here."
     },
-    ".claude/agents/adversarial-verifier.md": {
+    ".harness/agents/adversarial-verifier.md": {
       "words": 296,
-      "means": "The most words `.claude/agents/adversarial-verifier.md` may hold: the agent `open-pr` § 3 hands a branch to before its push, loaded into each such run. Set to its count on 2026-10-11; a raise edits this value and says why here."
+      "means": "The most words `.harness/agents/adversarial-verifier.md` may hold: the agent `open-pr` § 3 hands a branch to before its push, loaded into each such run. Set to its count on 2026-10-11; a raise edits this value and says why here."
     },
-    ".claude/agents/fan-out-work.md": {
+    ".harness/agents/fan-out-work.md": {
       "words": 663,
-      "means": "The most words `.claude/agents/fan-out-work.md` may hold: the agent a session runs as to dispatch ready issues to parallel lanes, loaded whenever one does. Set to its count on 2026-10-11; a raise edits this value and says why here."
+      "means": "The most words `.harness/agents/fan-out-work.md` may hold: the agent a session runs as to dispatch ready issues to parallel lanes, loaded whenever one does. Set to its count on 2026-10-11; a raise edits this value and says why here."
     },
-    ".claude/skills/add-task/SKILL.md": {
+    ".harness/skills/add-task/SKILL.md": {
       "words": 900,
-      "means": "The most words `.claude/skills/add-task/SKILL.md` may hold: the skill a session loads to add, rename or remove a task in `tasks.toml`. Set to its count on 2026-10-11; a raise edits this value and says why here."
+      "means": "The most words `.harness/skills/add-task/SKILL.md` may hold: the skill a session loads to add, rename or remove a task in `tasks.toml`. Set to its count on 2026-10-11; a raise edits this value and says why here."
     },
-    ".claude/skills/work/SKILL.md": {
+    ".harness/skills/work/SKILL.md": {
       "words": 1034,
-      "means": "The most words `.claude/skills/work/SKILL.md` may hold: the skill a session loads to work an issue from its claim to its close. Retains the workflow's existing ceiling after its rename to `work`; a raise edits this value and says why here."
+      "means": "The most words `.harness/skills/work/SKILL.md` may hold: the skill a session loads to work an issue from its claim to its close. Retains the workflow's existing ceiling after its rename to `work`; a raise edits this value and says why here."
     },
-    ".claude/skills/open-pr/SKILL.md": {
+    ".harness/skills/open-pr/SKILL.md": {
       "words": 596,
-      "means": "The most words `.claude/skills/open-pr/SKILL.md` may hold: the skill every pull request is opened with, loaded by each session that opens one. Set to its count on 2026-10-11; a raise edits this value and says why here."
+      "means": "The most words `.harness/skills/open-pr/SKILL.md` may hold: the skill every pull request is opened with, loaded by each session that opens one. Set to its count on 2026-10-11; a raise edits this value and says why here."
     },
-    ".claude/skills/root-cause/SKILL.md": {
+    ".harness/skills/root-cause/SKILL.md": {
       "words": 644,
-      "means": "The most words `.claude/skills/root-cause/SKILL.md` may hold: the skill a session loads to find why a check fails before it fixes anything. Set to its count on 2026-10-11; a raise edits this value and says why here."
+      "means": "The most words `.harness/skills/root-cause/SKILL.md` may hold: the skill a session loads to find why a check fails before it fixes anything. Set to its count on 2026-10-11; a raise edits this value and says why here."
     },
-    ".claude/skills/should-i-adopt/SKILL.md": {
+    ".harness/skills/should-i-adopt/SKILL.md": {
       "words": 1520,
-      "means": "The most words `.claude/skills/should-i-adopt/SKILL.md` may hold: the skill a session loads to assess a tool or a pattern for the harness. Set to its count on 2026-10-11; a raise edits this value and says why here."
+      "means": "The most words `.harness/skills/should-i-adopt/SKILL.md` may hold: the skill a session loads to assess a tool or a pattern for the harness. Set to its count on 2026-10-11; a raise edits this value and says why here."
     },
-    ".claude/worktree-CONTEXT.md.tmpl": {
+    ".harness/worktree-CONTEXT.md.tmpl": {
       "words": 655,
-      "means": "The most words `.claude/worktree-CONTEXT.md.tmpl` may hold: the briefing every session in a worktree loads, through `AGENTS.md`'s import of `.worktree/CONTEXT.md`. Set to its count on 2026-10-11; a raise edits this value and says why here."
+      "means": "The most words `.harness/worktree-CONTEXT.md.tmpl` may hold: the briefing every session in a worktree reads at `AGENTS.md`'s instruction. Set to its count on 2026-10-11; a raise edits this value and says why here."
     },
     "AGENTS.md": {
       "words": 1887,
-      "means": "The most words `AGENTS.md` may hold: the rules every session loads, through `CLAUDE.md`'s import. Set to its count on 2026-10-11; a raise edits this value and says why here."
+      "means": "The most words `AGENTS.md` may hold: the rules every session loads natively or through Claude's instruction entry point. Set to its count on 2026-10-11; a raise edits this value and says why here."
     },
-    "CLAUDE.md": {
+    ".harness/CLAUDE.md": {
       "words": 2,
-      "means": "The most words `CLAUDE.md` may hold: the file Claude Code loads into every session, which imports `AGENTS.md` and holds nothing else. Set to its count on 2026-10-11; a raise edits this value and says why here."
+      "means": "The most words `.harness/CLAUDE.md` may hold: the source for the file Claude Code loads into every session, which imports `AGENTS.md` and holds nothing else. Set to its count on 2026-10-11; a raise edits this value and says why here."
     },
     "scripts/hooks/_shared.mjs": {
       "words": 29,

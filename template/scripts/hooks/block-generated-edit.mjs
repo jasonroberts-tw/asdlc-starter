@@ -1,5 +1,5 @@
 /**
- * PreToolUse hook. Refuses a Write or Edit aimed at a GENERATED file: one whose own header carries a
+ * PreToolUse hook. Refuses a Write, Edit, or Codex patch aimed at a GENERATED file: one whose own header carries a
  * generator's "do not edit by hand" banner.
  *
  * THE DEFECT THIS PREVENTS, which happened: hand-correcting generated output. A brief that tells the
@@ -26,7 +26,7 @@ import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
   bannerCheckApplies,
-  editTarget,
+  editTargets,
   editedCheckout,
   hasGeneratedBanner,
   header,
@@ -36,33 +36,34 @@ import {
 const input = await readHookInput()
 if (input === null) process.exit(0)
 
-const { filePath, text } = editTarget(input)
-const target = editedCheckout(filePath)
-if (target === null) process.exit(0)
-const { root, rel } = target
+for (const { filePath, text } of editTargets(input)) {
+  const target = editedCheckout(filePath)
+  if (target === null) continue
+  const { root, rel } = target
 
-// A file whose own header says a generator wrote it.
-//
-// WHICH TEXT IS THE EVIDENCE matters. For a file that already exists, its own header on disk is the
-// authority -- checking the INCOMING text instead blocks any edit that merely quotes a banner, which
-// is a real thing to want to write in a repository whose gates are about build products. For a path
-// that does not exist yet, the incoming text is the only evidence there is, and an agent writing a
-// new file that CLAIMS to be generated is making the same mistake from the other direction.
-const abs = resolve(root, rel)
-const banner =
-  bannerCheckApplies(rel) &&
-  (existsSync(abs) ? hasGeneratedBanner(header(abs)) : hasGeneratedBanner(text))
-if (banner) {
-  process.stderr.write(
-    [
-      `${rel} carries a generator's "do not edit by hand" banner in its header.`,
-      '',
-      'Find the tool named in that banner and change it there, then re-run it. If this file is in',
-      'fact hand-written and the banner is wrong, remove the banner in the same change -- a file that',
-      'lies about its own provenance is worse than either state.',
-    ].join('\n'),
-  )
-  process.exit(2)
+  // A file whose own header says a generator wrote it.
+  //
+  // WHICH TEXT IS THE EVIDENCE matters. For a file that already exists, its own header on disk is the
+  // authority -- checking the INCOMING text instead blocks any edit that merely quotes a banner, which
+  // is a real thing to want to write in a repository whose gates are about build products. For a path
+  // that does not exist yet, the incoming text is the only evidence there is, and an agent writing a
+  // new file that CLAIMS to be generated is making the same mistake from the other direction.
+  const abs = resolve(root, rel)
+  const banner =
+    bannerCheckApplies(rel) &&
+    (existsSync(abs) ? hasGeneratedBanner(header(abs)) : hasGeneratedBanner(text))
+  if (banner) {
+    process.stderr.write(
+      [
+        `${rel} carries a generator's "do not edit by hand" banner in its header.`,
+        '',
+        'Find the tool named in that banner and change it there, then re-run it. If this file is in',
+        'fact hand-written and the banner is wrong, remove the banner in the same change -- a file that',
+        'lies about its own provenance is worse than either state.',
+      ].join('\n'),
+    )
+    process.exit(2)
+  }
 }
 
 process.exit(0)

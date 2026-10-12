@@ -41,6 +41,9 @@ pre-push:
         - 'AGENTS.md'
         - 'README.md'
         - '.claude/**'
+        - '.codex/**'
+        - '.agents/**'
+        - '.harness/**'
         - '.beads/formulas/**'
         - '.beads/PRIME.md'
         - 'tasks.toml'
@@ -63,11 +66,23 @@ pre-push:
         - 'scripts/hooks/**'
         - 'scripts/new-worktree.sh'
         - 'scripts/render-worktree-context.mjs'
-        - '.claude/worktree-CONTEXT.md.tmpl'
-        - '.claude/settings.json'
+        - '.harness/**'
+        - 'tools/integrations/**'
         - '.devcontainer/Dockerfile'
         - 'tasks.toml'
       run: mise run worktree:selftest
+    - name: integrations-selftest
+      glob:
+        - '.harness/**'
+        - 'tools/integrations/**'
+        - 'scripts/render-integrations.mjs'
+        - 'scripts/hooks/**'
+        - 'scripts/new-worktree.sh'
+        - 'scripts/render-worktree-context.mjs'
+        - 'tasks.toml'
+        - 'package.json'
+        - 'package-lock.json'
+      run: mise run integrations:selftest
     - name: beads
       env:
         NO_COLOR: '1'

@@ -92,7 +92,15 @@ run = "node scripts/git-hooks.mjs --selftest"
 description = '''
 The worktree hooks, the git guard and the unprovisioned-worktree guard, negative-tested against a
 scratch repository it builds; the worktree briefing rendered from its template into a scratch
-directory; new-worktree.sh beside a held `.git/config.lock`; and every hook `.claude/settings.json`
-registers, loaded from another working directory. Without it a guard could stop refusing what it
+directory; new-worktree.sh beside a held `.git/config.lock`; and every rendered Claude hook,
+loaded from another working directory. Without it a guard could stop refusing what it
 exists to refuse, or a hook stop loading, and every commit and push would still pass.'''
 run = "node scripts/hooks/worktree-hooks.selftest.mjs"
+
+["integrations:selftest"]
+description = '''
+The CLI integration adapters and writer over temporary Target projects: native settings and agents,
+shared skills and assets, supported and unsupported hooks, selection, read-only drift checks,
+ownership conflicts, symlink destinations, and Codex patch edits. Without it a new CLI can load
+inert configuration or rendering can overwrite local settings.'''
+run = "node tools/integrations/selftest.mjs"

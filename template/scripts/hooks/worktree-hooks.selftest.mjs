@@ -4,7 +4,7 @@
  * scripts/new-worktree.sh's choice of which copy of that template renders, its run beside
  * another that holds `.git/config.lock`
  * and the branch a failed run of it made, and for the hook registrations in
- * .claude/settings.json: each must load
+ * the rendered Claude settings: each must load
  * whatever the session's working directory is (the last section says what broke).
  *
  * Covers the halves of the contract that are cheap to exercise and easy to get wrong: what the hooks
@@ -37,6 +37,7 @@ import {
 import { tmpdir } from 'node:os'
 import { delimiter, dirname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { renderIntegrations } from '../../tools/integrations/render.mjs'
 
 const HOOKS = resolve(dirname(fileURLToPath(import.meta.url)))
 const CREATE = join(HOOKS, 'worktree-create.mjs')
@@ -652,12 +653,21 @@ check(
 console.log('render-worktree-context: the briefing template, rendered')
 const RENDERER = resolve(HOOKS, '..', 'render-worktree-context.mjs')
 const TEMPLATE_TEXT = readFileSync(
-  resolve(HOOKS, '..', '..', '.claude', 'worktree-CONTEXT.md.tmpl'),
+  resolve(HOOKS, '..', '..', '.harness', 'worktree-CONTEXT.md.tmpl'),
   'utf8',
 )
 const HOSTILE = { BRANCH: 'agent/b&r\\$&', BASE_SHA: 's&h\\$$a', TASK_REF: 't&sk\\$&$1' }
+const ADAPTER_FILES = ['adapters.mjs', 'claude.mjs', 'codex.mjs', 'formats.mjs']
+function copyAdapters(checkout) {
+  const destination = join(checkout, 'tools', 'integrations')
+  mkdirSync(destination, { recursive: true })
+  for (const file of ADAPTER_FILES) {
+    copyFileSync(resolve(HOOKS, '../../tools/integrations', file), join(destination, file))
+  }
+}
 const COPIED = [
-  join('checkout', '.claude', 'worktree-CONTEXT.md.tmpl'),
+  ...ADAPTER_FILES.map((file) => join('checkout', 'tools', 'integrations', file)),
+  join('checkout', '.harness', 'worktree-CONTEXT.md.tmpl'),
   join('checkout', 'scripts', 'render-worktree-context.mjs'),
 ].sort()
 
@@ -670,9 +680,10 @@ function render(template) {
   const root = mkdtempSync(join(tmpdir(), 'wt-render-'))
   const copy = join(root, 'checkout', 'scripts', 'render-worktree-context.mjs')
   mkdirSync(dirname(copy), { recursive: true })
-  mkdirSync(join(root, 'checkout', '.claude'))
+  mkdirSync(join(root, 'checkout', '.harness'))
+  copyAdapters(join(root, 'checkout'))
   copyFileSync(RENDERER, copy)
-  writeFileSync(join(root, 'checkout', '.claude', 'worktree-CONTEXT.md.tmpl'), template)
+  writeFileSync(join(root, 'checkout', '.harness', 'worktree-CONTEXT.md.tmpl'), template)
   const worktree = join(root, 'a&b')
   mkdirSync(worktree)
   mkdirSync(join(root, 'cwd'))
@@ -786,10 +797,11 @@ const templateOf = (where) =>
 execFileSync('git', ['init', '-q', '--bare', '-b', 'main', trailingOrigin], { env: GIT_ENV })
 execFileSync('git', ['init', '-q', '-b', 'main', trailingPrimary], { env: GIT_ENV })
 mkdirSync(join(trailingPrimary, 'scripts'))
-mkdirSync(join(trailingPrimary, '.claude'))
+mkdirSync(join(trailingPrimary, '.harness'))
+copyAdapters(trailingPrimary)
 copyFileSync(PROVISION, join(trailingPrimary, 'scripts', 'new-worktree.sh'))
 copyFileSync(RENDERER, join(trailingPrimary, 'scripts', 'render-worktree-context.mjs'))
-const trailingTemplate = join(trailingPrimary, '.claude', 'worktree-CONTEXT.md.tmpl')
+const trailingTemplate = join(trailingPrimary, '.harness', 'worktree-CONTEXT.md.tmpl')
 writeFileSync(trailingTemplate, templateOf('checkout'))
 git(trailingPrimary, 'add', '.')
 git(trailingPrimary, ...AS, 'commit', '-qm', 'the template the checkout keeps')
@@ -884,10 +896,11 @@ const raceOrigin = join(race, 'origin.git')
 execFileSync('git', ['init', '-q', '--bare', '-b', 'main', raceOrigin], { env: GIT_ENV })
 execFileSync('git', ['init', '-q', '-b', 'main', racePrimary], { env: GIT_ENV })
 mkdirSync(join(racePrimary, 'scripts'))
-mkdirSync(join(racePrimary, '.claude'))
+mkdirSync(join(racePrimary, '.harness'))
+copyAdapters(racePrimary)
 copyFileSync(PROVISION, join(racePrimary, 'scripts', 'new-worktree.sh'))
 copyFileSync(RENDERER, join(racePrimary, 'scripts', 'render-worktree-context.mjs'))
-writeFileSync(join(racePrimary, '.claude', 'worktree-CONTEXT.md.tmpl'), templateOf('base'))
+writeFileSync(join(racePrimary, '.harness', 'worktree-CONTEXT.md.tmpl'), templateOf('base'))
 git(racePrimary, 'add', '.')
 git(racePrimary, ...AS, 'commit', '-qm', 'a checkout lanes are cut from')
 git(racePrimary, 'remote', 'add', 'origin', raceOrigin)
@@ -998,7 +1011,7 @@ check(
  * --------------------------------------------------------------------------------------------- */
 console.log('settings: every registered hook loads whatever the working directory')
 const CHECKOUT = resolve(HOOKS, '..', '..')
-const settings = JSON.parse(readFileSync(join(CHECKOUT, '.claude', 'settings.json'), 'utf8'))
+const settings = JSON.parse(renderIntegrations({ root: CHECKOUT }).files.get('.claude/settings.json'))
 const hookCommands = Object.entries(settings.hooks ?? {}).flatMap(([event, groups]) =>
   groups.flatMap((group) =>
     (group.hooks ?? [])

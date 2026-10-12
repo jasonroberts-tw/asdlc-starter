@@ -74,6 +74,10 @@ section is a draft.
   install. Node is the runtime every Target project already needs, and the image has it through
   mise.
 - It deploys the Template from the asdlc-starter checkout it lives in.
+- It accepts `--integrations claude`, `--integrations codex`, or `--integrations claude,codex`.
+  A first Deploy defaults to Claude. After copying the common files, it calls
+  `template/scripts/render-integrations.mjs` or the `writeIntegrations` API in
+  `template/tools/integrations/write.mjs`. These renderers are implemented; Deploy remains separate.
 - The test finds it through `TEMPLATE_TEST_DEPLOY`. The default is the path the deploy plan
   chooses. Until then, the variable is required, and its absence fails the Deploy step with "Deploy
   not found".
@@ -117,7 +121,10 @@ The Structure step checks each of these:
 2. That commit's tree is the Template's tracked files: `git ls-files template/` at the revision
    under test, with their working-tree contents, at the same paths relative to `template/` and with
    the same file modes. Each file is byte-identical, except that every `<REPLACE_ME:name>` is replaced
-   by the value of `name`. The tree also holds exactly the files that creating the Tracker adds. A
+   by the value of `name`. CLI entry points are rendered from the shared `.harness/` definitions,
+   with paths and native formats determined by the selected integrations; the tree holds those
+   outputs and their `.harness/integrations.json` ownership manifest. There are no outputs for an
+   unselected integration. The tree also holds exactly the files that creating the Tracker adds. A
    probe lists those files (work item 1), and this section then names them, along with any Template
    file that creating the Tracker edits.
 3. No `<REPLACE_ME` remains anywhere in that tree.
