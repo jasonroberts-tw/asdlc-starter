@@ -41,6 +41,8 @@ export const claude = {
         })),
       })
     }
-    return { file: '.claude/settings.json', contents: json(plugins.length ? { enabledPlugins: Object.fromEntries(plugins.map((id) => [id, true])), hooks } : { hooks }), warnings: [] }
+    // enabledPlugins last: `claude plugin install --scope project` rewrites this file with it last
+    // (2.1.296), so in any other place the sync's install would edit a rendered file.
+    return { file: '.claude/settings.json', contents: json(plugins.length ? { hooks, enabledPlugins: Object.fromEntries(plugins.map((id) => [id, true])) } : { hooks }), warnings: [] }
   },
 }

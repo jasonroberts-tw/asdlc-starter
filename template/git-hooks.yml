@@ -101,6 +101,7 @@ pre-push:
         - 'policy/**'
         - 'mise.toml'
         - '.harness/skills/**'
+        - '.harness/agents/skill-assessor.md'
         - 'scripts/skill-sources.mjs'
         - 'tools/lib/policy.ts'
         - 'tasks.toml'

@@ -15,13 +15,15 @@
  * Lines start `[doctor] ok`, `[doctor] warn` or `[doctor] fail`; the Template test reads them.
  * NEEDS Node, and nothing from node_modules, so it runs when `npm ci` has failed. It reads the
  * machine, so it runs in neither the pre-push hook nor CI; its selftest runs in both.
- * The PATH it probes is its own: a git hook can see another (the plan's work item 3, not probed).
+ * A git hook runs with the PATH of whatever ran git, plus git's own exec-path, and `mise run` puts
+ * every pin on the doctor's own PATH; so the node probe asks a new login shell, as a new terminal
+ * starts one, which node it finds here (probed 2026-10-12, Git 2.54.0, mise 2026.10.6).
  */
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { delimiter, dirname, join, resolve } from 'node:path'
+import { basename, delimiter, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const SELF = fileURLToPath(import.meta.url)
@@ -54,6 +56,19 @@ function older(have, floor) {
   return at >= 0 && have[at] < floor[at]
 }
 
+/** `node --version` as a new terminal's shell runs it in `root`: the PATH a hook started from that terminal gets. */
+function shellNode(root) {
+  const shell = process.env.SHELL
+  // ponytail: Windows has no SHELL, so there the probe reads this process's PATH, which `mise run`
+  // has already fixed up; ask Git Bash's login shell if a Windows hook is found missing its node.
+  if (!shell || process.platform === 'win32') return sh('node', ['--version'], { cwd: root })
+  const args = /^pwsh/.test(basename(shell)) ? ['-Login', '-Command', 'node --version'] : ['-ilc', 'node --version']
+  const env = Object.fromEntries(['HOME', 'USER', 'LOGNAME', 'LANG'].filter((k) => process.env[k]).map((k) => [k, process.env[k]]))
+  const result = sh(shell, args, { cwd: root, env: { ...env, SHELL: shell, TERM: 'dumb' }, stdio: ['ignore', 'pipe', 'pipe'], timeout: 10_000 })
+  // An interactive shell's profile can print first; the version is its last line shaped like one.
+  return result.ok ? { ...result, out: result.out.match(/v\d+\.\d+\.\d+/g)?.at(-1) ?? result.out } : result
+}
+
 /** The probes only a person can fix, which bootstrap also runs before it starts. */
 export function personProbes(root = ROOT, { container = false } = {}) {
   const results = []
@@ -68,9 +83,9 @@ export function personProbes(root = ROOT, { container = false } = {}) {
   else results.push(['ok', 'toolchain', 'mise is installed'])
   if (!container) {
     const pin = misePin(root, 'node')
-    const node = sh('node', ['--version'])
+    const node = shellNode(root)
     if (pin && node.out !== `v${pin}`) {
-      results.push(['warn', 'toolchain', `the PATH's node is the pinned ${pin}`, node.ok ? `it is ${node.out}` : 'no node on the PATH', 'put mise first on the PATH: `mise activate` in your shell profile, or its shims directory'])
+      results.push(['warn', 'toolchain', `the PATH's node is the pinned ${pin}`, node.ok ? `a new ${basename(process.env.SHELL ?? 'shell')} finds ${node.out}` : `a new shell finds no node: ${node.out.split('\n').at(-1) || 'it did not start'}`, 'put mise first on the PATH: `mise activate` in your shell profile, or its shims directory'])
     } else if (pin) results.push(['ok', 'toolchain', `the PATH's node is the pinned ${pin}`])
   }
   return results
@@ -153,9 +168,11 @@ async function selftest() {
     mkdirSync(join(root, 'node_modules'))
     writeFileSync(join(root, LOCK_MARKER), createHash('sha256').update('{}\n').digest('hex'))
     mkdirSync(join(root, '.beads/embeddeddolt'), { recursive: true })
+    // The doctor starts the login shell with a bare environment, so the stub reads a file, not a variable.
+    writeFileSync(join(bin, 'login-shell'), `#!/bin/sh\n[ "$1" = -ilc ] || exit 64\necho "profile noise v0.0.1"\n[ -f "${bin}/no-node" ] && { echo "node: command not found" >&2; exit 127; }\necho ${process.version}\n`, { mode: 0o755 })
     writeFileSync(join(bin, 'mise'), '#!/bin/sh\n[ "$1" = ls ] && printf "%s" "$STUB_MISE_MISSING"\nexit 0\n', { mode: 0o755 })
     writeFileSync(join(bin, 'git'), `#!/bin/sh\n[ "$1" = --version ] && [ -n "$STUB_GIT_VERSION" ] && { echo "git version $STUB_GIT_VERSION"; exit 0; }\nexec "${realGit}" "$@"\n`, { mode: 0o755 })
-    const env = { ...process.env, PATH: [bin, dirname(process.execPath), '/usr/bin', '/bin'].join(delimiter), GIT_CONFIG_GLOBAL: join(root, '.gitconfig'), GIT_CONFIG_SYSTEM: '/dev/null' }
+    const env = { ...process.env, PATH: [bin, dirname(process.execPath), '/usr/bin', '/bin'].join(delimiter), GIT_CONFIG_GLOBAL: join(root, '.gitconfig'), GIT_CONFIG_SYSTEM: '/dev/null', SHELL: join(bin, 'login-shell') }
     for (const key of Object.keys(env)) if (key.startsWith('GIT_') && !key.startsWith('GIT_CONFIG_')) delete env[key]
     const git = (...args) => spawnSync('git', ['-C', root, ...args], { env, encoding: 'utf8' })
     git('init', '--quiet')
@@ -181,6 +198,7 @@ async function selftest() {
     ['a pinned tool missing', ({ env }) => { env.STUB_MISE_MISSING = 'gh  2.102.0' }, /fail toolchain: every tool mise\.toml pins is installed -- gh missing; fix: `mise run bootstrap`/],
     ['a pinned tool missing, in the container', ({ env }) => { env.STUB_MISE_MISSING = 'gh  2.102.0' }, /warn toolchain: every tool .* fix: rebuild the container/, 0, ['--container']],
     ['a PATH whose node is not the pin', ({ root }) => writeFileSync(join(root, 'mise.toml'), '[tools]\nnode = "1.0.0"\n'), /warn toolchain: the PATH's node is the pinned 1\.0\.0/, 0],
+    ['a login shell with no node', ({ root }) => writeFileSync(join(root, '.stub-bin/no-node'), ''), /warn toolchain: the PATH's node is the pinned .* -- a new shell finds no node: node: command not found/, 0],
     ['node_modules from another lockfile', ({ root }) => writeFileSync(join(root, 'package-lock.json'), '{"changed":true}\n'), /fail checkout: node_modules matches package-lock\.json -- installed from another lockfile/],
     ['a hook not installed', ({ git }) => git('config', '--unset', 'hook.asdlc-pre-push.command'), /fail checkout: the git hooks are installed -- pre-push not installed/],
     ['no Tracker', ({ root }) => rmSync(join(root, '.beads'), { recursive: true }), /fail tracker: the Tracker is hydrated/],

@@ -545,21 +545,49 @@ start empty; a Target project adds rows through the `add-skill` skill.
 
 | # | State in the Template |
 |---|---|
-| 1 | Not written: the first admission in a Target writes it, as the `add-skill` skill says |
-| 2 | Not done: the `skills` CLI is not a dev dependency; sync skips installed skills while it is absent |
-| 3 | Not probed: the script headers mark each unverified behaviour |
-| 4 | `policy/skill-sources.json` and `mise run skills:check`; no protected-path config exists to add it to |
-| 5 | `.harness/agents/skill-assessor.md`, with Claude tools limited to Read, Grep and Glob; no stubbed-agent selftest |
+| 1 | `docs/adr/0002-admit-installed-skills.md` in this repository; a Target's first admission also records its own, as the `add-skill` skill says |
+| 2 | Adopted: `skills` 1.7.2, exact, in `package.json`, after the trials below. It brings two dependencies (`tar`, `yaml`), no install script, an MIT licence and 600 kB unpacked, and needs Node 22.20.0 or later |
+| 3 | Probed on 2026-10-12; the results are below, and in the headers of `scripts/skill-sources.mjs` and `scripts/doctor.mjs` |
+| 4 | `policy/skill-sources.json` and `mise run skills:check`. Not done: the protection. The Template has no protected-path config, and Deploy sets no branch protection or ruleset to give one force |
+| 5 | `.harness/agents/skill-assessor.md`; `skills:check` refuses it with any tool but Read, Grep and Glob. No stubbed-agent selftest: no code reads the assessor's report, so a stub would test nothing. Codex renders it with no tool limit |
 | 6 | `readAudit` in `scripts/skill-sources.mjs`, over a stub on loopback in its selftest |
-| 7 | `.harness/skills/add-skill/SKILL.md`, with the deterministic pass as `skill-sources.mjs scan` |
+| 7 | `.harness/skills/add-skill/SKILL.md`, with the deterministic pass as `skill-sources.mjs scan`, which runs each guard as a process, so no guard exports its logic |
 | 8 | Nothing to except: the renderer judges only files it owns, and no check reads untracked skills |
 | 9 | `scripts/skill-sources.mjs sync`, `mise run skills:install`, `skills:selftest` in pre-push and CI |
 | 10 | `scripts/doctor.mjs`, `mise run doctor`, `doctor:selftest` in pre-push and CI; no linter probe, since the Template has no linter |
 | 11 | `scripts/bootstrap.mjs`, `mise run bootstrap`, `bootstrap:selftest` in pre-push and CI; the Template has no host setup README to rewrite |
 | 12 | The entrypoint runs bootstrap, which ends with the doctor; its plugin functions and the token and toolchain warnings are gone |
-| 13 | post-checkout and post-merge jobs run the sync with `--since`; the runner installs no post-rewrite hook, so a rebase pull does not sync |
+| 13 | post-checkout and post-merge jobs run the sync with `--since`. A rebase pull fires post-checkout as it checks out the upstream, so it syncs too, before the local commits are replayed |
 | 14 | `scripts/new-worktree.sh` runs `skill-sources.mjs copy` |
-| 15 | Not done |
+| 15 | Done: `root-cause`, the one hand copy, records obra/superpowers' `systematic-debugging` at 8ca22db |
 
 The Template test's Bootstrap step checks the doctor's summary, the host route's second run, and a
 branch's new `installedSkills` row reaching the clone through the post-checkout hook.
+
+### What the probes found
+
+They ran on 2026-10-12, with Claude Code 2.1.296, `skills` 1.7.2, Git 2.54.0 and mise 2026.10.6,
+against a throwaway `CLAUDE_CONFIG_DIR`, a local marketplace and scratch repositories.
+
+- **`claude plugin install --scope project`** records the checkout it ran in as `projectPath`. From
+  a linked worktree, that is the worktree. It needs no terminal and no `-y` for a plugin with no
+  command. It rewrites `.claude/settings.json` with `enabledPlugins` as the last key. The renderer
+  wrote that key first, so every machine's first sync would have edited a rendered, tracked file.
+  The renderer now writes it last, and sync fails on such an edit after an install, as it did after
+  an uninstall.
+- **`claude plugin uninstall --scope project`** deletes the plugin's entry from
+  `.claude/settings.json`. It leaves a file with no entry for the plugin unchanged, and that is the
+  file the renderer writes once the plugin leaves the list. It leaves the plugin's cache.
+- **`skills add <source>#<sha> -a claude-code -s <name> --copy -y`** writes only
+  `.claude/skills/<name>/` and `skills-lock.json`, and no `.agents/`, so sync no longer excludes
+  `.agents/`. The lock's `ref` is the full SHA. **`skills remove -a claude-code -s <name> -y`**
+  deletes the directory and the lock entry, and exits 0 when it finds nothing.
+- **Pulls.** A merge pull fires post-merge. A rebase pull fires post-checkout, then post-rewrite.
+- **`info/exclude`** is shared. A linked worktree's `git rev-parse --git-path info/exclude` gives the
+  primary's.
+- **A hook's PATH** is its caller's, with git's exec-path in front. `mise run` puts each pin's
+  install directory in front of the doctor's PATH, so its node probe always passed under `mise run
+  doctor`. The probe now asks a new login shell, started with a bare environment as a new terminal
+  would start one.
+- **Tags.** `cli/cli` and `gastownhall/beads` tag their releases `v<version>`, which `skills:check`
+  matches to the mise pin.

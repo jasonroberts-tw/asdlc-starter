@@ -28,10 +28,17 @@
  * `node_modules/.bin/skills` is absent; a tool found that then fails is a failure.
  *
  * NEEDS Node and git; nothing from node_modules, so it runs before `npm ci` and in a fresh worktree.
- * NOT VERIFIED against a real CLI (the plan's work item 3): a project record's `projectPath`, what
- * `claude plugin uninstall --scope project` edits, and `skills remove`'s flags. The JSON shapes of
- * `claude plugin ... list --json` (2.1.296), skills.sh's audit (2026-10-12) and `skills-lock.json`
- * (vercel-labs/skills at 671e8c3, src/local-lock.ts) were read from the real things.
+ * PROBED on 2026-10-12, with Claude Code 2.1.296, `skills` 1.7.2 and a throwaway CLAUDE_CONFIG_DIR:
+ * a project record's `projectPath` is the checkout the install ran in, so an install from a linked
+ * worktree records the worktree, which is why sync runs from the primary checkout; `claude plugin
+ * install --scope project` rewrites `.claude/settings.json` with `enabledPlugins` as its last key,
+ * and `uninstall` deletes the plugin's entry there and leaves a file without one unchanged, so a
+ * rendered file is left alone and any edit is a failure; `install` needs no terminal and no `-y`
+ * for a plugin with no command; `skills add <source>#<sha> --copy` writes only
+ * `.claude/skills/<name>/` and `skills-lock.json`, whose `ref` is the SHA; `skills remove -a
+ * claude-code -s <name> -y` deletes both and exits 0 when it finds nothing. Linked worktrees share
+ * `info/exclude`. The JSON shapes of `claude plugin ... list --json`, skills.sh's audit and
+ * `skills-lock.json` were read from the real things.
  */
 import { spawn, spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
@@ -54,6 +61,7 @@ const WATCHED = ['policy/skill-sources.json', '.claude/settings.json']
 const RULES = ['AGENTS.md', 'CLAUDE.md']
 const EXCLUDE_BEGIN = '# skill-sources: installed skills (scripts/skill-sources.mjs sync)'
 const EXCLUDE_END = '# skill-sources: end'
+const ASSESSOR_TOOLS = 'Read, Grep, Glob'
 const isText = (v) => typeof v === 'string' && v.trim() !== ''
 const object = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {})
 
@@ -119,6 +127,10 @@ export function check(root) {
       problems.push(`installed skill ${name}: its assessment or accepted audit found something, and it names no issue`)
     }
   }
+  // The assessor reads untrusted text that may try to instruct it, so it gets no tool that acts.
+  const assessor = join(root, '.harness/agents/skill-assessor.md')
+  const tools = existsSync(assessor) ? /^tools:[ \t]*(.*)$/m.exec(readFileSync(assessor, 'utf8'))?.[1].trim() ?? null : null
+  if (tools !== ASSESSOR_TOOLS) problems.push(`.harness/agents/skill-assessor.md: its tools are ${tools === null ? 'not given' : JSON.stringify(tools)}, not ${ASSESSOR_TOOLS}`)
   return problems
 }
 
@@ -184,7 +196,7 @@ function excludeFile(root, names) {
   const end = text.indexOf(EXCLUDE_END)
   const rest = start >= 0 && end > start ? text.slice(0, start) + text.slice(end + EXCLUDE_END.length + 1) : text
   const block = names.length
-    ? [EXCLUDE_BEGIN, '/skills-lock.json', ...names.flatMap((n) => [`/.claude/skills/${n}/`, `/.agents/skills/${n}/`]), EXCLUDE_END, ''].join('\n')
+    ? [EXCLUDE_BEGIN, '/skills-lock.json', ...names.map((n) => `/.claude/skills/${n}/`), EXCLUDE_END, ''].join('\n')
     : ''
   const next = rest + (block && rest && !rest.endsWith('\n') ? '\n' : '') + block
   return { path, changed: next !== text, next }
@@ -212,6 +224,11 @@ export async function sync({ dryRun = false, warnOnly = false, ownsUserConfig = 
     if (plugins.length) say(`skip: claude not found on the PATH, so ${plugins.length} enabled plugin(s) are not checked`)
   } else {
     const claude = (args) => run('claude', args, { cwd: root, env: gitEnv() })
+    const settingsUnchanged = (verb) => {
+      if (!gitOk(git, ['diff', '--quiet', '--', '.claude/settings.json'])) {
+        throw new Error(`the ${verb} edited .claude/settings.json, a tracked file; restore it with \`git checkout -- .claude/settings.json\``)
+      }
+    }
     let registered = null
     let records = null
     try {
@@ -230,15 +247,13 @@ export async function sync({ dryRun = false, warnOnly = false, ownsUserConfig = 
       }
       const ours = records.filter((r) => r.scope === 'project' && r.projectPath === root)
       for (const id of plugins) {
-        if (!ours.some((r) => r.id === id)) act(`install plugin ${id} for this clone`, () => claude(['plugin', 'install', id, '--scope', 'project']))
+        if (!ours.some((r) => r.id === id)) act(`install plugin ${id} for this clone`, () => { claude(['plugin', 'install', id, '--scope', 'project']); settingsUnchanged('install') })
       }
       for (const record of ours) {
         if (plugins.includes(record.id)) continue
         act(`uninstall plugin ${record.id}, no longer enabled`, () => {
           claude(['plugin', 'uninstall', record.id, '--scope', 'project'])
-          if (!gitOk(git, ['diff', '--quiet', '--', '.claude/settings.json'])) {
-            throw new Error('the uninstall edited .claude/settings.json, a tracked file; restore it with `git checkout -- .claude/settings.json`')
-          }
+          settingsUnchanged('uninstall')
         })
       }
       for (const name of registered.filter((n) => !wanted.has(n))) {
@@ -258,7 +273,7 @@ export async function sync({ dryRun = false, warnOnly = false, ownsUserConfig = 
   const unwanted = Object.keys(lock).filter((name) => !Object.hasOwn(skills, name) && owned(name))
   const names = Object.keys(skills).filter((name) => NAME.test(name))
   if ((names.length || unwanted.length) && !existsSync(cli)) {
-    say(`skip: node_modules/.bin/skills not found, so ${names.length + unwanted.length} installed skill(s) are not checked; the skills CLI must be a dev dependency, then \`npm ci\``)
+    say(`skip: node_modules/.bin/skills not found, so ${names.length + unwanted.length} installed skill(s) are not checked; run \`npm ci\`, which installs the skills CLI`)
   } else if (names.length || unwanted.length) {
     const stub = mkdtempSync(join(tmpdir(), 'skill-sources-'))
     const env = skillsEnv(stub)
@@ -407,8 +422,10 @@ fs.appendFileSync(process.env.STUB_LOG, 'claude ' + line + '\\n')
 if (state.fail && line.includes(state.fail)) { console.error('stub failure'); process.exit(1) }
 if (line === 'plugin marketplace list --json') console.log(JSON.stringify(state.markets.map((name) => ({ name }))))
 else if (line === 'plugin list --json') console.log(JSON.stringify(state.plugins))
-else if (args[1] === 'install') state.plugins.push({ id: args[2], scope: 'project', projectPath: process.cwd() })
-else if (args[1] === 'uninstall') {
+else if (args[1] === 'install') {
+  state.plugins.push({ id: args[2], scope: 'project', projectPath: process.cwd() })
+  if (state.editSettings) fs.appendFileSync(path.join(process.cwd(), '.claude/settings.json'), ' ')
+} else if (args[1] === 'uninstall') {
   state.plugins = state.plugins.filter((p) => !(p.id === args[2] && p.projectPath === process.cwd()))
   if (state.editSettings) fs.appendFileSync(path.join(process.cwd(), '.claude/settings.json'), ' ')
 } else if (args[2] === 'add') state.markets.push(path.basename(args[3]).replace(/\\.git#.*/, ''))
@@ -466,7 +483,7 @@ async function selftest() {
   /** A scratch primary checkout holding this script, the policy, a tracked skill and stubs, in sync with `edit`'s record. */
   function fixture({ edit = () => {}, state = {}, audit = PASS } = {}) {
     const root = join(temp, `case-${++count}`)
-    for (const file of ['scripts/skill-sources.mjs', 'tools/lib/policy.ts', 'tools/lib/git-env.ts', '.harness/hooks.json']) {
+    for (const file of ['scripts/skill-sources.mjs', 'tools/lib/policy.ts', 'tools/lib/git-env.ts', '.harness/hooks.json', '.harness/agents/skill-assessor.md']) {
       mkdirSync(dirname(join(root, file)), { recursive: true })
       cpSync(join(SCRIPT_ROOT, file), join(root, file))
     }
@@ -553,6 +570,12 @@ async function selftest() {
   checkCase('refuses an assessment of another commit than the pin', (c) => { c.installedSkills.helper.commit = MOVED }, /its assessment read a{40}, not its pin/)
   checkCase('refuses findings that name no issue', (c) => { delete c.installedSkills.helper.assessment.issue }, /found something, and it names no issue/)
   checkCase('refuses an unaudited skill that names no issue', (c) => { c.installedSkills.helper.audit = {}; delete c.installedSkills.helper.assessment.issue }, /names no issue/)
+  test('check refuses an assessor given a tool that acts', () => {
+    const { root } = fixture()
+    const file = join(root, '.harness/agents/skill-assessor.md')
+    writeFileSync(file, readFileSync(file, 'utf8').replace(/^tools:.*$/m, 'tools: Read, Grep, Glob, Bash'))
+    assert.match(check(root).join('\n'), /skill-assessor\.md: its tools are "Read, Grep, Glob, Bash", not Read, Grep, Glob/)
+  })
   checkCase('refuses a skill name that is not a directory name', (c) => { c.installedSkills['../escape'] = c.installedSkills.helper }, /not a skill directory name/)
 
   // The sync, one case per row of the plan's table and per rule.
@@ -584,6 +607,12 @@ async function selftest() {
     assert.equal(r.status, 0, r.out)
     assert.match(f.log(), /^claude plugin uninstall tool@market --scope project$/m)
     assert.doesNotMatch(f.log(), /uninstall (other|mine)@market/)
+  })
+  test('sync fails when an install leaves .claude/settings.json changed', async () => {
+    const f = fixture({ state: { plugins: [], editSettings: true } })
+    const r = await f.sync()
+    assert.equal(r.status, 1)
+    assert.match(r.out, /fail: install plugin tool@market .*the install edited \.claude\/settings\.json/)
   })
   test('sync fails when an uninstall leaves .claude/settings.json changed', async () => {
     const f = fixture({ edit: (c) => { c.claudeEnabledPlugins = []; c.claudePluginMarketplaces = {} }, state: { editSettings: true } })

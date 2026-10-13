@@ -15,6 +15,7 @@
     "@typesafe-ai/sdk": "0.6.0",
     "js-yaml": "^5.3.0",
     "jsdom": "29.1.1",
+    "skills": "1.7.2",
     "smol-toml": "1.9.0"
   },
   "allowScripts": {

@@ -24,8 +24,7 @@ Resolve the ref (the default branch when none is given) with `git ls-remote
 https://github.com/<owner>/<repo> <ref>` to a 40-character SHA. Clone into
 `.scratch/add-skill/<skill>-src` and check out that SHA; find the directory whose `SKILL.md` names
 the skill. Nothing lands in `.claude/skills/` here: `mise run skills:install` installs it, through
-`node_modules/.bin/skills`. If that CLI is not a dev dependency yet, the first admission adopts it
-first with the `should-i-adopt` skill.
+`node_modules/.bin/skills`, the dev dependency `package.json` pins.
 
 ## 3. Run the three checks
 

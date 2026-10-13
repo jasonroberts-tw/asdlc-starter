@@ -288,6 +288,7 @@ test('policy claudeEnabledPlugins renders Claude enabledPlugins, and a malformed
   const settings = JSON.parse(renderIntegrations({ root: source }).files.get('.claude/settings.json'))
   assert.deepEqual(settings.enabledPlugins, { 'beads@beads-marketplace': true })
   assert.ok(settings.hooks.PreToolUse)
+  assert.equal(Object.keys(settings).at(-1), 'enabledPlugins', 'claude plugin install rewrites the file with enabledPlugins last')
   assert.ok(!renderIntegrations({ root: source, integrations: ['codex'] }).files.get('.codex/config.toml').includes('beads'))
   writeFileSync(record, JSON.stringify({ ...policy, claudeEnabledPlugins: ['beads'] }))
   assert.throws(() => renderIntegrations({ root: source }), /Invalid policy claudeEnabledPlugins/)

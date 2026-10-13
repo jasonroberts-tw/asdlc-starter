@@ -144,7 +144,8 @@ description = '''
 Refuses a row of `policy/skill-sources.json` that its `gatedBy` lists: an enabled plugin with no
 tagged marketplace source, a tag off its held mise pin, an unused marketplace, and an installed skill
 with no full commit, no reason, a tracked skill's name, an assessment of another commit, or a finding
-with no issue. It reads committed files only. Without it a pin could move with no new assessment.'''
+with no issue; and a `skill-assessor` agent given a tool beyond Read, Grep and Glob. It reads
+committed files only. Without it a pin could move with no new assessment.'''
 run = "node scripts/skill-sources.mjs check"
 
 ["skills:install"]
