@@ -11,6 +11,9 @@ to an empty origin:
 node scripts/deploy.mjs --values values.json ../target-project
 ```
 
+To have an agent walk you through it, including the GitHub repository and App, point it at
+[INSTALL.md](INSTALL.md).
+
 The Target must be an empty git repository with an empty `origin`. Deploy needs Node, git, a git
 identity, and the Template's pinned bd. It installs no npm packages. Add
 `--integrations codex` or `--integrations claude,codex` to select the integrations; Claude is the
