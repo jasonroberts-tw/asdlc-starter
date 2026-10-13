@@ -62,8 +62,9 @@ git -C "$TARGET" remote add origin "https://github.com/$OWNER/$REPO.git"
 ## 4. Get or create the GitHub App
 
 The Target project's agents act as a GitHub App. Ask whether the person already has an App for this
-project. If they do, set `APP_SLUG` to the name shown in its URL (`github.com/apps/<slug>`). Skip to
-**Installation** if it is already installed on this repository only.
+project. If they do, set `APP_SLUG` to the name shown in its URL (`github.com/apps/<slug>`) and
+`APP_ID` to the **App ID** under **About** on its settings page. Skip to **Installation** if it is
+already installed on this repository only.
 
 **Create** (`gh` cannot create an App, so the person does this in the browser). Send them to
 `https://github.com/settings/apps/new`, or to
@@ -75,7 +76,8 @@ them to:
 3. Under **Repository permissions**, set **Contents** and **Pull requests** to Read and write.
    Set **Checks**, **Commit statuses** and **Actions** to Read-only. Leave **Workflows** unset.
 4. Choose **Only on this account**, then create the App.
-5. Tell you the slug from the App's URL.
+5. Tell you the slug from the App's URL and the **App ID** under **About** on its settings page.
+   `gh api /apps/<slug>` returns 404 for an App that is private to its account, so ask for the ID.
 
 **Installation:** on the App's page, choose **Install App**, pick `OWNER`, and choose **Only select
 repositories → `REPO`**. A token minted from the App's key can reach every repository the
@@ -94,8 +96,7 @@ test "$(ls "$KEY_DIR"/*.pem | wc -l)" -eq 1 && KEY="$(ls "$KEY_DIR"/*.pem)"
 ## 5. Look up the App's identity
 
 ```sh
-APP_ID="$(gh api "/apps/$APP_SLUG" --jq .id)"
-BOT_LOGIN="$APP_SLUG[bot]"
+BOT_LOGIN="${APP_SLUG}[bot]"   # braces stop zsh reading [bot] as an array subscript
 BOT_USER_ID="$(gh api "/users/$APP_SLUG%5Bbot%5D" --jq .id)"
 ```
 
