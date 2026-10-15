@@ -112,8 +112,6 @@ criteria and changes it by editing it here, rather than restating it.
 - **The Tracker's remote** defaults to origin's URL, since the Tracker lives on the git remote. The
   values file can set it.
 - **A target** that is a git repository with no commits and an `origin` remote.
-- **No Pluggable components yet.** When they arrive, they are another input to Deploy, and this
-  section gains their postconditions.
 
 ### What it leaves behind
 
@@ -478,7 +476,6 @@ registration condition fails the tests, and the restored scanner passes.
 - Building a Target project's own image from its deployed files. The test builds from the Template.
 - Bootstrap on a host outside the container, on any platform.
 - Deploy's refusals, which belong to Deploy's own selftest.
-- Pluggable components.
 - Wiring the test into CI.
 - Whether the Template's prompts and skills are any good, beyond whether they let the work through.
 

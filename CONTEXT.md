@@ -1,6 +1,6 @@
 # ASDLC Starter
 
-A template repository for bootstrapping an agentic SDLC harness into new projects, plus the pluggable components and tests that go with it.
+A template repository for bootstrapping an agentic SDLC harness into new projects, plus the tests that go with it.
 
 ## Language
 
@@ -13,10 +13,6 @@ _Avoid_: starter, skeleton, scaffold
 **Target project**:
 A git repository the Template has been deployed into.
 _Avoid_: target repo, consumer, downstream project
-
-**Pluggable component**:
-An optional part of the harness, planned under `plans/` and built under `components/`, that can be deployed alongside the Template.
-_Avoid_: "component" on its own, module, plugin (a Claude Code term)
 
 **Deploy**:
 The one-time act of putting the Template into a Target project when the project is created.

@@ -3,7 +3,7 @@ This repo maintains the **Template**, an agentic SDLC harness that Deploy puts i
 ## Layout
 
 - `template/` is the Template. `template/.harness/` holds the shared skills, agent prompts and hook declarations that `template/scripts/render-integrations.mjs` renders for each CLI.
-- `plans/` holds plans; `components/` holds Pluggable component implementations.
+- `plans/` holds plans.
 - `scripts/` is Deploy and `tests/template/` is the Template test; [README.md](README.md) has their commands.
 
 ## Template files are product, not instructions
