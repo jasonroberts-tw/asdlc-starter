@@ -135,6 +135,10 @@ function skillsClone(t, hooked) {
     cpSync(join(TEMPLATE, file), join(root, file))
   }
   cpSync(join(TEMPLATE, 'policy'), join(root, 'policy'), { recursive: true })
+  // A deployed Target has the skills CLI. The doctor only checks, so it never runs this placeholder.
+  mkdirSync(join(root, 'node_modules/.bin'), { recursive: true })
+  writeFileSync(join(root, 'node_modules/.bin/skills'), '#!/bin/sh\nexit 1\n', { mode: 0o755 })
+  writeFileSync(join(root, '.gitignore'), 'node_modules/\n')
   git(root, 'init', '--quiet', '--initial-branch=main')
   // checkSkillsHook commits with the clone's own identity, since selftest.sh sets no global one.
   git(root, 'config', 'user.name', 'Template Test')

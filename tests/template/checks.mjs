@@ -120,8 +120,8 @@ export function checkDoctor(log) {
 /**
  * A record change on a branch must reach the machine through the checkout hook alone: switching to
  * the branch hides its installed skill in info/exclude, switching back unhides it, and while the
- * skill cannot be installed the doctor reports the drift. The skill is never installed, because the
- * Target has no skills CLI, so nothing is fetched.
+ * skill is missing the doctor reports the drift. The skill is never installed, because the doctor
+ * only checks: it looks up the skill's audit and says what it would add.
  */
 export function checkSkillsHook(root) {
   const probe = '/.claude/skills/template-test-probe/'
@@ -145,8 +145,8 @@ export function checkSkillsHook(root) {
     if (!hidden()) throw new Error('post-checkout did not sync the changed record: info/exclude does not hide the probe skill')
     const doctor = spawnSync(process.execPath, ['scripts/doctor.mjs'], { cwd: root, encoding: 'utf8' })
     process.stdout.write(doctor.stdout)
-    if (!/\[doctor\] warn claude code: .*node_modules\/\.bin\/skills not found/.test(doctor.stdout)) {
-      throw new Error('the doctor did not report the installed skill it cannot install')
+    if (!/\[doctor\] warn claude code: .*would add skill template-test-probe /.test(doctor.stdout)) {
+      throw new Error('the doctor did not report the missing installed skill')
     }
     git(root, ['switch', '--quiet', branch])
     if (hidden()) throw new Error('post-checkout did not sync back: info/exclude still hides the probe skill')
