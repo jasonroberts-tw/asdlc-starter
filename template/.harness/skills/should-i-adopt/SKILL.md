@@ -1,6 +1,6 @@
 ---
 name: should-i-adopt
-description: Assess whether to bring a tool or a pattern into this repository's harness - look for a prior decision first, name the problem it would solve, test its integration friction against this repository's rules with trials inside Docker, weigh it against not adopting, and file the brief as a decision issue for a person to choose from. Use when asked "should we adopt, add, use or switch to X", to evaluate or vet a CLI, library, MCP server, plugin, hook, linter or practice for the harness, or before a session adds one that no register entry decided.
+description: Assess whether to bring a tool or a pattern into this repository's harness - look for a prior decision first, name the problem it would solve, test its integration friction against this repository's rules with trials inside Docker, weigh it against not adopting, and write the brief as a proposed decision record for a person to choose from. Use when asked "should we adopt, add, use or switch to X", to evaluate or vet a CLI, library, MCP server, plugin, hook, linter or practice for the harness, or before a session adds one that no register entry decided.
 argument-hint: "<tool or pattern> [the problem it would solve]"
 ---
 
@@ -9,8 +9,9 @@ Read AGENTS.md first. Everything below is subordinate to it and points at it rat
 # Should I adopt it?
 
 The argument names a candidate, a tool or a pattern, and may name the problem it would solve. A run
-ends with a decision brief in the tracker, or with the prior decision that settles it (step 2), and
-changes no tracked file: adopting is a person's choice, recorded after they make it. Run it from 
+ends with a proposed decision record under `docs/decisions/` (step 8), or with the prior decision
+that settles it (step 2), and changes no other tracked file: adopting is a person's choice, which
+the record's status takes after they make it. Run it from 
 the primary checkout: a worktree session refuses a container command that runs git , which
 step 5 needs. A run in a worktree session says so to the user, and any claim it then leaves untried
 is named as no trial checked.
@@ -32,8 +33,8 @@ each with a second phrasing, and `git log -S <name> --oneline origin/main`.
   behind each defect the entry cites; one trial (step 5) of the defect that weighed most, if the
   diff leaves it open. With nothing new, report the entry, what you checked and what would reopen
   it, and stop. Otherwise assess only what is new, and the brief names the entry it would amend.
-- **An open issue carries the question:** the brief becomes a note on it, counted as `AGENTS.md` §
-  The task store says.
+- **An open issue carries the question:** the run still writes its record, and a note on the issue
+  names the record, counted as `AGENTS.md` § The task store says.
 
 ## 3. Map what it would touch
 
@@ -113,7 +114,8 @@ Choose **adopt**, **adopt with conditions** (each condition is work an issue can
 
 ## 8. Create the record
 
-Create a decision record in the 'PROPOSED' state 
+Create a decision record in the 'PROPOSED' state under `docs/decisions/` (`AGENTS.md` § Decisions
+records).
 
 Format the document using the following template:
 

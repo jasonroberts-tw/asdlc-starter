@@ -51,8 +51,9 @@ every finding and these three options, then stop. The operator chooses:
 - **accept**: a session adds the row as in § 4, with the findings count, the issue's id as
   `assessment.issue`, and the audit result the operator accepted;
 - **reject**: the issue closes with its reason, which § 1 finds next time;
-- **reconcile**: the `should-i-adopt` skill reviews the skill, and its brief becomes a note on the
-  issue: vendoring an adapted copy under `.harness/skills/`, or changing a rule here, among its options.
+- **reconcile**: the `should-i-adopt` skill reviews the skill and writes its decision record, which a
+  note on the issue names: vendoring an adapted copy under `.harness/skills/`, or changing a rule
+  here, among its options.
 
 ## 6. A held skill
 
