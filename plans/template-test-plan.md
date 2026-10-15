@@ -195,8 +195,8 @@ The entrypoint and bootstrap only warn and never fail there, so the test checks 
   packages, the git hooks and the Tracker;
 - a commit on a branch that adds a row to `policy/skill-sources.json` `installedSkills` reaches the
   clone through the post-checkout hook alone: switching to the branch hides the skill in
-  `info/exclude`, the doctor then warns that it cannot install it (the Target has no `skills`
-  CLI, so nothing is fetched), and switching back unhides it;
+  `info/exclude`, the doctor then warns that it would add the skill (the doctor only checks, so
+  nothing is installed), and switching back unhides it;
 - every warning in the entrypoint's, bootstrap's, the doctor's and the sync's output, on both routes,
   is on `tests/template/expected-warnings.txt`. Each line of that file gives its reason. Today the
   list holds one warning: the doctor's, that the GitHub App cannot mint a token, because no key is
