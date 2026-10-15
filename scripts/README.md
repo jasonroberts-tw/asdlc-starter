@@ -18,6 +18,9 @@ node scripts/deploy.mjs --values values.json [--integrations claude,codex] ../ta
 Use an empty git repository with an empty `origin`. Start the values file from
 [`tests/template/fixtures/values.json`](../tests/template/fixtures/values.json) and replace its dummy
 project and App identity with the project's values. `trackerRemote` defaults to origin's URL.
+The four App values (`githubAppId`, `githubAppInstallationId`, `githubAppBotLogin`,
+`githubAppBotUserId`) are optional together. When all four are left out, Deploy writes them empty,
+and the Target project makes its changes on the host under the operator's account.
 Values are nonempty strings or safe integers; quotes, backslashes, line breaks and unresolved
 placeholders are refused because substitution must preserve the surrounding Template formats.
 

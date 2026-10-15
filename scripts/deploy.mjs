@@ -17,6 +17,7 @@ import { selectIntegrations } from '../template/tools/integrations/adapters.mjs'
 
 const source = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const usage = 'usage: deploy.mjs --values file [--integrations claude,codex] <target-dir>'
+const APP_VALUES = ['githubAppId', 'githubAppInstallationId', 'githubAppBotLogin', 'githubAppBotUserId']
 function command(program, args, cwd) {
   const result = spawnSync(program, args, { cwd, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 })
   if (result.error || result.status !== 0) {
@@ -95,6 +96,11 @@ function fill(files, input, origin) {
     }
     values[name] = String(value)
   }
+  // The App is optional, because the host works with the operator's own account. Without it the
+  // App's keys stay empty, and the container's token helper refuses them with that reason.
+  const missingApp = APP_VALUES.filter((name) => names.has(name) && values[name] === undefined)
+  if (missingApp.length === APP_VALUES.length) for (const name of missingApp) values[name] = ''
+  else if (missingApp.length) throw new Error('Give every GitHub App value or none; missing: ' + missingApp.join(', '))
   for (const name of names) if (values[name] === undefined) throw new Error('Missing required value: ' + name)
   return files.map((file) => {
     if (!file.bytes.includes(Buffer.from('<REPLACE_ME'))) return file

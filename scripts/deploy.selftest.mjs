@@ -78,6 +78,18 @@ for (const integrations of ['codex', 'claude,codex']) {
   })
 }
 
+test('Deploy without a GitHub App leaves the App keys empty', (t) => {
+  const f = fixture(t)
+  const v = { ...values }
+  for (const name of ['githubAppId', 'githubAppInstallationId', 'githubAppBotLogin', 'githubAppBotUserId']) delete v[name]
+  writeFileSync(f.input, JSON.stringify(v))
+  const result = deploy(f)
+  assert.equal(result.status, 0, result.stdout + result.stderr)
+  const policy = JSON.parse(readFileSync(join(f.target, 'policy/tool-settings.json')))
+  assert.equal(policy.githubAppId, '')
+  assert.equal(policy.githubAppTokenRepository, values.githubAppTokenRepository)
+})
+
 test('Deploy uses tracked working-tree bytes and index modes even when the Target ignores chmod', (t) => {
   const f = fixture(t)
   const checkout = join(f.directory, 'source')
@@ -111,6 +123,7 @@ for (const [name, change, reason, extra] of [
   ['missing origin', (f) => git(f.target, 'remote', 'remove', 'origin'), /no origin/i],
   ['missing value', (f) => { const v = { ...values }; delete v.projectName; writeFileSync(f.input, JSON.stringify(v)) }, /missing required value: projectName/i],
   ['unknown value', (f) => writeFileSync(f.input, JSON.stringify({ ...values, unknown: 'x' })), /unknown value: unknown/i],
+  ['some GitHub App values', (f) => { const v = { ...values }; delete v.githubAppId; writeFileSync(f.input, JSON.stringify(v)) }, /every GitHub App value or none; missing: githubAppId/i],
   ['empty value', (f) => writeFileSync(f.input, JSON.stringify({ ...values, projectName: '' })), /empty value: projectName/i],
   ['existing file', (f) => writeFileSync(join(f.target, 'keep.txt'), 'keep me'), /target is not empty/i],
   ['symlink destination', (f) => symlinkSync(f.directory, join(f.target, 'policy')), /target is not empty/i],

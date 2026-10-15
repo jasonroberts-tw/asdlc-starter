@@ -59,12 +59,16 @@ mkdir -p "$TARGET" && git -C "$TARGET" init
 git -C "$TARGET" remote add origin "https://github.com/$OWNER/$REPO.git"
 ```
 
-## 4. Get or create the GitHub App
+## 4. Get or create the GitHub App, or go without one
 
-The Target project's agents act as a GitHub App. Ask whether the person already has an App for this
-project. If they do, set `APP_SLUG` to the name shown in its URL (`github.com/apps/<slug>`) and
-`APP_ID` to the **App ID** under **About** on its settings page. Skip to **Installation** if it is
-already installed on this repository only.
+The dev container's agents act as a GitHub App. The App is optional, because changes can also be
+made on the host, where git and `gh` use the person's own account. Without an App, the dev
+container can clone and work locally, but it cannot push or call GitHub. Ask whether the person
+wants an App for this project. If they do not, skip to step 6 and leave the four App values out.
+
+Ask whether the person already has an App for this project. If they do, set `APP_SLUG` to the name
+shown in its URL (`github.com/apps/<slug>`) and `APP_ID` to the **App ID** under **About** on its
+settings page. Skip to **Installation** if it is already installed on this repository only.
 
 **Create** (`gh` cannot create an App, so the person does this in the browser). Send them to
 `https://github.com/settings/apps/new`, or to
@@ -146,6 +150,9 @@ cat > values.json <<EOF
 EOF
 ```
 
+Without an App, leave out `githubAppId`, `githubAppInstallationId`, `githubAppBotLogin` and
+`githubAppBotUserId`. Deploy refuses a file that gives some of the four but not all of them.
+
 Show the file to the person and confirm it before you deploy. Every value must be nonempty and
 contain no quotes, backslashes or line breaks. `trackerRemote` defaults to origin's URL, so leave it
 out.
@@ -176,7 +183,9 @@ has the rest of Deploy's contract.
 Tell the person:
 
 - the repository URL, and that `TARGET` is their first clone;
-- that the App key is in `~/.github-app/$OWNER/$REPO/`. Every machine that runs the Target's dev
-  container needs that key in the same place;
+- with an App, that the App key is in `~/.github-app/$OWNER/$REPO/`. Every machine that runs the
+  Target's dev container needs that key in the same place;
+- without an App, that changes are made on the host under their own account, and that the dev
+  container cannot push;
 - that each machine working in the project runs Bootstrap next. On the host, that is
   `mise run bootstrap` in the clone.

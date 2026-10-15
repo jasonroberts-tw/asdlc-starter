@@ -22,3 +22,8 @@ host is `~/.github-app/<owner>/<repository>/`, with the owner and repository fil
 values. Create that directory before starting the container; Docker requires it to exist even
 when it is empty. Put the App's one `.pem` private key there. The directory is mounted read-only
 at the path `GITHUB_APP_KEY_DIR` names in `devcontainer.json`.
+
+A project Deployed with no App has empty App keys in `policy/tool-settings.json`. Its container
+still clones the repository and runs Bootstrap. Its `git` and `gh` cannot reach GitHub, so a
+container session cannot push its work. Make changes on the host, where `git` and `gh` use your
+own account.

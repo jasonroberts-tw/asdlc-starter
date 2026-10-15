@@ -24,7 +24,8 @@
  * as `user.email`, which `.devcontainer/entrypoint.sh` sets when none is. That needs no key or token.
  * App ids accept JSON numbers or positive decimal strings, so named placeholders can be filled by
  * plain text substitution while the Template's policy remains valid JSON. Unfilled placeholders
- * and other strings are refused.
+ * and other strings are refused. A project Deployed with no App has all four App keys empty, and
+ * every subcommand refuses that by saying changes are made on the host, under the operator's account.
  *
  * The `review` job of `.github/workflows/prompt-review.yml` runs `token` and `identity` too. It names
  * a directory of its own as `GITHUB_APP_KEY_DIR` and `GITHUB_APP_TOKEN_CACHE`, and deletes it once
@@ -80,6 +81,8 @@ const REPO_ROOT = resolve(dirname(SELF), '..')
 const ROOT = process.env.GITHUB_APP_TOKEN_ROOT ?? REPO_ROOT
 const API = (process.env.GITHUB_APP_API_URL ?? 'https://api.github.com').replace(/\/+$/, '')
 const NUMBER_KEYS = ['githubAppId', 'githubAppInstallationId', 'githubAppTokenRefreshSeconds']
+// The keys Deploy leaves empty, all four together, for a project with no App.
+const APP_KEYS = ['githubAppId', 'githubAppInstallationId', 'githubAppBotLogin', 'githubAppBotUserId']
 
 // GitHub's own bounds on the JSON Web Token that asks for an installation token: `iat` set 60 s in
 // the past against clock drift, and `exp` no more than ten minutes ahead, so `exp` is `iat` plus ten
@@ -98,9 +101,17 @@ const nowSeconds = () => Math.floor(Date.now() / 1000)
 /** A canonical decimal id string becomes a number; all other values stay for the caller to refuse. */
 const idNumber = (value) => typeof value === 'string' && /^[1-9]\d*$/.test(value) ? Number(value) : value
 
+/** A project deployed with no App makes its changes on the host, so this refuses by that reason. */
+function refuseNoApp(policy, root) {
+  if (APP_KEYS.every((key) => policy[key] === '')) {
+    throw new Refusal(`no GitHub App is set up: its keys are empty in policy/ under ${root}, so the container's git and gh cannot reach GitHub. Make changes on the host, where git and gh use your own account`)
+  }
+}
+
 /** The four policy keys this reads: three whole numbers above 0 and a repository's bare name, or a refusal naming those that are not. */
 function settings(root) {
   const policy = readPolicy(root)
+  refuseNoApp(policy, root)
   policy.githubAppId = idNumber(policy.githubAppId)
   policy.githubAppInstallationId = idNumber(policy.githubAppInstallationId)
   const bad = NUMBER_KEYS.filter((key) => !Number.isSafeInteger(policy[key]) || policy[key] <= 0)
@@ -121,6 +132,7 @@ function settings(root) {
  */
 function identity(root) {
   const policy = readPolicy(root)
+  refuseNoApp(policy, root)
   const login = policy.githubAppBotLogin
   const id = idNumber(policy.githubAppBotUserId)
   if (typeof login !== 'string' || !/^[\w.-]+\[bot\]$/.test(login)) {
@@ -668,6 +680,12 @@ function cases() {
       name: 'a policy without `githubAppId` is refused, naming it',
       doctor: (root) => editPolicy(root, (policy) => delete policy.githubAppId),
       check: async (ctx) => refused(await tokenRun(ctx), /^github-app-token: `githubAppId` must each be a whole number above 0 in policy\//, ctx),
+    },
+    {
+      name: 'a policy with every App key empty, as Deploy leaves a project with no App, is refused by that reason for `token` and `identity`',
+      doctor: (root) => editPolicy(root, (policy) => { for (const key of APP_KEYS) policy[key] = '' }),
+      check: async (ctx) => refused(await tokenRun(ctx), /^github-app-token: no GitHub App is set up: .* Make changes on the host/, ctx) ??
+        refused(await helper(ctx, ['identity']), /^github-app-token: no GitHub App is set up/, ctx),
     },
     {
       name: 'a policy without `githubAppTokenRepository` is refused, naming it, rather than mint a token for every repository',
