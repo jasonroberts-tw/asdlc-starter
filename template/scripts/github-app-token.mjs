@@ -2,7 +2,7 @@
  * The agents' GitHub App tokens, for `git` and `gh` in the dev container. It mints an
  * installation access token for the App `githubAppId` names, on the
  * installation `githubAppInstallationId` names (`policy/tool-settings.json`), for the one
- * repository `githubAppTokenRepository` names, signing the request with the App's private key: the
+ * repository `githubRepository` names, signing the request with the App's private key: the
  * one `.pem` file in the directory `GITHUB_APP_KEY_DIR` names, which
  * `.devcontainer/devcontainer.json` mounts read-only. It keeps the token in a file only
  * its user can read, and hands it out again until fewer than `githubAppTokenRefreshSeconds` of its
@@ -118,9 +118,9 @@ function settings(root) {
   if (bad.length > 0) {
     throw new Refusal(`${bad.map((key) => `\`${key}\``).join(', ')} must each be a whole number above 0 in policy/ under ${root}`)
   }
-  const repository = policy.githubAppTokenRepository
+  const repository = policy.githubRepository
   if (typeof repository !== 'string' || !/^[\w.-]+$/.test(repository)) {
-    throw new Refusal(`\`githubAppTokenRepository\` must be a repository's bare name in policy/ under ${root}, not ${JSON.stringify(repository ?? null)}`)
+    throw new Refusal(`\`githubRepository\` must be a repository's bare name in policy/ under ${root}, not ${JSON.stringify(repository ?? null)}`)
   }
   return { appId: policy.githubAppId, installationId: policy.githubAppInstallationId, refreshSeconds: policy.githubAppTokenRefreshSeconds, repository }
 }
@@ -441,7 +441,7 @@ async function cloneStep(ctx, { prepare } = {}) {
   const policyFile = join(ctx.env.GITHUB_APP_TOKEN_ROOT, 'policy', 'tool-settings.json')
   const policy = JSON.parse(readFileSync(policyFile, 'utf8'))
   const github = join(ctx.dir, 'github')
-  const source = join(github, String(policy.githubAppRepositoryOwner), `${policy.githubAppTokenRepository}.git`)
+  const source = join(github, String(policy.githubRepositoryOwner), `${policy.githubRepository}.git`)
   mkdirSync(source, { recursive: true })
   await run('git', ['init', '-q'], { env: SCRATCH_GIT_ENV, cwd: source })
   await run('git', ['-c', 'user.name=selftest', '-c', 'user.email=selftest@example.invalid', 'commit', '-q', '--allow-empty', '-m', 'the source'], { env: SCRATCH_GIT_ENV, cwd: source })
@@ -688,9 +688,9 @@ function cases() {
         refused(await helper(ctx, ['identity']), /^github-app-token: no GitHub App is set up/, ctx),
     },
     {
-      name: 'a policy without `githubAppTokenRepository` is refused, naming it, rather than mint a token for every repository',
-      doctor: (root) => editPolicy(root, (policy) => delete policy.githubAppTokenRepository),
-      check: async (ctx) => refused(await tokenRun(ctx), /`githubAppTokenRepository` must be a repository's bare name in policy\/ under .*, not null/, ctx),
+      name: 'a policy without `githubRepository` is refused, naming it, rather than mint a token for every repository',
+      doctor: (root) => editPolicy(root, (policy) => delete policy.githubRepository),
+      check: async (ctx) => refused(await tokenRun(ctx), /`githubRepository` must be a repository's bare name in policy\/ under .*, not null/, ctx),
     },
     {
       name: 'a policy whose `githubAppTokenRefreshSeconds` is 0 is refused, naming it',
@@ -936,21 +936,21 @@ function cases() {
       },
     },
     {
-      name: "the entrypoint's clone, with a policy without `githubAppRepositoryOwner`, clones nothing, warns and fails",
+      name: "the entrypoint's clone, with a policy without `githubRepositoryOwner`, clones nothing, warns and fails",
       wrapper: true,
-      doctor: (root) => editPolicy(root, (policy) => delete policy.githubAppRepositoryOwner),
+      doctor: (root) => editPolicy(root, (policy) => delete policy.githubRepositoryOwner),
       check: async (ctx) => {
         const { r, workspace } = await cloneStep(ctx)
-        return r.status === 1 && !existsSync(join(workspace, '.git')) && /cannot clone: .* names no githubAppRepositoryOwner and githubAppTokenRepository/.test(r.stdout) ? null : said(r)
+        return r.status === 1 && !existsSync(join(workspace, '.git')) && /cannot clone: .* names no githubRepositoryOwner and githubRepository/.test(r.stdout) ? null : said(r)
       },
     },
     {
-      name: "the entrypoint's clone, with the template's placeholder as `githubAppRepositoryOwner`, clones nothing, warns and fails",
+      name: "the entrypoint's clone, with the template's placeholder as `githubRepositoryOwner`, clones nothing, warns and fails",
       wrapper: true,
-      doctor: (root) => editPolicy(root, (policy) => (policy.githubAppRepositoryOwner = '<REPLACE' + '_ME:githubAppRepositoryOwner>')),
+      doctor: (root) => editPolicy(root, (policy) => (policy.githubRepositoryOwner = '<REPLACE' + '_ME:githubRepositoryOwner>')),
       check: async (ctx) => {
         const { r, workspace } = await cloneStep(ctx)
-        return r.status === 1 && !existsSync(join(workspace, '.git')) && /cannot clone: .* names no githubAppRepositoryOwner and githubAppTokenRepository/.test(r.stdout) ? null : said(r)
+        return r.status === 1 && !existsSync(join(workspace, '.git')) && /cannot clone: .* names no githubRepositoryOwner and githubRepository/.test(r.stdout) ? null : said(r)
       },
     },
     {
@@ -1021,8 +1021,8 @@ const FIXTURE_APP = {
   githubAppInstallationId: 23456,
   githubAppBotLogin: 'example-agent[bot]',
   githubAppBotUserId: 34567,
-  githubAppRepositoryOwner: 'example-owner',
-  githubAppTokenRepository: 'example-repo',
+  githubRepositoryOwner: 'example-owner',
+  githubRepository: 'example-repo',
 }
 
 async function selftest() {
@@ -1071,7 +1071,7 @@ async function selftest() {
         stub: stub.state,
         closedUrl: closed,
         installationId: FIXTURE_APP.githubAppInstallationId,
-        repository: FIXTURE_APP.githubAppTokenRepository,
+        repository: FIXTURE_APP.githubRepository,
         botLogin: FIXTURE_APP.githubAppBotLogin,
         botUserId: FIXTURE_APP.githubAppBotUserId,
         env: { ...env, GITHUB_APP_TOKEN_ROOT: root, GITHUB_APP_API_URL: stub.url, GITHUB_APP_KEY_DIR: keyDir, GITHUB_APP_TOKEN_CACHE: kept },

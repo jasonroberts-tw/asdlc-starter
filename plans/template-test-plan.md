@@ -92,8 +92,8 @@ criteria and changes it by editing it here, rather than restating it.
   | Name | Used in |
   |---|---|
   | `projectName` | `package.json` and `package-lock.json` |
-  | `githubAppRepositoryOwner` | `policy/tool-settings.json` and `devcontainer.json`'s key mount |
-  | `githubAppTokenRepository` | `policy/tool-settings.json`, the container workspace folder and key mount |
+  | `githubRepositoryOwner` | `policy/tool-settings.json` and `devcontainer.json`'s key mount |
+  | `githubRepository` | `policy/tool-settings.json`, the container workspace folder and key mount |
   | `githubAppId` | `policy/tool-settings.json` |
   | `githubAppInstallationId` | `policy/tool-settings.json` |
   | `githubAppBotLogin` | `policy/tool-settings.json` |
@@ -105,10 +105,11 @@ criteria and changes it by editing it here, rather than restating it.
   numbers, and refuses unfilled placeholders, malformed ids and ids outside Node's safe integer
   range. The container's host key directory is described in
   `template/.devcontainer/README.md`.
-- **Required values** are the project name, the GitHub owner and repository, and the GitHub App's
-  identity (app id, installation id, bot login and bot user id). The Template assumes the App
-  everywhere: the entrypoint, the `gh` wrapper, the credential helper and the token's selftest. So
-  the App is required, and the test's fixture gives dummy values.
+- **Required values** are the project name and the GitHub owner and repository. The GitHub App's
+  identity (app id, installation id, bot login and bot user id) is optional, but only as a whole.
+  Without it, Deploy writes the four keys empty, and the Target project makes its changes on the
+  host under the operator's account. The dev container then cannot push. The test's fixture gives
+  dummy App values, so the test still covers the App's path.
 - **The Tracker's remote** defaults to origin's URL, since the Tracker lives on the git remote. The
   values file can set it.
 - **A target** that is a git repository with no commits and an `origin` remote.

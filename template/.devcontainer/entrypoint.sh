@@ -70,8 +70,8 @@ clone() {
     return 1
   fi
   take_ownership "$repo"
-  if ! slug="$(jq -er 'select([.githubAppRepositoryOwner, .githubAppTokenRepository] | all(type == "string" and test("^[A-Za-z0-9_.-]+$"))) | "\(.githubAppRepositoryOwner)/\(.githubAppTokenRepository)"' "$policy" 2>/dev/null)"; then
-    warn "cannot clone: $policy names no githubAppRepositoryOwner and githubAppTokenRepository -- set both in policy/tool-settings.json, then rebuild the container"
+  if ! slug="$(jq -er 'select([.githubRepositoryOwner, .githubRepository] | all(type == "string" and test("^[A-Za-z0-9_.-]+$"))) | "\(.githubRepositoryOwner)/\(.githubRepository)"' "$policy" 2>/dev/null)"; then
+    warn "cannot clone: $policy names no githubRepositoryOwner and githubRepository -- set both in policy/tool-settings.json, then rebuild the container"
     return 1
   fi
   log "cloning https://github.com/$slug into $repo"
@@ -92,9 +92,9 @@ setup() {
   # there made every container skip setup with a warning that read like a mount problem.
   if [ -z "$repo" ]; then
     local candidate name
-    name="$(jq -er '.githubAppTokenRepository | strings' "$policy" 2>/dev/null)" || name=''
+    name="$(jq -er '.githubRepository | strings' "$policy" 2>/dev/null)" || name=''
     for candidate in /workspaces/*/; do
-      if [ -n "$name" ] && [ "$(jq -r '.githubAppTokenRepository // empty' "${candidate}policy/tool-settings.json" 2>/dev/null)" = "$name" ]; then
+      if [ -n "$name" ] && [ "$(jq -r '.githubRepository // empty' "${candidate}policy/tool-settings.json" 2>/dev/null)" = "$name" ]; then
         repo="${candidate%/}"
         break
       fi

@@ -169,7 +169,7 @@ ENV GIT_CONFIG_COUNT=2 \
     GIT_CONFIG_VALUE_1=/usr/local/lib/github-app/bin/git-credential-github-app
 
 # The policy record that names the repository the entrypoint clones at the first start
-# (`githubAppRepositoryOwner` and `githubAppTokenRepository`), read from here because the clone that
+# (`githubRepositoryOwner` and `githubRepository`), read from here because the clone that
 # holds it does not exist yet. Last, because the record changes often and a layer above it would
 # rebuild the toolchain each time. A change reaches a container once it is rebuilt.
 COPY policy/tool-settings.json /usr/local/share/workspace-entrypoint/tool-settings.json

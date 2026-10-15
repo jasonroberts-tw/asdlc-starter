@@ -87,7 +87,7 @@ test('Deploy without a GitHub App leaves the App keys empty', (t) => {
   assert.equal(result.status, 0, result.stdout + result.stderr)
   const policy = JSON.parse(readFileSync(join(f.target, 'policy/tool-settings.json')))
   assert.equal(policy.githubAppId, '')
-  assert.equal(policy.githubAppTokenRepository, values.githubAppTokenRepository)
+  assert.equal(policy.githubRepository, values.githubRepository)
 })
 
 test('Deploy uses tracked working-tree bytes and index modes even when the Target ignores chmod', (t) => {

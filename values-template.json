@@ -1,7 +1,7 @@
 {
   "projectName": "example-project",
-  "githubAppRepositoryOwner": "example-org",
-  "githubAppTokenRepository": "example-project",
+  "githubRepositoryOwner": "example-org",
+  "githubRepository": "example-project",
   "githubAppId": "123456",
   "githubAppInstallationId": "12345678",
   "githubAppBotLogin": "example-app[bot]",

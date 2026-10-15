@@ -140,8 +140,8 @@ in the shape of [values-template.json](values-template.json). Git ignores `value
 cat > values.json <<EOF
 {
   "projectName": "$PROJECT_NAME",
-  "githubAppRepositoryOwner": "$OWNER",
-  "githubAppTokenRepository": "$REPO",
+  "githubRepositoryOwner": "$OWNER",
+  "githubRepository": "$REPO",
   "githubAppId": "$APP_ID",
   "githubAppInstallationId": "$INSTALLATION_ID",
   "githubAppBotLogin": "$BOT_LOGIN",
