@@ -5,13 +5,12 @@
   "whatItDoesNOTDo": "It does not hold a rule about how a run proceeds, which lives in `AGENTS.md`, `.beads/PRIME.md` or the skill that runs it: when a label, a type or a priority is applied is `.beads/PRIME.md`'s. It computes nothing: `bd count` does the counting. It holds no counter: how many runs have found an issue is a label on that issue, of which this record holds only the prefix. It holds no tunable size or bound, which is `policy/agent-workflows.json`'s or `policy/tool-settings.json`'s, and no prompt's word budget, which is `policy/prompt-budgets.json`'s.",
   "provenance": "Came with the template this repository was bootstrapped from; each key's `Means` gives the reason for its value.",
   "assetLabels": {
-    "asset:docs": "a document that is neither the register nor the living spec: a README or a page under docs/",
+    "asset:docs": "a document that is not the register: a README or a page under docs/",
     "asset:environment": "what a session runs on: the worktree script and its briefing template, the toolchain's versions, the harness's settings, the dev container",
     "asset:gate": "a gate, a hook, a test runner, or a job that runs one (git-hooks.yml, .github/workflows/verify.yml)",
     "asset:product": "the product's code and its tests",
     "asset:prompt": "AGENTS.md, CLAUDE.md, a skill or an agent",
     "asset:register": "the register: the decision records under docs/decisions/",
-    "asset:spec": "the living spec under openspec/specs/, or a change's proposal and delta specs",
     "asset:tool": "an emitter or a helper under tools/ or scripts/ that is not a gate"
   },
   "assetLabelsMeans": "What an issue a run files `discovered-from` would fix: one label for each kind of file it would change, each key the label and each value what it covers (`.beads/PRIME.md` says when). It is the recurrence signal across runs: `bd count --by-label` counts the issues of each kind. An issue that fits none of these gets the label it needs added here first, with its date, in the change that files it. Renaming a label strands every issue that carries it: relabel them in the same change.",
@@ -24,7 +23,7 @@
     },
     {
       "type": "decision",
-      "when": "A person chooses between options, and nothing changes until they do: a `should-i-adopt` brief, or a question that begins \"Decide\". The work each option needs is filed once one is chosen."
+      "when": "A person chooses between options, and nothing changes until they do: a question that begins \"Decide\", or a finding the `add-skill` skill stops on. The work each option needs is filed once one is chosen. A `should-i-adopt` brief is not an issue: it is a decision record under docs/decisions/."
     },
     {
       "type": "bug",
