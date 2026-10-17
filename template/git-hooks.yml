@@ -85,6 +85,22 @@ pre-push:
         - '.devcontainer/Dockerfile'
         - 'tasks.toml'
       run: mise run worktree:selftest
+    - name: guard-delivery-selftest
+      glob:
+        - 'scripts/hooks/_shared.mjs'
+        - 'scripts/hooks/guard-delivery*.mjs'
+        - 'policy/delivery.json'
+        - 'tasks.toml'
+      run: mise run guard-delivery:selftest
+    - name: trace-selftest
+      glob:
+        - 'scripts/check-trace.mjs'
+        - 'policy/**'
+        - 'tools/lib/policy.ts'
+        - 'tools/lib/bd-launcher.ts'
+        - 'tools/lib/git-env.ts'
+        - 'tasks.toml'
+      run: mise run trace:selftest
     - name: integrations-selftest
       glob:
         - '.harness/**'

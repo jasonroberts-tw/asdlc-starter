@@ -97,6 +97,26 @@ loaded from another working directory. Without it a guard could stop refusing wh
 exists to refuse, or a hook stop loading, and every commit and push would still pass.'''
 run = "node scripts/hooks/worktree-hooks.selftest.mjs"
 
+["guard-delivery:selftest"]
+description = '''
+The delivery guard, negative-tested over a scratch repository with a stub `bd`: an edit to a
+protected test and an edit that drops one from the list, by Edit, Write and Codex patch; a story
+writing code before its feature's spec on `origin/main` says `Design approved`, and a feature's
+own branch writing code; each beside a control that passes, and the guard failing open with no
+`bd` or a `bd` that errors. Without it the guard could stop refusing either edit, and every commit
+and push would still pass.'''
+run = "node scripts/hooks/guard-delivery.selftest.mjs"
+
+["trace:selftest"]
+description = '''
+The traceability check, negative-tested: a criterion no story cites, one the test plan leaves out,
+one no tracked test names, a story that cites nothing and names no enabler, and a story citing an
+ID the spec does not define, each beside a control with no gap; then the command end to end over a
+scratch checkout through `TRACE_CHECK_ROOT` and a stub `bd`. The check itself runs on one feature
+by its id, from the `plan-stories` and `review-feature` skills, so no hook runs it. Without this a
+gap could stop being reported and Review would start on a feature with a criterion nothing built.'''
+run = "node scripts/check-trace.mjs --selftest"
+
 ["integrations:selftest"]
 description = '''
 The CLI integration adapters and writer over temporary Target projects: native settings and agents,

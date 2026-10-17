@@ -11,18 +11,20 @@ A harness task has no spec: its issue's acceptance criteria stand in for one, an
 checks.
 
 Read first: `AGENTS.md` § Delivery workflow; the spec; the issue with `bd show`, and its children
-with `bd children` for a feature. The notes on each issue name the commit that protected its tests.
+with `bd children` for a feature. `protectedTestsFile` (`policy/delivery.json`) lists the protected
+tests, and `git log --reverse --format=%h -S'<path>' -- <that file>` names the commit that listed each.
 
 Run every check that the scope the parent passed names:
 
 1. **Traceability** (story: its own criteria; feature: all of them). Every criterion maps to a story,
    and to a passing test that names its ID or to a manual-verify item. Every story maps to a
-   criterion or an enabler target.
+   criterion or an enabler target. For a feature, `node scripts/check-trace.mjs <feature id>` reports
+   every gap it can find mechanically; read the rest.
 2. **Conformance** (story, feature). The diff keeps to the spec's contracts, its module list and
    dependencies, its decision records and its NFR targets. Module dependencies form no cycle.
-3. **Protected tests** (every scope). Each is unchanged since the commit that protected it, by
-   `git diff <that commit> HEAD -- <path>`, or its change carries the operator's approval on the
-   issue. A defect's reproducing test was committed before its fix.
+3. **Protected tests** (every scope). Each is unchanged since the commit that listed it, by
+   `git diff <that commit> HEAD -- <path>`, and no line left the list in the diff, unless the issue
+   records the operator's approval. A defect's reproducing test was listed before its fix.
 4. **Tests** (every scope). The full suite is green in the output the parent passed; rerun
    `mise run gates` when that output is missing or older than the head. A feature adds every fitness
    function, and the mutation score of the unit and functional tests on the changed code, with the

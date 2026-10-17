@@ -35,8 +35,9 @@ confirmation. Then run steps 4 to 8 once per feature.
 ## 4. Write the acceptance criteria
 
 Each criterion is an observable outcome a test could check, written as Given/When/Then. Give each a
-stable ID that names its feature, such as `AC-IP-2`. An ID is never renumbered or reused, because
-stories and tests cite it.
+stable ID of the form `AC-<code>-<n>`, where the code of letters or digits names its feature, such
+as `AC-IP-2`. An ID is never renumbered or reused, because stories and tests cite it, and
+`scripts/check-trace.mjs` reads that form.
 
 ## 5. Probe for what users rarely state
 

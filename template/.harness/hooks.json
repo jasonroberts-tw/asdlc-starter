@@ -22,6 +22,11 @@
           "script": "scripts/hooks/block-generated-edit.mjs",
           "timeout": 15,
           "statusMessage": "Checking the target is not generated output"
+        },
+        {
+          "script": "scripts/hooks/guard-delivery.mjs",
+          "timeout": 15,
+          "statusMessage": "Checking the edit against protected tests and design approval"
         }
       ]
     },

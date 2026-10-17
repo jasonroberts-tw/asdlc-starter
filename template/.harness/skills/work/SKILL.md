@@ -67,15 +67,16 @@ The issue's type names its track (`AGENTS.md` § Delivery workflow): a `task` un
 story, a `bug` is a defect, a `chore` is a small change, and a `task` with no feature is a harness
 task.
 
-- **Story.** The feature's spec says `Design approved`; without that, stop. In an existing codebase,
-  `mise run gates` is green before the feature's first story; if it is not, report and wait. When
-  the story's protected tests do not exist yet, write them from the spec's test plan and commit them
-  before any implementation code. Note that commit on the issue (`bd note`), because the tests are
-  protected from it on. Then implement test-first with unit tests: red, green, refactor, running the
-  module's unit tests after each green step. Make the protected tests pass without changing them.
+- **Story.** The feature's spec on `origin/main` says `Design approved`; without that, stop. In an
+  existing codebase, `mise run gates` is green before the feature's first story; if it is not,
+  report and wait. When the story's protected tests do not exist yet, write them from the spec's test
+  plan, list each in `protectedTestsFile` (`policy/delivery.json`) as `<path> <issue id>`, and commit
+  both before any implementation code: the tests are protected from that commit on. Then implement
+  test-first with unit tests: red, green, refactor, running the module's unit tests after each green
+  step. Make the protected tests pass without changing them.
 - **Defect.** Reproduce it with a failing test at the lowest layer that shows it; where its cause is
-  not yet known, the `root-cause` skill finds it first. Commit that test before the fix, and note
-  the commit on the issue. Then fix the code until the test passes. A fix that needs a contract, a criterion or the
+  not yet known, the `root-cause` skill finds it first. List that test in `protectedTestsFile` and
+  commit both before the fix. Then fix the code until the test passes. A fix that needs a contract, a criterion or the
   spec changed stops here. With the operator's confirmation, it becomes feature-track work that
   enters at the `refine` or `design` skill.
 - **Small change.** `mise run gates` is green before anything changes; if it is not, stop and report.

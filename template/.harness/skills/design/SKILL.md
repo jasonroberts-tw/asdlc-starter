@@ -92,5 +92,6 @@ are the one exception, and the spec links each.
 Show the operator the spec, and ask them to approve it. MUST NOT write implementation code for the
 feature before that approval. Once they approve, set the `**Status:**` line to `Design approved
 <date>`, mark each new decision record accepted, and open the pull request with the `open-pr` skill.
-Its body quotes the approval. Any later change to the approved spec needs the operator's approval of
+Its body quotes the approval. No story writes code until that pull request merges, because the
+delivery hook reads the spec on `origin/main`. Any later change to the approved spec needs the operator's approval of
 that change. Plan follows, with the `plan-stories` skill.

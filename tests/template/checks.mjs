@@ -224,6 +224,10 @@ export function runGuards(root, fixtures) {
   }
   git(root, ['worktree', 'add', '-b', 'template-test/unprovisioned', unprovisioned, 'main'])
   try {
+    // guard-delivery refuses an edit to a test the list protects as HEAD has it, so one is committed here.
+    const { protectedTestsFile } = JSON.parse(readFileSync(join(root, 'policy/delivery.json')))
+    appendFileSync(join(unprovisioned, protectedTestsFile), 'tests/probe.test.mjs template-test-probe\n')
+    git(unprovisioned, ['-c', 'user.name=Template Test', '-c', 'user.email=template-test@example.invalid', 'commit', '-qam', 'protect a probe test'])
     for (const hook of hooks) {
       for (const kind of ['refuse', 'allow']) {
         verify(hook.name + ' ' + kind, () => {

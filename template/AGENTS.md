@@ -50,12 +50,16 @@ tracks. New work follows existing conventions unless a decision record explains 
 
 No implementation code for a feature is written before the operator approves its spec at Gate 2
 (the `design` skill), because code built on an unapproved design is rebuilt when the design moves.
+Approval is the spec on `origin/main` saying `Design approved`. Until then,
+`scripts/hooks/guard-delivery.mjs` refuses a story's writes outside `beforeApprovalPaths`.
 
 **Protected tests.** A functional, integration, contract or end-to-end test, or a fitness function,
 written from a spec's test plan is protected from the commit that adds it, and so is a test that
-reproduces a defect. Never modify, weaken, skip or delete one: a test changed until it passes proves
-nothing. If a protected test, or the contract behind it, looks wrong, stop, say why, and wait. Only
-the operator approves a change to one, and a changed contract changes the spec too.
+reproduces a defect. That commit lists it in `protectedTestsFile` (`policy/delivery.json`), and the
+same hook refuses an edit to a listed test. Never modify, weaken, skip or delete one: a test changed
+until it passes proves nothing. If a protected test, or the contract behind it, looks wrong, stop,
+say why, and wait. Only the operator approves a change to one, by making it or by deleting its line
+in a commit of their own, and a changed contract changes the spec too.
 
 **New dependencies.** Before adding a third-party dependency, confirm that it exists in the official
 registry under that exact name, that it is maintained and that it is needed. Record why in the spec
@@ -64,7 +68,8 @@ or the story's notes: a misremembered name installs whoever registered it.
 ## Git workflow
 
 The trunk is `main`. Agent work happens on `agent/<name>` branches cut from
-`origin/main` by the one worktree script, and reaches the trunk by pull request; name the base
+`origin/main` by the one worktree script, and reaches the trunk by pull request. `<name>` starts
+with the id of the issue the branch carries, because the delivery hook finds the issue there. Name the base
 explicitly on every pull request, because a tool that infers one infers the default branch. The
 protected branches are main, release: never push to, switch to or rewrite one from a
 worktree. 

@@ -232,6 +232,7 @@ non-zero.
 | `guard-git.mjs` | Bash `gh pr create --title probe --body probe`, which it refuses in every checkout | Bash `git status` |
 | `guard-unprovisioned-worktree.mjs` | Bash `git status`, run from a linked worktree whose branch does not start with `agent/` | the same command from the primary checkout |
 | `block-generated-edit.mjs` | a Write of `probe.mjs` whose first line says it is generated and not to be edited by hand | a Write of `echo.mjs` with plain content |
+| `guard-delivery.mjs` | an Edit of `tests/probe.test.mjs` in the unprovisioned worktree, whose branch has a commit listing that test as protected | a Write of `echo.mjs` in the primary checkout |
 | `worktree-create.mjs` | a `name` of two path segments: it must exit non-zero and make no worktree | `name: "probe"`: it prints a worktree path, on branch `agent/probe` |
 | `worktree-remove.mjs` | a payload with no `worktree_path` | the worktree made above: afterwards it is gone |
 

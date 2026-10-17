@@ -15,14 +15,16 @@ Without that, run the `design` skill.
 In a new codebase, the first feature's story 0 is a walking skeleton. It holds a reproducible
 container build, a CI pipeline that runs the test suite, the first end-to-end path through trivial
 behaviour, and deployment when a deployment target is in scope. The skeleton wires the product's
-suite into `mise run gates` with the `add-task` skill, so every later story's gates run it. Every
-other story depends on the skeleton.
+suite into `mise run gates` with the `add-task` skill, so every later story's gates run it. Where
+the stack has a tool that checks module dependencies, the skeleton adds it to the gates too, so a
+cycle between modules fails the build. Every other story depends on the skeleton.
 
 ## 2. Slice the feature into stories
 
 Each story MUST fit in one session, and MUST state:
 
-- the criteria it satisfies, by ID, or its enabler target: the design element or NFR it serves.
+- the criteria it satisfies, by ID, or a line `Enabler: <target>`, naming the design element or NFR
+  it serves.
   Scaffolding, CI setup, contract definitions and the walking skeleton are typical enabler stories;
 - the protected tests it must make pass, by their paths in the test plan;
 - the modules or paths it expects to change;
@@ -46,7 +48,8 @@ the spec changed goes to the operator, as the `design` skill § 8 says.
 In one tracker bracket (`.beads/PRIME.md`), file each story as a `task` (`issueTypes` in
 `policy/vocabulary.json`) under the feature with `--parent`. Its body holds step 2's fields, and each
 dependency goes in `--deps`. Show the operator the plan as one table, with a row per story: its
-criteria or enabler, protected tests, paths and dependencies. The operator MAY review it before work
-starts.
+criteria or enabler, protected tests, paths and dependencies. Then run
+`node scripts/check-trace.mjs <feature id> --plan`, and fix each gap it reports. The operator MAY
+review the plan before work starts.
 
 Each story is then worked with the `work` skill, or several at once by the `fan-out-work` agent.
