@@ -104,6 +104,8 @@ try {
   check('control: an edit to an unlisted file on main is allowed', control.code === 0, why(control))
   const listedEdit = run(edit(join(primary, 'tests', 'a.test.mjs')))
   check('an edit to a test HEAD lists is refused', refusedFor(listedEdit, PROTECTED), why(listedEdit))
+  const cased = run(edit(join(primary, 'Tests', 'A.test.mjs')))
+  check('a listed test named in another case is refused', refusedFor(cased, PROTECTED), why(cased))
   const unlisted = run(edit(join(primary, 'tests', 'b.test.mjs')))
   check('an edit to a test HEAD does not list is allowed', unlisted.code === 0, why(unlisted))
   write(join(primary, LIST), '# protected tests\ntests/b.test.mjs demo-x1.1.1\n')
@@ -129,6 +131,11 @@ try {
     tool_input: { command: `*** Begin Patch\n*** Update File: ${LIST}\n-tests/a.test.mjs demo-x1.1.1\n*** End Patch\n` },
   })
   check('a Codex patch that drops a listed line is refused', refusedFor(patchList, DROPS), why(patchList))
+  const patchMove = run({
+    tool_name: 'apply_patch', cwd: primary,
+    tool_input: { command: `*** Begin Patch\n*** Update File: ${LIST}\n*** Move to: docs/elsewhere.txt\n*** End Patch\n` },
+  })
+  check('a Codex patch that moves the list away is refused', refusedFor(patchMove, DROPS), why(patchMove))
   const patchAdd = run({
     tool_name: 'apply_patch', cwd: primary,
     tool_input: { command: `*** Begin Patch\n*** Update File: ${LIST}\n+tests/b.test.mjs demo-x1.1.2\n*** End Patch\n` },
@@ -148,7 +155,7 @@ try {
   check('a story writing code before its feature is approved is refused', refusedFor(early, GATE), why(early))
   check(
     'the hook asks bd for every dash-prefix of the worktree name in one call',
-    early.bdArgs === 'show demo demo-x1.1.1 demo-x1.1.1-build --json',
+    early.bdArgs === 'show --json -- demo demo-x1.1.1 demo-x1.1.1-build',
     JSON.stringify(early.bdArgs),
   )
   const docs = run(edit(join(wt, 'docs', 'specs', 'demo-x1.1.md')), { bd: story })
@@ -157,8 +164,14 @@ try {
   const late = run(edit(code), { bd: story })
   check('control: once origin/main says Design approved, the story writes code', late.code === 0, why(late))
   git(primary, 'update-ref', 'refs/remotes/origin/main', intent)
-  const unspecced = run(edit(code), { bd: [{ ...story[0], dependencies: [{ ...feature, spec_id: 'docs/specs/none.md' }] }] })
-  check('a story whose spec is not on origin/main is refused', refusedFor(unspecced, 'does not exist'), why(unspecced))
+  const unspecced = run(edit(code), { bd: [{ ...story[0], dependencies: [{ ...feature, id: 'demo-x1.2' }] }] })
+  check('a story whose spec is not on origin/main is refused', refusedFor(unspecced, 'does not exist (docs/specs/demo-x1.2.md)'), why(unspecced))
+  const borrowed = run(edit(code), { bd: [{ ...story[0], dependencies: [{ ...feature, spec_id: 'docs/specs/other.md' }] }] })
+  check("the tracker's spec_id cannot point a story at another spec", refusedFor(borrowed, GATE), why(borrowed))
+  write(join(wt, 'policy', 'delivery.json'), JSON.stringify({ ...POLICY, beforeApprovalPaths: ['src/'] }))
+  const widened = run(edit(code), { bd: story })
+  check("widening beforeApprovalPaths in the working copy opens nothing", refusedFor(widened, GATE), why(widened))
+  git(wt, 'checkout', '-q', '--', 'policy/delivery.json')
   const design = join(primary, '.claude', 'worktrees', 'design')
   git(primary, 'worktree', 'add', '-q', '-b', 'agent/demo-x1.1-design', design, 'HEAD')
   const onFeature = run(edit(join(design, 'src', 'x.mjs')), { bd: [feature] })

@@ -8,10 +8,17 @@
  * would surface only at review, after the work is done. The prompts carry both rules already; this is
  * the part that holds when a session forgets them.
  *
- * PROTECTED TESTS, EVERYWHERE. The list is the file `protectedTestsFile` in `policy/delivery.json`
- * names, one `<path> <issue id>` per line, read as HEAD has it: a test is protected from the commit
- * that lists it, and a line a session drops from its working copy protects the test still. The hook
- * refuses an edit to a listed path, and an edit to the list that drops one of HEAD's lines. A
+ * EACH INPUT IS READ WHERE A SESSION'S EDIT CANNOT MOVE IT. `policy/delivery.json` is read as
+ * `origin/main` has it (HEAD where there is no remote), so a session cannot widen
+ * `beforeApprovalPaths` or move the list by editing its own copy. A story's spec is
+ * `<specDirectory>/<feature id>.md` on `origin/main`, never the tracker's `spec_id`, which a
+ * session can point at another feature's approved spec.
+ *
+ * PROTECTED TESTS, EVERYWHERE. The list is the file `protectedTestsFile` names, one
+ * `<path> <issue id>` per line, read as HEAD has it: a test is protected from the commit that lists
+ * it, and a line a session drops from its working copy protects the test still. Paths compare
+ * without case, since macOS and Windows open `Tests/A.mjs` for `tests/a.mjs`. The hook refuses an
+ * edit to a listed path, and an edit to the list that drops or moves one of HEAD's lines. A
  * person's own editor runs no hook, so the operator approves a change by making it, or by deleting
  * the line in a commit of their own.
  *
@@ -28,7 +35,7 @@
  *
  *   node scripts/hooks/guard-delivery.mjs < payload.json
  *
- * Needs `git`: five calls inside a checkout, and one more for a path outside `beforeApprovalPaths`.
+ * Needs `git`: six calls inside a checkout, and one more for a path outside `beforeApprovalPaths`.
  * On an agent branch that path adds one call to `bd`, which the Gate 2 rule needs on PATH, and on a
  * story's branch one more to git.
  */
@@ -49,12 +56,22 @@ function git(root, ...args) {
   }
 }
 
+/** `policy/delivery.json` as origin/main has it, or HEAD where there is no origin/main, or null. */
+function committedPolicy(root) {
+  const text = git(root, 'show', 'origin/main:policy/delivery.json') ?? git(root, 'show', 'HEAD:policy/delivery.json')
+  try {
+    return JSON.parse(text ?? 'null')
+  } catch {
+    return null
+  }
+}
+
 /** A list's text as a map from each protected path to the issue that protected it. */
 function listed(text) {
   const map = new Map()
   for (const line of (text ?? '').split(/\r?\n/)) {
     const [path, issue = ''] = line.trim().split(/\s+/)
-    if (path && !path.startsWith('#')) map.set(path, issue)
+    if (path && !path.startsWith('#')) map.set(path.toLowerCase(), issue)
   }
   return map
 }
@@ -82,10 +99,11 @@ function patchDrops(rel) {
     const file = /^\*\*\* (Add|Update|Delete) File: (.+)$/.exec(line)
     if (file) {
       const path = file[2].trim().replaceAll('\\', '/')
-      inList = path === rel || path.endsWith(`/${rel}`)
+      inList = path.toLowerCase() === rel.toLowerCase() || path.toLowerCase().endsWith(`/${rel.toLowerCase()}`)
       if (inList && file[1] === 'Delete') return null
       continue
     }
+    if (inList && line.startsWith('*** Move to: ')) return null
     if (!inList || line.startsWith('---') || line.startsWith('+++')) continue
     if (line.startsWith('-')) for (const path of listed(line.slice(1)).keys()) removed.add(path)
     if (line.startsWith('+')) for (const path of listed(line.slice(1)).keys()) added.add(path)
@@ -106,7 +124,7 @@ function branchIssue(root) {
   const candidates = words.map((_, i) => words.slice(0, i + 1).join('-'))
   // ponytail: one bd call per code edit on an agent branch, about 0.4 s; cache the answer in
   // .worktree/ if sessions feel it.
-  const r = spawnSync('bd', ['show', ...candidates, '--json'], {
+  const r = spawnSync('bd', ['show', '--json', '--', ...candidates], {
     cwd: root, env: { ...gitEnv(), NO_COLOR: '1' }, encoding: 'utf8', timeout: 10000,
   })
   if (r.status !== 0) return null
@@ -122,26 +140,21 @@ for (const { filePath } of editTargets(input)) {
   const target = editedCheckout(filePath)
   if (target === null) continue
   const { root, rel } = target
-  let policy
-  try {
-    policy = JSON.parse(readOr(join(root, 'policy', 'delivery.json'), 'null'))
-  } catch {
-    policy = null
-  }
+  const policy = committedPolicy(root)
   if (!policy) continue
   const listFile = policy.protectedTestsFile
   const protectedPaths = typeof listFile === 'string' ? listed(git(root, 'show', `HEAD:${listFile}`)) : new Map()
 
-  if (protectedPaths.has(rel)) {
+  if (protectedPaths.has(rel.toLowerCase())) {
     refuse([
-      `${rel} is a protected test, listed in ${listFile} for ${protectedPaths.get(rel) || 'its issue'}.`,
+      `${rel} is a protected test, listed in ${listFile} for ${protectedPaths.get(rel.toLowerCase()) || 'its issue'}.`,
       '',
       'Never modify, weaken, skip or delete it. If it or the contract behind it looks wrong, stop, say',
       'why, and wait: the operator changes it, or approves the change by deleting its line in a commit',
       'of their own (AGENTS.md § Delivery workflow).',
     ])
   }
-  if (rel === listFile && protectedPaths.size > 0) {
+  if (rel.toLowerCase() === listFile.toLowerCase() && protectedPaths.size > 0) {
     const patch = input.tool_name === 'apply_patch'
     const after = patch ? null : listAfter(join(root, rel), input.tool_input ?? {})
     const dropped = patch
@@ -157,8 +170,10 @@ for (const { filePath } of editTargets(input)) {
     }
   }
 
-  const open = Array.isArray(policy.beforeApprovalPaths) ? policy.beforeApprovalPaths : []
-  if (open.some((prefix) => typeof prefix === 'string' && rel.startsWith(prefix))) continue
+  const open = (Array.isArray(policy.beforeApprovalPaths) ? policy.beforeApprovalPaths : []).filter(
+    (prefix) => typeof prefix === 'string' && prefix.endsWith('/') && prefix.length > 1,
+  )
+  if (open.some((prefix) => rel.startsWith(prefix))) continue
   const issue = branchIssue(root)
   if (issue === null) continue
   if (issue.issue_type === 'feature' || issue.issue_type === 'epic') {
@@ -173,12 +188,13 @@ for (const { filePath } of editTargets(input)) {
     (dep) => dep?.dependency_type === 'parent-child' && dep.issue_type === 'feature',
   )
   if (issue.issue_type !== 'task' || !feature) continue
-  const spec = typeof feature.spec_id === 'string' && feature.spec_id ? git(root, 'show', `origin/main:${feature.spec_id}`) : null
+  const specPath = `${policy.specDirectory}/${feature.id}.md`
+  const spec = typeof policy.specDirectory === 'string' ? git(root, 'show', `origin/main:${specPath}`) : null
   if (spec === null || !APPROVED.test(spec)) {
     const status = /^\*\*Status:\*\*\s*(.*)$/m.exec(spec ?? '')?.[1]?.trim()
     refuse([
       `Story ${issue.id} belongs to feature ${feature.id}, whose spec on origin/main ` +
-        (spec === null ? `does not exist (${feature.spec_id || 'no --spec-id'})` : `says ${status ? `"${status}"` : 'no status'}`) +
+        (spec === null ? `does not exist (${specPath})` : `says ${status ? `"${status}"` : 'no status'}`) +
         '.',
       '',
       `No implementation code is written before the operator approves the design at Gate 2 (the`,
