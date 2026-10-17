@@ -26,6 +26,13 @@ node = "24.21.0"
 "github:gastownhall/beads" = "1.3.0"
 # gh: every pull request here is `gh pr create --base main`. The newest release on 2026-10-03.
 gh = "2.102.0"
+# gitleaks, which `secrets:check` runs. The newest release, of 2026-03-21; upstream now ships
+# security fixes only. Re-derive with `gh release list -R gitleaks/gitleaks`, taking the newest
+# release at least two weeks old.
+gitleaks = "8.30.1"
+# osv-scanner, which `deps:check` runs. The newest release at least two weeks old on 2026-10-16:
+# 2.7.0 came out on 2026-10-12. Re-derive with `gh release list -R google/osv-scanner`.
+osv-scanner = "2.6.0"
 
 [settings]
 # A shim whose pinned tool is not installed fails and names `mise install`, rather than run what

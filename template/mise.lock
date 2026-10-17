@@ -72,6 +72,36 @@ url = "https://github.com/gastownhall/beads/releases/download/v1.3.0/beads_1.3.0
 url_api = "https://api.github.com/repos/gastownhall/beads/releases/assets/566364168"
 provenance = "github-attestations"
 
+[[tools.gitleaks]]
+version = "8.30.1"
+backend = "aqua:gitleaks/gitleaks"
+specifiers = ["8.30.1"]
+
+[tools.gitleaks."platforms.linux-arm64"]
+checksum = "sha256:e4a487ee7ccd7d3a7f7ec08657610aa3606637dab924210b3aee62570fb4b080"
+url = "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/gitleaks/gitleaks/releases/assets/378332057"
+
+[tools.gitleaks."platforms.linux-x64"]
+checksum = "sha256:551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+url = "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz"
+url_api = "https://api.github.com/repos/gitleaks/gitleaks/releases/assets/378332058"
+
+[tools.gitleaks."platforms.macos-arm64"]
+checksum = "sha256:b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5"
+url = "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/gitleaks/gitleaks/releases/assets/378332059"
+
+[tools.gitleaks."platforms.macos-x64"]
+checksum = "sha256:dfe101a4db2255fc85120ac7f3d25e4342c3c20cf749f2c20a18081af1952709"
+url = "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_darwin_x64.tar.gz"
+url_api = "https://api.github.com/repos/gitleaks/gitleaks/releases/assets/378332053"
+
+[tools.gitleaks."platforms.windows-x64"]
+checksum = "sha256:d29144deff3a68aa93ced33dddf84b7fdc26070add4aa0f4513094c8332afc4e"
+url = "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_windows_x64.zip"
+url_api = "https://api.github.com/repos/gitleaks/gitleaks/releases/assets/378333178"
+
 [[tools.node]]
 version = "24.21.0"
 backend = "core:node"
@@ -96,3 +126,33 @@ url = "https://nodejs.org/dist/v24.21.0/node-v24.21.0-darwin-x64.tar.gz"
 [tools.node."platforms.windows-x64"]
 checksum = "sha256:158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541"
 url = "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip"
+
+[[tools.osv-scanner]]
+version = "2.6.0"
+backend = "aqua:google/osv-scanner"
+specifiers = ["2.6.0"]
+
+[tools.osv-scanner."platforms.linux-arm64"]
+checksum = "sha256:2c71403eb443d05891c4f268c3ad771cf4f16e5443463fd7851ef8f454d3c7e4"
+url = "https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_linux_arm64"
+url_api = "https://api.github.com/repos/google/osv-scanner/releases/assets/562414650"
+
+[tools.osv-scanner."platforms.linux-x64"]
+checksum = "sha256:ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108"
+url = "https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_linux_amd64"
+url_api = "https://api.github.com/repos/google/osv-scanner/releases/assets/562414718"
+
+[tools.osv-scanner."platforms.macos-arm64"]
+checksum = "sha256:98c460dcd37de25819babd757d04542045b6243113e209edcd4d89fedb0256b4"
+url = "https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_darwin_arm64"
+url_api = "https://api.github.com/repos/google/osv-scanner/releases/assets/562414648"
+
+[tools.osv-scanner."platforms.macos-x64"]
+checksum = "sha256:60c5296637e977b28eeda5c7f13573e447659a632922737f94d11fa7e30ad6ca"
+url = "https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_darwin_amd64"
+url_api = "https://api.github.com/repos/google/osv-scanner/releases/assets/562414712"
+
+[tools.osv-scanner."platforms.windows-x64"]
+checksum = "sha256:e0ed7644118b717b028c249ee9d3515024e55e8510747ca08906eb96765354d6"
+url = "https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_windows_amd64.exe"
+url_api = "https://api.github.com/repos/google/osv-scanner/releases/assets/562414649"
