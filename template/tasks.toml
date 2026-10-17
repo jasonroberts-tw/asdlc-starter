@@ -46,7 +46,7 @@ run = "node tools/citations/selftest.ts"
 
 ["secrets:check"]
 description = '''
-Refuses a secret gitleaks finds in a commit: every commit reachable from HEAD, or with `--unpushed`,
+Refuses a secret Betterleaks finds in a commit: every commit reachable from HEAD, or with `--unpushed`,
 which the pre-push job passes, the commits on HEAD that no remote-tracking branch holds. It reads
 commits, not the tree, and prints each finding redacted. Without it a token committed and deleted
 in the next commit still reaches origin in the history, where everyone who can clone reads it until
@@ -57,9 +57,9 @@ run = "node scripts/check-secrets.mjs"
 description = '''
 The secrets gate, negative-tested in scratch repositories with a bare remote, read through
 `SECRETS_CHECK_ROOT`: a token committed and then deleted, a token in an unpushed commit, a pushed one
-left to CI, nothing unpushed skipping clean, and a `.gitleaks.toml` gitleaks cannot load failing,
+left to CI, nothing unpushed skipping clean, and a `.betterleaks.toml` Betterleaks cannot load failing,
 beside clean controls that must name their commit counts. Without it the gate could start reading the
-tree, or a gitleaks failure as no finding, and still pass.'''
+tree, or a Betterleaks failure as no finding, and still pass.'''
 run = "node scripts/check-secrets.mjs --selftest"
 
 ["deps:check"]

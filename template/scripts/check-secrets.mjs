@@ -1,6 +1,7 @@
 /**
- * Secrets gate. It runs gitleaks over commits, with gitleaks' own rules and any `.gitleaks.toml`
- * and `.gitleaksignore` at the root, and refuses every secret it finds:
+ * Secrets gate. It runs Betterleaks over commits, with its own rules and any `.betterleaks.toml`
+ * and `.betterleaksignore` at the root (or their gitleaks names, which it also reads), and refuses
+ * every secret it finds:
  *
  *   - in CI and by hand, every commit reachable from HEAD;
  *   - at pre-push (`--unpushed`), the commits on HEAD that no remote-tracking branch holds.
@@ -12,14 +13,14 @@
  * HEAD and not every branch, so a secret on one branch fails that branch's pull request and no other.
  * The hook runner hands a job no standard input, so the pre-push job cannot read Git's push lines
  * and reads HEAD; a push of another ref is read by CI alone. Every finding prints redacted, because
- * a secret in a CI log is a second leak, with the fingerprint that `.gitleaksignore` takes when the
+ * a secret in a CI log is a second leak, with the fingerprint that `.betterleaksignore` takes when the
  * finding is not a secret.
  *
  * THE FAILURE IT EXISTS TO PREVENT. No incident yet: the gate came with the scanner. A credential
  * that reaches origin is readable by everyone who can clone the repository, and stays in every clone
  * after a rewrite, so it has to be revoked. Were this gate wrong, it would let through a token committed and deleted in the
- * next commit, if it read the tree; and every push, if it read a gitleaks failure, such as a
- * `.gitleaks.toml` it cannot load, as no finding.
+ * next commit, if it read the tree; and every push, if it read a Betterleaks failure, such as a
+ * `.betterleaks.toml` it cannot load, as no finding.
  *
  * INVOCATION.
  *
@@ -28,9 +29,11 @@
  *   mise run secrets:selftest                         (--selftest) each refusal and scope, in scratch repositories
  *   SECRETS_CHECK_ROOT=<dir> mise run secrets:check   the same gate over a doctored copy
  *
- * NEEDS gitleaks, which `mise.toml` pins and `mise run` puts on the PATH, and Git. No network.
- * 0.49 s wall for the gate over 35 commits and 5.8 s for its selftest through `mise run`
- * (`/usr/bin/time -p`, one run each) on a macOS laptop with gitleaks 8.30.1, 2026-10-16. The gate's
+ * NEEDS Betterleaks, which `mise.toml` pins and `mise run` puts on the PATH, and Git. No network,
+ * because the gate leaves Betterleaks' `--validation` off, and that flag sends a finding to its provider.
+ * 0.56 s wall for the gate over 45 commits (1.08 s on the first of four runs) and 4.6 s for its
+ * selftest (one run) through `mise run`, by `/usr/bin/time -p` on a macOS laptop with Betterleaks
+ * 1.9.0, 2026-10-17. The gate's
  * time grows with the history in CI, and with the unpushed commits at pre-push.
  */
 import { spawnSync } from 'node:child_process'
@@ -46,26 +49,26 @@ const REPO_ROOT = resolve(dirname(SELF), '..')
 const ROOT = process.env.SECRETS_CHECK_ROOT ? resolve(process.env.SECRETS_CHECK_ROOT) : REPO_ROOT
 const tail = (text) => (text ?? '').trim().split('\n').slice(-5).join(' | ')
 
-/** What gitleaks finds in the commits under `root`: `pass`, `skip` or `fail`, with the lines that say why. */
+/** What Betterleaks finds in the commits under `root`: `pass`, `skip` or `fail`, with the lines that say why. */
 export function runCheck(root, { unpushed = false } = {}) {
   const range = unpushed ? ['HEAD', '--not', '--remotes'] : ['HEAD']
   const scope = unpushed ? 'commit(s) on HEAD that no remote-tracking branch holds' : 'commit(s) reachable from HEAD'
-  // No GIT_* key, so a hook's GIT_DIR cannot point git, or the git gitleaks runs, away from `root`.
+  // No GIT_* key, so a hook's GIT_DIR cannot point git, or the git Betterleaks runs, away from `root`.
   const options = { cwd: root, env: gitEnv(), encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }
   const count = spawnSync('git', ['rev-list', '--count', ...range], options)
   if (count.status !== 0) return { status: 'fail', lines: [`git rev-list failed in ${root}, so the commits to read are unknown: ${tail(count.stderr || count.error?.message)}`] }
   const commits = Number(count.stdout.trim())
   if (commits === 0) return { status: 'skip', lines: [`no ${scope}, so nothing to read`] }
 
-  const run = spawnSync('gitleaks', ['git', '--no-banner', '--redact', `--log-opts=${range.join(' ')}`, '--report-format=json', '--report-path=-', '.'], options)
-  if (run.error) return { status: 'fail', lines: [`gitleaks could not start (${run.error.message}); run the gate through \`mise run\`, which puts the pinned gitleaks on the PATH`] }
+  const run = spawnSync('betterleaks', ['git', '--no-banner', '--redact', `--log-opts=${range.join(' ')}`, '--report-format=json', '--report-path=-', '.'], options)
+  if (run.error) return { status: 'fail', lines: [`betterleaks could not start (${run.error.message}); run the gate through \`mise run\`, which puts the pinned Betterleaks on the PATH`] }
   let findings = null
   try {
     findings = JSON.parse(run.stdout)
   } catch {}
-  if (!Array.isArray(findings)) return { status: 'fail', lines: [`gitleaks exited ${run.status} without a report of findings, so the commits were not read: ${tail(run.stderr)}`] }
+  if (!Array.isArray(findings)) return { status: 'fail', lines: [`betterleaks exited ${run.status} without a report of findings, so the commits were not read: ${tail(run.stderr)}`] }
   if (findings.length === 0 && run.status === 0) return { status: 'pass', lines: [`no secret in ${commits} ${scope}`] }
-  if (findings.length === 0) return { status: 'fail', lines: [`gitleaks exited ${run.status} with no finding, so its result is unknown: ${tail(run.stderr)}`] }
+  if (findings.length === 0) return { status: 'fail', lines: [`betterleaks exited ${run.status} with no finding, so its result is unknown: ${tail(run.stderr)}`] }
   return {
     status: 'fail',
     lines: findings.map((f) => `${f.RuleID} in ${f.File}:${f.StartLine} at ${String(f.Commit).slice(0, 7)} (fingerprint ${f.Fingerprint})`),
@@ -85,7 +88,7 @@ function main() {
 
 /* --------------------------------------------------------------------------------- selftest ----- */
 
-// A GitHub token gitleaks' `github-pat` rule matches, built here so that no line of this file is one.
+// A GitHub token Betterleaks' `github-pat` rule matches, built here so that no line of this file is one.
 const TOKEN = ['ghp', createHash('sha256').update('secrets selftest').digest('hex').slice(0, 36)].join('_')
 
 /**
@@ -128,9 +131,9 @@ function cases() {
       skip: /^no commit\(s\) on HEAD that no remote-tracking branch holds, so nothing to read$/,
     },
     {
-      name: 'a .gitleaks.toml gitleaks cannot load fails, and is no pass',
-      doctor: (git, dir) => writeFileSync(join(dir, '.gitleaks.toml'), '[[rules]\n'),
-      refuse: /^gitleaks exited \d+ without a report of findings/,
+      name: 'a .betterleaks.toml Betterleaks cannot load fails, and is no pass',
+      doctor: (git, dir) => writeFileSync(join(dir, '.betterleaks.toml'), '[[rules]\n'),
+      refuse: /^betterleaks exited \d+ without a report of findings/,
     },
   ]
 }

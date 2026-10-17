@@ -1,5 +1,7 @@
 # The Template scans commits with gitleaks and dependencies with osv-scanner
 
+**Status:** `0004-scan-secrets-with-betterleaks.md` replaces gitleaks with Betterleaks in the secrets gate. The rest of this record stands.
+
 The Template gains two gates, each a pre-push job and a CI step. `secrets:check` runs gitleaks 8.30.1 over commits: at pre-push, the commits on HEAD that no remote-tracking branch holds; in CI, every commit reachable from HEAD. `deps:check` runs osv-scanner 2.6.0 over every tracked lockfile and manifest, against osv.dev: at pre-push when a lockfile changes, and in CI on every pull request and every push to `main`. Both tools are pinned in `template/mise.toml` through mise's aqua backend, and each gate's script header (`template/scripts/check-secrets.mjs`, `template/scripts/check-deps.mjs`) says what it reads and why. Before this, nothing in the harness looked for a committed credential or a dependency with a published advisory, and a Target project on a private GitHub repository gets neither from GitHub without Advanced Security.
 
 ## Considered Options
