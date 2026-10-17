@@ -66,7 +66,7 @@
       "means": "The most words `scripts/hooks/block-generated-edit.mjs` may hold: its string and template literals: its refusal of an edit to generated output, which a session reads and acts on. Set to its count on 2026-10-11; a raise edits this value and says why here."
     },
     "scripts/hooks/guard-delivery.mjs": {
-      "words": 250,
+      "words": 248,
       "means": "The most words `scripts/hooks/guard-delivery.mjs` may hold: its string and template literals: its refusals of an edit to a protected test and of code written before Gate 2, which a session reads and acts on. Set to its count on 2026-10-16, once a security review had it read the policy from `origin/main` and a story's spec by the feature's id; a raise edits this value and says why here."
     },
     "scripts/hooks/guard-git.mjs": {

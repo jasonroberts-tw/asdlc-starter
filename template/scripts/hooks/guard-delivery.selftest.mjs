@@ -136,6 +136,16 @@ try {
     tool_input: { command: `*** Begin Patch\n*** Update File: ${LIST}\n*** Move to: docs/elsewhere.txt\n*** End Patch\n` },
   })
   check('a Codex patch that moves the list away is refused', refusedFor(patchMove, DROPS), why(patchMove))
+  const patchOnto = run({
+    tool_name: 'apply_patch', cwd: primary,
+    tool_input: { command: `*** Begin Patch\n*** Update File: docs/other.txt\n*** Move to: ${LIST}\n*** End Patch\n` },
+  })
+  check('a Codex patch that moves another file onto the list is refused', refusedFor(patchOnto, DROPS), why(patchOnto))
+  const patchAddOver = run({
+    tool_name: 'apply_patch', cwd: primary,
+    tool_input: { command: `*** Begin Patch\n*** Add File: ${LIST}\n+# protected tests\n*** End Patch\n` },
+  })
+  check('a Codex patch that adds the list afresh without its lines is refused', refusedFor(patchAddOver, DROPS), why(patchAddOver))
   const patchAdd = run({
     tool_name: 'apply_patch', cwd: primary,
     tool_input: { command: `*** Begin Patch\n*** Update File: ${LIST}\n+tests/b.test.mjs demo-x1.1.2\n*** End Patch\n` },

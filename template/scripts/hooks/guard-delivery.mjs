@@ -28,6 +28,9 @@
  * or `Shipped`, the hook refuses every path outside `beforeApprovalPaths`. Reading `origin/main`
  * means the approval is the merged design pull request, which a session's own branch cannot change.
  *
+ * IT GUARDS AGAINST A SLIP, NOT AN INTENT. A session set on a change has the shell, so the hook spends
+ * no calls proving the tracker's parent link or the presence of `origin/main`.
+ *
  * IT FAILS OPEN, like the in-session tier it sits in (AGENTS.md § The gate ladder): with no
  * policy, no git, no `bd`, a `bd` that errors, or a branch that names no issue, it allows the edit.
  * An edit made through the shell gets past it; `spec-reviewer` diffs each protected test against the
@@ -90,25 +93,31 @@ function listAfter(abs, ti) {
   return text
 }
 
-/** The paths a Codex patch removes from the list without adding back. */
-function patchDrops(rel) {
+/** HEAD's paths a Codex patch takes out of the list, or null when it deletes, moves or overwrites the list wholesale. */
+function patchDrops(rel, head) {
+  const isList = (path) => {
+    const p = path.trim().replaceAll('\\', '/').toLowerCase()
+    return p === rel.toLowerCase() || p.endsWith(`/${rel.toLowerCase()}`)
+  }
   const removed = new Set()
   const added = new Set()
   let inList = false
+  let rewrite = false
   for (const line of String(input.tool_input?.command ?? '').split(/\r?\n/)) {
     const file = /^\*\*\* (Add|Update|Delete) File: (.+)$/.exec(line)
     if (file) {
-      const path = file[2].trim().replaceAll('\\', '/')
-      inList = path.toLowerCase() === rel.toLowerCase() || path.toLowerCase().endsWith(`/${rel.toLowerCase()}`)
+      inList = isList(file[2])
       if (inList && file[1] === 'Delete') return null
+      rewrite ||= inList && file[1] === 'Add'
       continue
     }
-    if (inList && line.startsWith('*** Move to: ')) return null
+    const move = /^\*\*\* Move to: (.+)$/.exec(line)
+    if (move && (inList || isList(move[1]))) return null
     if (!inList || line.startsWith('---') || line.startsWith('+++')) continue
     if (line.startsWith('-')) for (const path of listed(line.slice(1)).keys()) removed.add(path)
     if (line.startsWith('+')) for (const path of listed(line.slice(1)).keys()) added.add(path)
   }
-  return [...removed].filter((path) => !added.has(path))
+  return [...(rewrite ? head.keys() : removed)].filter((path) => !added.has(path))
 }
 
 function refuse(lines) {
@@ -158,7 +167,7 @@ for (const { filePath } of editTargets(input)) {
     const patch = input.tool_name === 'apply_patch'
     const after = patch ? null : listAfter(join(root, rel), input.tool_input ?? {})
     const dropped = patch
-      ? patchDrops(rel)
+      ? patchDrops(rel, protectedPaths)
       : after === null ? [] : [...protectedPaths.keys()].filter((path) => !listed(after).has(path))
     if (dropped === null || dropped.length > 0) {
       refuse([
