@@ -474,6 +474,42 @@ for (const [label, dir, command, reason] of [
   check(`${label} is ${verdict}`, reason === null ? r.code === 0 : refusedFor(r, reason), why(r))
 }
 
+// A MERGE INTO THE PRIMARY CHECKOUT, FROM ANY SESSION: a merge lands on the branch the checkout it
+// runs in has checked out, so the guard follows `cd` and `git -C` there, and allows only a
+// fast-forward of main. Each refusal is asserted by its reason. The controls are the briefing's own
+// finish, in both spellings, a merge in the worktree itself and an abort: without them, a guard
+// that refused every merge would pass.
+console.log('guard-git: a merge into the primary checkout, from any session')
+const PRIMARY_MERGE_RULE = 'is a fast-forward of `main`: `git -C'
+const UNRESOLVED_RULE = 'cannot tell whether it lands in the primary checkout'
+const mergeCases = () => [
+  ["control: the briefing's finish, by git -C", oursDir, `git -C ${primary} merge --ff-only agent/ours`, null],
+  ['control: the same after a cd, with -q', oursDir, `cd ${primary} && git merge --ff-only -q agent/ours`, null],
+  ['control: a merge in the worktree itself', oursDir, 'git merge worktree-native', null],
+  ['control: an abort in the primary checkout', oursDir, `git -C ${primary} merge --abort`, null],
+  ['the Work run\'s merge, --no-ff after a cd', oursDir, `cd ${primary} && git merge --no-ff agent/ours -m x`, PRIMARY_MERGE_RULE],
+  ['a merge with no --ff-only, by git -C', oursDir, `git -C ${primary} merge agent/ours`, PRIMARY_MERGE_RULE],
+  ['--ff-only then an abbreviated --no-ff, which git honours', oursDir, `git -C ${primary} merge --ff-only --no-f agent/ours`, PRIMARY_MERGE_RULE],
+  ['a relative -C that reaches it', oursDir, 'git -C ../../.. merge agent/ours', PRIMARY_MERGE_RULE],
+  ['a cd and merge inside bash -c', oursDir, `bash -c "cd ${primary} && git merge agent/ours"`, PRIMARY_MERGE_RULE],
+  ['a merge after an earlier cd moved the session there', primary, 'git merge --no-ff agent/ours', PRIMARY_MERGE_RULE],
+  ['a cd through a variable, from a worktree', oursDir, 'cd "$P" && git merge --ff-only agent/ours', UNRESOLVED_RULE],
+]
+for (const [label, dir, command, reason] of mergeCases()) {
+  const r = guardFrom(dir, { command })
+  const verdict = reason === null ? 'allowed' : 'refused, by its reason'
+  check(`${label} is ${verdict}`, reason === null ? r.code === 0 : refusedFor(r, reason), why(r))
+}
+// The briefing's finish itself is refused while the primary checkout has another branch checked out.
+git(primary, 'switch', '-q', '-c', 'side')
+const sideMerge = guardFrom(oursDir, { command: `git -C ${primary} merge --ff-only agent/ours` })
+git(primary, 'switch', '-q', 'main')
+check(
+  'a fast-forward into a primary checkout on another branch is refused, naming it',
+  refusedFor(sideMerge, 'It has `side` checked out, not `main`'),
+  why(sideMerge),
+)
+
 /* --------------------------------------------------------------------------------------------- *
  * guard-git: graphify's eroding commands, from any checkout.
  *

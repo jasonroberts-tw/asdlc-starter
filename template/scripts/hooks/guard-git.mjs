@@ -11,7 +11,7 @@
  * switching to or rewriting a protected branch from a worktree; the primary checkout is where a
  * person works, and what they commit or push there is theirs to decide. So the guard asks git
  * whether the command runs in a linked worktree and skips every git rule if not. The PR-base,
- * merge-bypass, worktree-prune and graphify rules below are the exceptions and apply everywhere,
+ * merge-bypass, primary-merge, worktree-prune and graphify rules below are the exceptions and apply everywhere,
  * because what they guard is not worktree isolation. Where the command runs is the payload's `cwd`, never `CLAUDE_PROJECT_DIR`;
  * `commandDir` below says what reading the variable cost.
  *
@@ -62,6 +62,17 @@
  * such a container, by the WorktreeRemove hook through a pre-push selftest, left git with no record
  * of any of the host's worktrees. Its `--dry-run` passes.
  *
+ * IT ALSO HOLDS A MERGE INTO THE PRIMARY CHECKOUT TO A FAST-FORWARD OF THE TRUNK, EVERYWHERE. A
+ * `git merge` lands on whatever branch the checkout it runs in has checked out, so the guard follows
+ * the command's `cd` and `git -C` to that checkout. In the primary checkout it allows only
+ * `--ff-only`, beside a few options that change no result, while the trunk is checked out there:
+ * the `via-merge` finish the worktree briefing gives. It holds in the primary checkout too, because
+ * a session that has run `cd` into it looks like a person's there. From a linked worktree it refuses
+ * a merge whose directory it cannot resolve. On 2026-10-17 a Template test's Work run, from its
+ * worktree, ran `cd /work/bob && git merge --no-ff <branch>`, which skipped the briefing's check of
+ * the branch and left a merge commit on its `main`. A directory spelt through an unquoted `$(…)` is
+ * lost to the parser, here as for every rule above, and `git pull` is not judged.
+ *
  * IT ALSO GUARDS THE LOCAL CODE GRAPH, EVERYWHERE. It refuses graphify's `update`, `watch`, `hook
  * install` and `claude install` (`GRAPHIFY_ERODING` below), run by name or as a Python module,
  * because the first three rebuild the graph through the path that erodes its document layer and the
@@ -83,7 +94,8 @@
  */
 import { spawnSync } from 'node:child_process'
 import { realpathSync } from 'node:fs'
-import { basename } from 'node:path'
+import { homedir } from 'node:os'
+import { basename, isAbsolute, join, resolve } from 'node:path'
 import { TRUNK, gitEnv, readHookInput } from './_shared.mjs'
 
 /* ============================================================================================= *
@@ -293,6 +305,9 @@ function parse(command) {
 /** `FOO=bar git push` -- environment assignments come before the command name. */
 const ENV_ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/
 
+const isOption = (t) => t.startsWith('-')
+const nonOptions = (rest) => rest.filter((t) => !isOption(t) && t !== '')
+
 /** The command name, lowercased and stripped of any directory. */
 function commandName(token) {
   return basename(token.replace(/\\/g, '/')).toLowerCase()
@@ -341,7 +356,54 @@ function gitCall(tokens) {
     break
   }
   if (i >= tokens.length) return null
-  return { sub: tokens[i].toLowerCase(), rest: tokens.slice(i + 1) }
+  return { sub: tokens[i].toLowerCase(), rest: tokens.slice(i + 1), globals: tokens.slice(start + 1, i) }
+}
+
+/* ============================================================================================= *
+ * Where a statement runs.
+ * ============================================================================================= */
+
+/** Shell words that move the directory the statements after them run in. */
+const CD = new Set(['cd', 'pushd', 'chdir', 'set-location', 'sl'])
+
+/**
+ * `to` resolved against `here`, or `null` when only the shell could resolve it: `-`, `~user`, a
+ * variable, a glob, or a relative path from a directory already unknown.
+ */
+function resolvePath(here, to) {
+  if (to === '-' || /[$`*?]/.test(to) || /^~[^/\\]/.test(to)) return null
+  const expanded = to === '~' || /^~[/\\]/.test(to) ? join(homedir(), to.slice(1)) : to
+  if (isAbsolute(expanded)) return resolve(expanded)
+  return here === null ? null : resolve(here, expanded)
+}
+
+/**
+ * The directory a `cd` statement moves to from `here`: `undefined` when the statement is no `cd`,
+ * and `null` when it cannot be resolved. A bare `cd` is one: an unquoted `$(…)` after it ends the
+ * statement in the parser, so its argument looks absent.
+ */
+function cdTarget(tokens, here) {
+  const start = nameIndex(tokens)
+  if (start === -1) return undefined
+  const name = commandName(tokens[start])
+  if (name === 'popd') return null
+  if (!CD.has(name)) return undefined
+  const to = tokens.slice(start + 1).find((t) => t === '-' || !isOption(t))
+  return to === undefined ? null : resolvePath(here, to)
+}
+
+/** The directory a git call runs in, from `here` and its `-C` options; `null` when unresolvable. */
+function gitCallDir(globals, here) {
+  let dir = here
+  for (let i = 0; i < globals.length; i++) {
+    const t = globals[i]
+    if (/^--(?:git-dir|work-tree)(?:=|$)/.test(t)) return null
+    if (t !== '-C') continue
+    const to = globals[++i]
+    if (to === undefined) return null
+    if (to !== '') dir = resolvePath(dir, to)
+  }
+  return dir
 }
 
 /** Shells whose `-c` argument is another command line, and must therefore be parsed as one. */
@@ -445,8 +507,6 @@ function refTarget(token) {
   return parts[parts.length - 1].replace(/^refs\/heads\//, '')
 }
 
-const isOption = (t) => t.startsWith('-')
-const nonOptions = (rest) => rest.filter((t) => !isOption(t) && t !== '')
 
 /* ============================================================================================= *
  * Rules.
@@ -544,6 +604,41 @@ function denialFor({ sub, rest }) {
     default:
       return null
   }
+}
+
+/** The options a merge into the primary checkout may carry: `--ff-only`, and none that change a result. */
+const FF_ONLY_OPTIONS = new Set(['--ff-only', '-q', '--quiet', '-v', '--verbose', '--stat', '-n', '--no-stat'])
+/** A merge's options that act on one already under way, and start none. */
+const MERGE_STATE = new Set(['--abort', '--quit', '--continue'])
+
+const PRIMARY_MERGE = (dir, branch) =>
+  `the only merge allowed in the primary checkout, ${dir}, is a fast-forward of \`${TRUNK}\`: ` +
+  `\`git -C ${dir} merge --ff-only <branch>\`. ` +
+  (branch === TRUNK
+    ? `If git refuses, rebase your branch onto \`${TRUNK}\` and gate it again.`
+    : `It has ${branch === null ? 'no branch' : `\`${branch}\``} checked out, not \`${TRUNK}\`: stop and report that.`)
+const UNRESOLVED_MERGE =
+  'the guard cannot resolve the directory this merge runs in, so it cannot tell whether it lands ' +
+  'in the primary checkout. Name the directory literally: `git -C <path> merge --ff-only <branch>`.'
+
+/**
+ * The reason to deny a `git merge` that runs in `here`, or `null`. In the primary checkout only a
+ * fast-forward of the trunk passes (`FF_ONLY_OPTIONS`): an allowlist, because git accepts an
+ * abbreviated option, so `--ff-only --no-f` would read as a fast-forward to a check of the last
+ * flag and merge with a commit. Elsewhere it leaves the merge to `denialFor`.
+ */
+function primaryMergeDenial({ rest, globals }, here, linked) {
+  if (rest.some((t) => MERGE_STATE.has(t))) return null
+  const dir = gitCallDir(globals, here)
+  if (dir === null) return linked ? UNRESOLVED_MERGE : null
+  const gitDir = gitPath(dir, '--git-dir')
+  if (gitDir === null || gitDir !== gitPath(dir, '--git-common-dir')) return null
+  const branch = gitOut(dir, ['symbolic-ref', '--quiet', '--short', 'HEAD'])
+  const options = rest.filter(isOption)
+  if (branch === TRUNK && options.includes('--ff-only') && options.every((t) => FF_ONLY_OPTIONS.has(t))) {
+    return null
+  }
+  return PRIMARY_MERGE(gitPath(dir, '--show-toplevel') ?? dir, branch)
 }
 
 /* ============================================================================================= *
@@ -727,22 +822,32 @@ function graphifyDenial(args) {
  * `git worktree prune`, which is refused everywhere (`isBarePrune`); the `gh` rules decide for
  * themselves (see `denialForGh`), and the graphify rule applies everywhere (`graphifyDenial`). In a
  * stray worktree directory (`strayWorktreeDir`) every git call is refused, whatever it is: git
- * there answers for another checkout.
+ * there answers for another checkout. `here` is the directory a statement runs in, moved by each
+ * `cd` before it, which only the primary-merge rule reads (`primaryMergeDenial`).
  */
-function inspect(command, linked, stray, depth = 0) {
+function inspect(command, linked, stray, here, depth = 0) {
   if (depth > 2) return null
   for (const tokens of parse(command)) {
-    const reason = inspectStatement(tokens, linked, stray, depth)
+    const moved = cdTarget(tokens, here)
+    if (moved !== undefined) {
+      here = moved
+      continue
+    }
+    const reason = inspectStatement(tokens, linked, stray, here, depth)
     if (reason !== null) return reason
   }
   return null
 }
 
 /** One statement's reason to deny, or `null`. */
-function inspectStatement(tokens, linked, stray, depth) {
+function inspectStatement(tokens, linked, stray, here, depth) {
   const call = gitCall(tokens)
   if (call !== null && stray !== null) return strayDenial(stray)
   if (call !== null && isBarePrune(call)) return WORKTREE_PRUNE
+  if (call !== null && call.sub === 'merge') {
+    const reason = primaryMergeDenial(call, here, linked)
+    if (reason !== null) return reason
+  }
   if (call !== null && linked) {
     const reason = denialFor(call)
     if (reason !== null) return reason
@@ -758,7 +863,7 @@ function inspectStatement(tokens, linked, stray, depth) {
     if (reason !== null) return reason
   }
   for (const script of inlineScripts(tokens)) {
-    const reason = inspect(script, linked, stray, depth + 1)
+    const reason = inspect(script, linked, stray, here, depth + 1)
     if (reason !== null) return reason
   }
   return null
@@ -801,6 +906,6 @@ if (input === null || typeof input?.tool_input?.command !== 'string') {
 const command = input.tool_input.command
 if (command.trim() === '') process.exit(0)
 
-const reason = inspect(command, linked, stray)
+const reason = inspect(command, linked, stray, dir)
 if (reason !== null) deny(reason)
 process.exit(0)
