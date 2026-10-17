@@ -494,6 +494,7 @@ const mergeCases = () => [
   ['a cd and merge inside bash -c', oursDir, `bash -c "cd ${primary} && git merge agent/ours"`, PRIMARY_MERGE_RULE],
   ['a merge after an earlier cd moved the session there', primary, 'git merge --no-ff agent/ours', PRIMARY_MERGE_RULE],
   ['a cd through a variable, from a worktree', oursDir, 'cd "$P" && git merge --ff-only agent/ours', UNRESOLVED_RULE],
+  ['--abort beside a merge, which no longer exempts it', oursDir, `git -C ${primary} merge --abort --no-ff agent/ours`, PRIMARY_MERGE_RULE],
 ]
 for (const [label, dir, command, reason] of mergeCases()) {
   const r = guardFrom(dir, { command })

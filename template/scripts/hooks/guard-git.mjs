@@ -71,7 +71,8 @@
  * a merge whose directory it cannot resolve. On 2026-10-17 a Template test's Work run, from its
  * worktree, ran `cd /work/bob && git merge --no-ff <branch>`, which skipped the briefing's check of
  * the branch and left a merge commit on its `main`. A directory spelt through an unquoted `$(…)` is
- * lost to the parser, here as for every rule above, and `git pull` is not judged.
+ * lost to the parser, here as for every rule above, and so is a merge behind a git alias or a
+ * launcher (`env`, `nohup`); `git pull` is not judged.
  *
  * IT ALSO GUARDS THE LOCAL CODE GRAPH, EVERYWHERE. It refuses graphify's `update`, `watch`, `hook
  * install` and `claude install` (`GRAPHIFY_ERODING` below), run by name or as a Python module,
@@ -608,7 +609,7 @@ function denialFor({ sub, rest }) {
 
 /** The options a merge into the primary checkout may carry: `--ff-only`, and none that change a result. */
 const FF_ONLY_OPTIONS = new Set(['--ff-only', '-q', '--quiet', '-v', '--verbose', '--stat', '-n', '--no-stat'])
-/** A merge's options that act on one already under way, and start none. */
+/** A merge's options that act on one already under way, and start none, when each stands alone. */
 const MERGE_STATE = new Set(['--abort', '--quit', '--continue'])
 
 const PRIMARY_MERGE = (dir, branch) =>
@@ -628,7 +629,7 @@ const UNRESOLVED_MERGE =
  * flag and merge with a commit. Elsewhere it leaves the merge to `denialFor`.
  */
 function primaryMergeDenial({ rest, globals }, here, linked) {
-  if (rest.some((t) => MERGE_STATE.has(t))) return null
+  if (rest.length === 1 && MERGE_STATE.has(rest[0])) return null
   const dir = gitCallDir(globals, here)
   if (dir === null) return linked ? UNRESOLVED_MERGE : null
   const gitDir = gitPath(dir, '--git-dir')
