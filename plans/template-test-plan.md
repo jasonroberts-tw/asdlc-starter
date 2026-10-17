@@ -262,7 +262,9 @@ credential or the image.
 
 The test files one issue in Bob's Tracker with bd: title "Add a Node echo script", type `task`,
 label `asset:tool`, and a body from `tests/template/fixtures/issue.md` whose
-`## Acceptance Criteria` are the echo test's spec. `beads:check` asks for a type that
+`## Acceptance Criteria` are the echo test's spec. The body marks each criterion manual-verify, because
+`spec-reviewer` reports a harness task's criterion with no test as a gap, which the `work` skill
+leaves to the operator, and a headless run has none. `beads:check` asks for a type that
 `policy/vocabulary.json` lists, so a wrong one would fail the gates for a reason that has nothing to
 do with the agent. The label is a harness one because the `work` skill stops on a `task` labelled
 `asset:product` that has no feature above it: product work enters through the feature track's

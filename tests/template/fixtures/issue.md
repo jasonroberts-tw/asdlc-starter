@@ -7,3 +7,6 @@ the existing issue-to-merge workflow; the requested route is `via-merge` and the
 - `node echo.mjs "a  b" c` prints `a  b c` followed by one newline, and exits 0.
 - `node echo.mjs` prints one newline, and exits 0.
 - Arguments retain their internal spaces and are joined with one space.
+
+The operator wants no automated test for this script. Each criterion is a manual-verify item, and
+running its command before the merge verifies it.
