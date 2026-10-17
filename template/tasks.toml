@@ -44,6 +44,44 @@ a synthetic tree through `CITATIONS_ROOT`, with exact counts in the control and 
 doctored copy. Without it the gate can go quietly green over a repository it has stopped reading.'''
 run = "node tools/citations/selftest.ts"
 
+["secrets:check"]
+description = '''
+Refuses a secret gitleaks finds in a commit: every commit reachable from HEAD, or with `--unpushed`,
+which the pre-push job passes, the commits on HEAD that no remote-tracking branch holds. It reads
+commits, not the tree, and prints each finding redacted. Without it a token committed and deleted
+in the next commit still reaches origin in the history, where everyone who can clone reads it until
+it is revoked.'''
+run = "node scripts/check-secrets.mjs"
+
+["secrets:selftest"]
+description = '''
+The secrets gate, negative-tested in scratch repositories with a bare remote, read through
+`SECRETS_CHECK_ROOT`: a token committed and then deleted, a token in an unpushed commit, a pushed one
+left to CI, nothing unpushed skipping clean, and a `.gitleaks.toml` gitleaks cannot load failing,
+beside clean controls that must name their commit counts. Without it the gate could start reading the
+tree, or a gitleaks failure as no finding, and still pass.'''
+run = "node scripts/check-secrets.mjs --selftest"
+
+["deps:check"]
+description = '''
+Refuses a package version with a known vulnerability in any tracked lockfile or manifest
+osv-scanner reads, checked against osv.dev; a repository with none skips clean and says so. It
+names each tracked file to osv-scanner, whose own walk finds nothing in a linked worktree under
+`.claude/worktrees/`. It reads the network, and an unreachable osv.dev fails it. Without it a
+dependency with a published advisory merges unnoticed, and `npm audit` would not read a Python or
+Go lockfile.'''
+run = "node scripts/check-deps.mjs"
+
+["deps:selftest"]
+description = '''
+The dependency gate, negative-tested offline against a local database of one fixture advisory,
+through its `runCheck`: a vulnerable version at the top and in a subdirectory, a repository under a
+directory an ancestor `.gitignore` lists, an untracked lockfile left unread, an advisory accepted
+in `osv-scanner.toml`, no lockfile skipping clean, and an unreachable osv.dev failing, beside a
+control that must name its package count. Without it the gate could read a scan that found no file
+as a pass, or a network failure as a skip.'''
+run = "node scripts/check-deps.mjs --selftest"
+
 ["gates"]
 description = '''
 The forced full pre-push suite, run through `git hook run` with the branch's push line, so it sees a

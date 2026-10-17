@@ -60,3 +60,11 @@ jobs:
         run: mise run doctor:selftest
       - name: bootstrap, negative-tested over stub tools
         run: mise run bootstrap:selftest
+      - name: no commit reachable from HEAD holds a secret
+        run: mise run secrets:check
+      - name: the secrets gate, negative-tested over scratch repositories
+        run: mise run secrets:selftest
+      - name: no tracked lockfile holds a package version with a known vulnerability
+        run: mise run deps:check
+      - name: the dependency gate, negative-tested offline over a one-advisory database
+        run: mise run deps:selftest

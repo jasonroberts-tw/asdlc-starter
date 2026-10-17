@@ -149,6 +149,61 @@ pre-push:
         - 'scripts/hooks/_shared.mjs'
         - 'tasks.toml'
       run: mise run bootstrap:selftest
+    - name: secrets
+      run: mise run secrets:check --unpushed
+    - name: secrets-selftest
+      glob:
+        - 'scripts/check-secrets.mjs'
+        - 'tools/lib/git-env.ts'
+        - 'mise.toml'
+        - 'tasks.toml'
+      run: mise run secrets:selftest
+    # The lockfiles and manifests osv-scanner 2.6.0 reads, from its
+    # docs/supported_languages_and_lockfiles.md. One it reads that is missing here goes unchecked
+    # at pre-push and is still checked in CI.
+    - name: deps
+      glob:
+        - '**/package-lock.json'
+        - '**/pnpm-lock.yaml'
+        - '**/yarn.lock'
+        - '**/bun.lock'
+        - '**/requirements*.txt'
+        - '**/Pipfile.lock'
+        - '**/poetry.lock'
+        - '**/pdm.lock'
+        - '**/uv.lock'
+        - '**/pylock*.toml'
+        - '**/go.mod'
+        - '**/Cargo.lock'
+        - '**/Gemfile.lock'
+        - '**/gems.locked'
+        - '**/composer.lock'
+        - '**/pom.xml'
+        - '**/gradle.lockfile'
+        - '**/buildscript-gradle.lockfile'
+        - '**/verification-metadata.xml'
+        - '**/packages.lock.json'
+        - '**/packages.config'
+        - '**/*.deps.json'
+        - '**/pubspec.lock'
+        - '**/mix.lock'
+        - '**/renv.lock'
+        - '**/conan.lock'
+        - '**/cabal.project.freeze'
+        - '**/stack.yaml.lock'
+        - '**/osv-scanner.toml'
+        - 'scripts/check-deps.mjs'
+        - 'tools/lib/git-env.ts'
+        - 'mise.toml'
+        - 'tasks.toml'
+      run: mise run deps:check
+    - name: deps-selftest
+      glob:
+        - 'scripts/check-deps.mjs'
+        - 'tools/lib/git-env.ts'
+        - 'mise.toml'
+        - 'tasks.toml'
+      run: mise run deps:selftest
     - name: beads
       env:
         NO_COLOR: '1'
