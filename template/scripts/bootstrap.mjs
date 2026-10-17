@@ -174,6 +174,7 @@ async function selftest() {
     mkdirSync(bin)
     cpSync(SELF, join(root, 'scripts/bootstrap.mjs'))
     cpSync(join(dirname(SELF), 'doctor.mjs'), join(root, 'scripts/doctor.mjs'))
+    cpSync(join(dirname(SELF), 'hooks/_shared.mjs'), join(root, 'scripts/hooks/_shared.mjs'))
     writeFileSync(join(root, 'scripts/git-hooks.mjs'), `const MIN_GIT = [2, 20, 0]
 const { appendFileSync } = await import('node:fs'), { spawnSync } = await import('node:child_process')
 appendFileSync(process.env.STUB_LOG, 'hooks ' + process.argv.slice(2).join(' ') + '\\n')

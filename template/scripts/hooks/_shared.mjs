@@ -23,7 +23,7 @@ export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
  * The repository's trunk -- the branch checked out in the primary worktree, the base every agent
  * branch is cut from, and the target of every pull request. Renaming trunk is this one line rather
  * than a dozen scattered string literals, and the only reason a rename is cheap is that it is named
- * once: `guard-git.mjs` and `guard-unprovisioned-worktree.mjs` both import it.
+ * once: `guard-git.mjs`, `guard-unprovisioned-worktree.mjs` and `scripts/doctor.mjs` import it.
  */
 export const TRUNK = 'main'
 

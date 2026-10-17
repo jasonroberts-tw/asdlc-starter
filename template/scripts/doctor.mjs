@@ -12,8 +12,10 @@
  *   node scripts/doctor.mjs --container adds the probes of what the dev container's entrypoint set up
  *   mise run doctor:selftest            (--selftest) each probe broken once in a fixture, beside a control
  *
- * Lines start `[doctor] ok`, `[doctor] warn` or `[doctor] fail`; the Template test reads them.
- * NEEDS Node, and nothing from node_modules, so it runs when `npm ci` has failed. It reads the
+ * Lines start `[doctor] ok`, `[doctor] warn` or `[doctor] fail`, or `[doctor] skip` for a probe with
+ * nothing to ask; the Template test reads them.
+ * NEEDS Node, and nothing from node_modules, so it runs when `npm ci` has failed; the GitHub probe
+ * also needs a GitHub origin, `gh` logged in and the network, and skips without them. It reads the
  * machine, so it runs in neither the pre-push hook nor CI; its selftest runs in both.
  * A git hook runs with the PATH of whatever ran git, plus git's own exec-path, and `mise run` puts
  * every pin on the doctor's own PATH; so the node probe asks a new login shell, as a new terminal
@@ -25,6 +27,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync,
 import { tmpdir } from 'node:os'
 import { basename, delimiter, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { TRUNK } from './hooks/_shared.mjs'
 
 const SELF = fileURLToPath(import.meta.url)
 const ROOT = resolve(dirname(SELF), '..')
@@ -35,7 +38,7 @@ function sh(command, args, options = {}) {
   // A hook's GIT_DIR would point git at the hook's checkout; a GIT_CONFIG_* key is a caller's on purpose.
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_') || key.startsWith('GIT_CONFIG_')))
   const result = spawnSync(command, args, { cwd: ROOT, env, encoding: 'utf8', shell: process.platform === 'win32', ...options })
-  return { ok: !result.error && result.status === 0, out: `${result.stdout ?? ''}${result.stderr ?? ''}`.trim(), missing: result.error?.code === 'ENOENT' }
+  return { ok: !result.error && result.status === 0, out: `${result.stdout ?? ''}${result.stderr ?? ''}`.trim(), missing: result.error?.code === 'ENOENT', status: result.status }
 }
 
 /** The pin `mise.toml` gives a tool, or null. */
@@ -91,6 +94,57 @@ export function personProbes(root = ROOT, { container = false } = {}) {
   return results
 }
 
+/**
+ * The check `.github/workflows/verify.yml` reports, or null. GitHub names a workflow's check by its
+ * job's name (https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/troubleshooting-rules,
+ * "Troubleshooting required status checks", read 2026-10-16), and a job that sets no `name` by its id.
+ */
+function verifyCheck(root) {
+  const file = join(root, '.github/workflows/verify.yml')
+  // ponytail: the first job's id; a job given a `name`, or a second job to require, needs a YAML
+  // parser, and the doctor loads nothing from node_modules.
+  return (existsSync(file) && /^jobs:[ \t]*\r?\n[ \t]+([\w-]+):/m.exec(readFileSync(file, 'utf8'))?.[1]) || null
+}
+
+/**
+ * Whether GitHub holds a pull request into the trunk until verify's check passes and one approving
+ * review stands. `scripts/hooks/guard-git.mjs` and the open-pr skill count on that rule, and nothing
+ * here makes it: Deploy never calls GitHub, and on 2026-10-16 the Template's own repository answered
+ * this probe's two reads with `[]` and 404. Either a ruleset or classic branch protection can hold
+ * each half, so it reads both: the branch's active rules, which a token with Metadata read gets, and
+ * its protection, which needs Administration read and answers 404 "Branch not protected" when there
+ * is none, so any other failure there is named in the warning
+ * (https://docs.github.com/en/rest/repos/rules, "Get rules for a branch";
+ * https://docs.github.com/en/rest/branches/branch-protection, "Get branch protection";
+ * https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens;
+ * each read 2026-10-16).
+ */
+function trunkRules(root) {
+  const check = verifyCheck(root)
+  const result = (status, detail, fix) => [status, 'github', `\`${TRUNK}\` requires verify's check and an approving review`, detail, fix]
+  const origin = sh('git', ['-C', root, 'remote', 'get-url', 'origin'])
+  const repo = origin.ok && /^(?:https:\/\/(?:[^@/]+@)?|ssh:\/\/git@|git@)github\.com[:/]([^/]+\/[^/]+?)(?:\.git)?\/?$/.exec(origin.out)?.[1]
+  if (!repo) return result('skip', `origin is not on GitHub: ${origin.ok ? origin.out : 'there is no origin'}`)
+  if (!check) return result('skip', '.github/workflows/verify.yml names no job')
+  const api = (endpoint) => sh('gh', ['api', endpoint], { timeout: 15_000 })
+  const rules = api(`repos/${repo}/rules/branches/${TRUNK}`)
+  if (rules.missing) return result('skip', 'gh is not installed')
+  // gh exits 4 when it holds no token (`gh help exit-codes`), and GitHub answers 401 to a token it refuses.
+  if (rules.status === 4 || rules.out.includes('(HTTP 401)')) return result('skip', 'gh is not logged in to github.com')
+  // gh names the HTTP status of every answer GitHub gives, so a failure without one never reached it.
+  if (!rules.ok && !/\(HTTP \d{3}\)/.test(rules.out)) return result('skip', `GitHub cannot be reached: ${rules.out.split('\n')[0] || 'gh gave no answer in 15 seconds'}`)
+  const protection = api(`repos/${repo}/branches/${TRUNK}/protection`)
+  const body = (r) => { try { return r.ok ? JSON.parse(r.out) : null } catch { return null } }
+  const active = body(rules) ?? []
+  const classic = body(protection) ?? {}
+  const contexts = [...active.filter((r) => r.type === 'required_status_checks').flatMap((r) => r.parameters.required_status_checks.map((c) => c.context)), ...(classic.required_status_checks?.contexts ?? [])]
+  const approvals = [...active.filter((r) => r.type === 'pull_request').map((r) => r.parameters.required_approving_review_count), classic.required_pull_request_reviews?.required_approving_review_count]
+  const missing = [!contexts.includes(check) && `the \`${check}\` check`, !approvals.some((n) => n >= 1) && 'an approving review'].filter(Boolean)
+  if (!missing.length) return result('ok')
+  const unread = [[rules, 'its rulesets'], [protection, 'its branch protection']].filter(([r]) => !r.ok && !r.out.includes('Branch not protected'))
+  return result('warn', `no rule requires ${missing.join(' or ')}${unread.map(([r, what]) => `, and ${what} could not be read: ${/gh: .*\(HTTP \d{3}\)/.exec(r.out)?.[0] ?? r.out}`).join('')}`, `an Active branch ruleset on \`${TRUNK}\` (the repository's Settings, Rulesets) requiring a pull request with 1 approval and the \`${check}\` status check`)
+}
+
 export function probes(root = ROOT, { container = false } = {}) {
   const results = personProbes(root, { container })
   const say = (status, area, probe, detail, fix) => results.push([status, area, probe, detail, fix])
@@ -119,6 +173,8 @@ export function probes(root = ROOT, { container = false } = {}) {
   if (!sync.ok || drift.some((line) => line.startsWith('fail:'))) say('fail', 'claude code', 'plugins and installed skills match policy/skill-sources.json', drift.join('; ') || sync.out, '`mise run skills:install` shows the failure')
   else if (drift.length) say('warn', 'claude code', 'plugins and installed skills match policy/skill-sources.json', drift.join('; '), '`mise run skills:install`; a held skill is re-admitted with the add-skill skill')
   else say('ok', 'claude code', 'plugins and installed skills match policy/skill-sources.json')
+
+  results.push(trunkRules(root))
 
   if (container) {
     if (!sh(process.execPath, [join(root, 'scripts/github-app-token.mjs'), 'token']).ok) {
@@ -152,14 +208,19 @@ async function selftest() {
   after(() => rmSync(temp, { recursive: true, force: true }))
   const realGit = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim()
   let count = 0
+  const REVIEW = { type: 'pull_request', parameters: { required_approving_review_count: 1 } }
+  const CHECK = { type: 'required_status_checks', parameters: { required_status_checks: [{ context: 'gates', integration_id: 15368 }] } }
 
-  /** A scratch checkout every probe passes, with stub mise, sync and token helper; `breakIt` undoes one thing. */
+  /** A scratch checkout every probe passes, with stub mise, gh, sync and token helper; `breakIt` undoes one thing. */
   function fixture(breakIt = () => {}) {
     const root = join(temp, `case-${++count}`)
     const bin = join(root, '.stub-bin')
-    mkdirSync(join(root, 'scripts'), { recursive: true })
+    mkdirSync(join(root, 'scripts/hooks'), { recursive: true })
+    mkdirSync(join(root, '.github/workflows'), { recursive: true })
     mkdirSync(bin)
     cpSync(SELF, join(root, 'scripts/doctor.mjs'))
+    cpSync(join(dirname(SELF), 'hooks/_shared.mjs'), join(root, 'scripts/hooks/_shared.mjs'))
+    writeFileSync(join(root, '.github/workflows/verify.yml'), 'name: verify\njobs:\n  gates:\n    runs-on: ubuntu-latest\n')
     writeFileSync(join(root, 'scripts/git-hooks.mjs'), 'const MIN_GIT = [2, 20, 0]\n')
     writeFileSync(join(root, 'scripts/skill-sources.mjs'), "if (process.env.STUB_SYNC) console.log(process.env.STUB_SYNC)\n")
     writeFileSync(join(root, 'scripts/github-app-token.mjs'), 'process.exit(process.env.STUB_TOKEN_FAILS ? 1 : 0)\n')
@@ -172,16 +233,22 @@ async function selftest() {
     writeFileSync(join(bin, 'login-shell'), `#!/bin/sh\n[ "$1" = -ilc ] || exit 64\necho "profile noise v0.0.1"\n[ -f "${bin}/no-node" ] && { echo "node: command not found" >&2; exit 127; }\necho ${process.version}\n`, { mode: 0o755 })
     writeFileSync(join(bin, 'mise'), '#!/bin/sh\n[ "$1" = ls ] && printf "%s" "$STUB_MISE_MISSING"\nexit 0\n', { mode: 0o755 })
     writeFileSync(join(bin, 'git'), `#!/bin/sh\n[ "$1" = --version ] && [ -n "$STUB_GIT_VERSION" ] && { echo "git version $STUB_GIT_VERSION"; exit 0; }\nexec "${realGit}" "$@"\n`, { mode: 0o755 })
-    const env = { ...process.env, PATH: [bin, dirname(process.execPath), '/usr/bin', '/bin'].join(delimiter), GIT_CONFIG_GLOBAL: join(root, '.gitconfig'), GIT_CONFIG_SYSTEM: '/dev/null', SHELL: join(bin, 'login-shell') }
+    // `gh api <endpoint>` answers a JSON body on stdout, or anything else on stderr with an exit code.
+    writeFileSync(join(bin, 'gh'), `#!/bin/sh\ncase "$2" in */protection) out=$STUB_GH_PROTECTION ;; *) out=$STUB_GH_RULES ;; esac\ncase "$out" in [[{]*) printf '%s' "$out" ;; *) printf '%s\\n' "$out" >&2; exit "\${STUB_GH_EXIT:-1}" ;; esac\n`, { mode: 0o755 })
+    const env = {
+      ...process.env, PATH: [bin, dirname(process.execPath), '/usr/bin', '/bin'].join(delimiter), GIT_CONFIG_GLOBAL: join(root, '.gitconfig'), GIT_CONFIG_SYSTEM: '/dev/null', SHELL: join(bin, 'login-shell'),
+      STUB_GH_RULES: JSON.stringify([CHECK, REVIEW]), STUB_GH_PROTECTION: 'gh: Branch not protected (HTTP 404)',
+    }
     for (const key of Object.keys(env)) if (key.startsWith('GIT_') && !key.startsWith('GIT_CONFIG_')) delete env[key]
     const git = (...args) => spawnSync('git', ['-C', root, ...args], { env, encoding: 'utf8' })
     git('init', '--quiet')
+    git('remote', 'add', 'origin', 'https://github.com/example-owner/example-repo.git')
     git('config', '--global', 'user.email', 'doctor@example.invalid')
     for (const event of HOOK_EVENTS) git('config', `hook.asdlc-${event}.command`, `node scripts/git-hooks.mjs ${event}`)
     breakIt({ root, env, git })
     return (...args) => spawnSync(process.execPath, [join(root, 'scripts/doctor.mjs'), ...args], { cwd: root, env, encoding: 'utf8' })
   }
-  const lines = (r) => r.stdout.split('\n').filter((l) => /^\[doctor\] (warn|fail)/.test(l))
+  const lines = (r) => r.stdout.split('\n').filter((l) => /^\[doctor\] (warn|fail|skip)/.test(l))
 
   test('control: a set-up machine gets every probe ok and exits 0, on the host and in the container', () => {
     const doctor = fixture()
@@ -207,6 +274,19 @@ async function selftest() {
     ['a sync that fails', ({ env }) => { env.STUB_SYNC = 'fail: reading Claude Code\'s plugins' }, /fail claude code: .* -- fail: reading/],
     ['an App that mints no token, in the container', ({ env }) => { env.STUB_TOKEN_FAILS = '1' }, /warn container: the GitHub App mints a token/, 0, ['--container']],
     ['no commit identity, in the container', ({ git }) => git('config', '--global', '--unset', 'user.email'), /warn container: git has a commit identity/, 0, ['--container']],
+    ['a ruleset that requires no `gates` check', ({ env }) => { env.STUB_GH_RULES = JSON.stringify([REVIEW]) }, /warn github: `main` requires verify's check and an approving review -- no rule requires the `gates` check; fix: an Active branch ruleset on `main`/, 0],
+    ['branch protection that requires the check and no approving review', ({ env }) => {
+      env.STUB_GH_RULES = '[]'
+      env.STUB_GH_PROTECTION = JSON.stringify({ required_status_checks: { contexts: ['gates'] }, required_pull_request_reviews: { required_approving_review_count: 0 } })
+    }, /warn github: .* -- no rule requires an approving review; fix:/, 0],
+    ['no rule, and branch protection it cannot read', ({ env }) => { env.STUB_GH_RULES = '[]'; env.STUB_GH_PROTECTION = 'gh: Resource not accessible by integration (HTTP 403)' }, /warn github: .* -- no rule requires the `gates` check or an approving review, and its branch protection could not be read: gh: Resource not accessible by integration \(HTTP 403\); fix:/, 0],
+    ['an origin not on GitHub', ({ git }) => git('remote', 'set-url', 'origin', '/srv/origin.git'), /skip github: .* -- origin is not on GitHub: \/srv\/origin\.git$/, 0],
+    ['a verify.yml with no job', ({ root }) => writeFileSync(join(root, '.github/workflows/verify.yml'), 'name: verify\n'), /skip github: .* -- \.github\/workflows\/verify\.yml names no job$/, 0],
+    // A CI runner has its own gh in /usr/bin, so this PATH leaves the system directories out.
+    ['no gh', ({ root, env }) => { rmSync(join(root, '.stub-bin/gh')); env.PATH = [join(root, '.stub-bin'), dirname(process.execPath)].join(delimiter) }, /skip github: .* -- gh is not installed$/, 0],
+    ['gh with no token', ({ env }) => { env.STUB_GH_RULES = 'To get started with GitHub CLI, please run:  gh auth login'; env.STUB_GH_EXIT = '4' }, /skip github: .* -- gh is not logged in to github\.com$/, 0],
+    ['gh with a token GitHub refuses', ({ env }) => { env.STUB_GH_RULES = 'gh: Bad credentials (HTTP 401)' }, /skip github: .* -- gh is not logged in to github\.com$/, 0],
+    ['no network', ({ env }) => { env.STUB_GH_RULES = 'error connecting to api.github.com\ncheck your internet connection or https://githubstatus.com' }, /skip github: .* -- GitHub cannot be reached: error connecting to api\.github\.com$/, 0],
   ]) {
     test(`fails for its reason on ${name}`, () => {
       const r = fixture(breakIt)(...args)

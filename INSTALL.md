@@ -178,7 +178,38 @@ which Deploy keeps for inspection. Report what happened and ask the person befor
 because a retry needs a new empty directory and an empty origin. [scripts/README.md](scripts/README.md)
 has the rest of Deploy's contract.
 
-## 8. Hand over
+## 8. Protect `main`
+
+The Target's guards and its `open-pr` skill assume that GitHub merges a pull request into `main`
+only after verify's check passes and one approving review stands. Deploy does not set this up,
+because creating a ruleset needs a token with administration rights. The person sets it up in the
+browser after Deploy, because Deploy pushes its commit straight to `main`.
+
+Ask the person to open the repository's **Settings**, choose **Rulesets** under "Code, planning,
+and automation", and choose **New ruleset**, then **New branch ruleset**. Ask them to:
+
+1. Set the enforcement status to **Active**. A new ruleset starts as **Disabled**, and GitHub
+   does not enforce a disabled ruleset.
+2. Under **Target branches**, choose **Add a target** and include the pattern `main`.
+3. Select **Require a pull request before merging**, and require 1 approval.
+4. Select the rule that requires status checks to pass, and add the check `gates`. GitHub names a
+   workflow's check after its job, and `gates` is the one job in the Target's
+   `.github/workflows/verify.yml`.
+5. Create the ruleset.
+
+Then check that GitHub returns a `pull_request` rule and a `required_status_checks` rule for `main`:
+
+```sh
+gh api "repos/$OWNER/$REPO/rules/branches/main" --jq '.[].type'
+```
+
+The Target's doctor asks GitHub the same question at the end of every Bootstrap. It prints
+`[doctor] ok   github:` when both rules hold, either from a ruleset or from classic branch
+protection. It prints `[doctor] warn github:` when a rule is missing, and the warning names the
+missing rule. It prints `[doctor] skip github:` with the reason when it cannot ask GitHub: the
+origin is not on GitHub, `gh` is missing or not logged in, or the network is down.
+
+## 9. Hand over
 
 Tell the person:
 
