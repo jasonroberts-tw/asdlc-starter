@@ -146,6 +146,11 @@ try {
     tool_input: { command: `*** Begin Patch\n*** Add File: ${LIST}\n+# protected tests\n*** End Patch\n` },
   })
   check('a Codex patch that adds the list afresh without its lines is refused', refusedFor(patchAddOver, DROPS), why(patchAddOver))
+  const patchDotted = run({
+    tool_name: 'apply_patch', cwd: primary,
+    tool_input: { command: `*** Begin Patch\n*** Update File: ${LIST.replace('/', '/./')}\n-tests/a.test.mjs demo-x1.1.1\n*** End Patch\n` },
+  })
+  check('a Codex patch that names the list by a dotted path is read as the list', refusedFor(patchDotted, DROPS), why(patchDotted))
   const patchAdd = run({
     tool_name: 'apply_patch', cwd: primary,
     tool_input: { command: `*** Begin Patch\n*** Update File: ${LIST}\n+tests/b.test.mjs demo-x1.1.2\n*** End Patch\n` },

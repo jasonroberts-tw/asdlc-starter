@@ -43,8 +43,8 @@
  * story's branch one more to git.
  */
 import { execFileSync, spawnSync } from 'node:child_process'
-import { join } from 'node:path'
-import { editTargets, editedCheckout, gitEnv, readHookInput, readOr } from './_shared.mjs'
+import { join, resolve } from 'node:path'
+import { ROOT, editTargets, editedCheckout, gitEnv, readHookInput, readOr } from './_shared.mjs'
 
 const APPROVED = /^\*\*Status:\*\*\s*(?:Design approved|Shipped)\b/m
 
@@ -94,11 +94,9 @@ function listAfter(abs, ti) {
 }
 
 /** HEAD's paths a Codex patch takes out of the list, or null when it deletes, moves or overwrites the list wholesale. */
-function patchDrops(rel, head) {
-  const isList = (path) => {
-    const p = path.trim().replaceAll('\\', '/').toLowerCase()
-    return p === rel.toLowerCase() || p.endsWith(`/${rel.toLowerCase()}`)
-  }
+function patchDrops(listPath, head) {
+  // Resolved as `editTargets` resolves a patch's paths, so the two cannot disagree about which is the list.
+  const isList = (path) => resolve(input.cwd ?? ROOT, path).toLowerCase() === listPath.toLowerCase()
   const removed = new Set()
   const added = new Set()
   let inList = false
@@ -167,7 +165,7 @@ for (const { filePath } of editTargets(input)) {
     const patch = input.tool_name === 'apply_patch'
     const after = patch ? null : listAfter(join(root, rel), input.tool_input ?? {})
     const dropped = patch
-      ? patchDrops(rel, protectedPaths)
+      ? patchDrops(filePath, protectedPaths)
       : after === null ? [] : [...protectedPaths.keys()].filter((path) => !listed(after).has(path))
     if (dropped === null || dropped.length > 0) {
       refuse([
