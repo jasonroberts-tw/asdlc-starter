@@ -163,7 +163,7 @@ canary() {
     check 'Canary commits nothing' canary_no_commit
 }
 work_run() {
-    if ! NO_COLOR=1 bd -C /work/bob create --title 'Add a Node echo script' --type task --labels asset:product \
+    if ! NO_COLOR=1 bd -C /work/bob create --title 'Add a Node echo script' --type task --labels asset:tool \
         --body-file "$TEST_ROOT/fixtures/issue.md" --json >"$OUT/issue-created.json"; then
         cat "$OUT/issue-created.json"
         return 1

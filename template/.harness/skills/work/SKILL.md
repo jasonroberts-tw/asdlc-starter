@@ -1,6 +1,6 @@
 ---
 name: work
-description: Work one or more issues from the task store end to end - verify the premise, claim, implement and validate. Use when asked to work, pick up or finish an issue. Specify 'via-pr' to automatically create a PR when work is complete; specify 'via-merge' to automatically merge to local main when work is complete
+description: Work one or more issues from the task store end to end - verify the premise, claim, implement on the issue's track (a story test-first against its protected tests, a defect from a failing test, a small change from a green suite), review in a fresh context and validate. Use when asked to work, pick up or finish an issue. Specify 'via-pr' to automatically create a PR when work is complete; specify 'via-merge' to automatically merge to local main when work is complete
 ---
 
 # Work an issue with beads
@@ -61,7 +61,29 @@ still applies, with what was agreed standing for the issue: each part of it is a
 that does not hold goes back to the user with its evidence before anything is filed, even a part the
 session proposed itself.
 
-## 4. Implement, regenerate, gate
+## 4. Implement on the issue's track, regenerate, gate
+
+The issue's type names its track (`AGENTS.md` § Delivery workflow): a `task` under a feature is a
+story, a `bug` is a defect, a `chore` is a small change, and a `task` with no feature is a harness
+task.
+
+- **Story.** The feature's spec says `Design approved`; without that, stop. In an existing codebase,
+  `mise run gates` is green before the feature's first story; if it is not, report and wait. When
+  the story's protected tests do not exist yet, write them from the spec's test plan and commit them
+  before any implementation code. Note that commit on the issue (`bd note`), because the tests are
+  protected from it on. Then implement test-first with unit tests: red, green, refactor, running the
+  module's unit tests after each green step. Make the protected tests pass without changing them.
+- **Defect.** Reproduce it with a failing test at the lowest layer that shows it; where its cause is
+  not yet known, the `root-cause` skill finds it first. Commit that test before the fix, and note
+  the commit on the issue. Then fix the code until the test passes. A fix that needs a contract, a criterion or the
+  spec changed stops here. With the operator's confirmation, it becomes feature-track work that
+  enters at the `refine` or `design` skill.
+- **Small change.** `mise run gates` is green before anything changes; if it is not, stop and report.
+  Then make the change.
+- **Harness task.** A `task` with no feature above it, and no `asset:product` label, is worked as
+  written: its acceptance criteria stand in for a spec. A `task` with no feature that carries
+  `asset:product` is product work that skipped the feature track. Stop and ask the operator, or, in
+  an autonomous session, say so in a note and leave it open.
 
 Stage every file the change adds (`git add`) before the gates run: a new file not yet added passes
 the citations gate unread. Run `mise run gates`, the build check here.  
@@ -69,30 +91,49 @@ Run no task name `tasks.toml` does not list.
 A red gate is fixed or reported, never bypassed; where its cause is not yet known, the
 `root-cause` skill finds it first.
 
-A defect found on the way is fixed in this branch only when it sits in a file the issue already
-changes or causes an existing gate to fail. 
-One left unfixed is filed as its own issue, never folded in, and before the pull request
-opens, so the pull request's body names the new id. File it with `foundIssueCommand` in
-`policy/vocabulary.json`.
+Work found on the way that lies outside the issue's scope is filed as its own issue, never folded
+in, because a grown issue no longer matches what was planned and reviewed. File it before the pull
+request opens, so the pull request's body names the new id. File it with `foundIssueCommand` in
+`policy/vocabulary.json`. When it blocks this issue, record that dependency and stop.
+
+Stop, write the current state into a note on the issue, and report to the operator when:
+
+- a contract or a protected test looks wrong;
+- a criterion turns out ambiguous, or contradicts another;
+- one failure has outlasted `rootCauseMaxFixes` failed fixes (the `root-cause` skill § 6);
+- the work needs a module or path that another in-progress story declared;
+- the approved spec would need to change.
 
 ## 5. Rebase and gate again
 
 As `AGENTS.md` § The gate ladder says.
 
-## 6. Integrating with main
+## 6. Review in a fresh context
+
+Hand the `spec-reviewer` agent the scope (story, defect, small change or harness task), the issue
+id, the feature's spec path when there is one, the diff range `origin/main...HEAD` and step 5's gate output.
+Withhold this session's transcript, because a reviewer who reads the implementer's reasoning
+inherits its blind spots. Fix each gap it reports that lies in the issue's scope, and review again.
+Any other gap goes to the operator, who decides it. MUST NOT decide on your own that a gap is
+acceptable. In an autonomous session, such a gap goes into a note on the issue, and the issue stays
+open.
+
+## 7. Integrating with main
 
 If `via-pr` use `open-pr` skill and wait for it to finish
 If `via-merge` merge to local main. Don't push to remote main
 If neither ask the operator what they want
 
-## 7. Close with a reason
+## 8. Close with a reason
 
 Once integration is complete (PR merged or local main merged), close the issue with a reason that names the pull request or commit SHA, passed with `bd close <id> --reason-file <file>`. 
+A story's reason also says what was done, and what, if anything, was deferred. When it was its
+feature's last open story, the `review-feature` skill runs next.
 
 If you stopped for any other reason (e.g. failure, blocked) the issue stays open, with a note
 naming the commit(s), pull request if one was created, and any issue it waits on.
 
-## 8. Report
+## 9. Report
 
 Keep it short. It says what step 1 verified and where, what changed and what was
 regenerated. It ends with the issue's final state and every follow-up filed.

@@ -260,10 +260,12 @@ credential or the image.
 ### 7. Work run
 
 The test files one issue in Bob's Tracker with bd: title "Add a Node echo script", type `task`,
-label `asset:product`, and a body from `tests/template/fixtures/issue.md` whose
+label `asset:tool`, and a body from `tests/template/fixtures/issue.md` whose
 `## Acceptance Criteria` are the echo test's spec. `beads:check` asks for a type that
 `policy/vocabulary.json` lists, so a wrong one would fail the gates for a reason that has nothing to
-do with the agent. Then the test runs `claude -p "/work <id> via-merge"` in Bob's clone. The
+do with the agent. The label is a harness one because the `work` skill stops on a `task` labelled
+`asset:product` that has no feature above it: product work enters through the feature track's
+`refine` skill, which a headless run has no operator for. Then the test runs `claude -p "/work <id> via-merge"` in Bob's clone. The
 `via-pr` route needs GitHub, so it is not used.
 
 The step passes when every one of these holds:

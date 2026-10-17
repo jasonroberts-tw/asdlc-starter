@@ -28,6 +28,39 @@ given with its source, or given as a question for the subagent to check. A subag
 premise false builds on what it found, not on the brief, and names the false premise in its report:
 what it builds on a premise it knows is false is work someone later replaces.
 
+## Delivery workflow
+
+Every change moves from request to merged code on one of these tracks. Pick the track before
+starting, and state it; when it is unclear, ask the operator.
+
+| Track | Use when | Skills, in order |
+|---|---|---|
+| Feature | New or changed behaviour | `refine`, `design`, `plan-stories`, `work` for each story, `review-feature` |
+| Defect | Existing behaviour does not match its spec or acceptance criteria | `work` |
+| Small change | No change to observable behaviour, a contract or a non-functional target: a refactor, a dependency update, internal cleanup | `work` |
+| Harness task | A `task` with no feature above it that changes the harness and no product code | `work` |
+
+In a skill, MUST and MUST NOT are hard requirements. SHOULD is the default, and a departure states
+its reason in the spec or the review report. MAY is optional. When a rule does not fit the situation,
+or two rules conflict, stop and ask the operator: a rule picked silently is a decision nobody made.
+
+In an existing codebase, read its architecture documentation, its conventions and the specs under
+`specDirectory` (`policy/delivery.json`) before Design, or before the first change on the other
+tracks. New work follows existing conventions unless a decision record explains the departure.
+
+No implementation code for a feature is written before the operator approves its spec at Gate 2
+(the `design` skill), because code built on an unapproved design is rebuilt when the design moves.
+
+**Protected tests.** A functional, integration, contract or end-to-end test, or a fitness function,
+written from a spec's test plan is protected from the commit that adds it, and so is a test that
+reproduces a defect. Never modify, weaken, skip or delete one: a test changed until it passes proves
+nothing. If a protected test, or the contract behind it, looks wrong, stop, say why, and wait. Only
+the operator approves a change to one, and a changed contract changes the spec too.
+
+**New dependencies.** Before adding a third-party dependency, confirm that it exists in the official
+registry under that exact name, that it is maintained and that it is needed. Record why in the spec
+or the story's notes: a misremembered name installs whoever registered it.
+
 ## Git workflow
 
 The trunk is `main`. Agent work happens on `agent/<name>` branches cut from
@@ -80,7 +113,8 @@ A refusal saying you are isolated in a worktree is not the classifier's
 
 Decisions are recorded in markdown files and stored in `docs/decisions`
 The `should-i-adopt` skill is the current primary method for adopting a decision,
-which defines the format of the decision record.
+which defines the format of the decision record. The `design` skill writes a feature's decision
+records there too, in the same format, and the feature's spec links them.
 
 ## Every directory and document says what it is, and who wins
 

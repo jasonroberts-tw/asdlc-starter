@@ -64,6 +64,7 @@ measured without the others' work, then run
 
 ## 6. Open the pull request and watch its checks
 
+Before it opens, the `work` skill § 6 reviews your branch once for each issue the lanes carried.
 Once `open-pr` reports the merge, close each issue the lanes carried as the
 `work` skill says.
 

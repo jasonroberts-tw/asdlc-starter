@@ -19,7 +19,7 @@
   "issueTypes": [
     {
       "type": "epic",
-      "when": "A product change, whose tasks are filed under it; only the issue that opens such a change takes this type, and nothing else files one."
+      "when": "A use case big enough to need several features, such as a whole application: the feature track's epic (`AGENTS.md` § Delivery workflow), whose features the `refine` skill files under it before Design."
     },
     {
       "type": "decision",
@@ -27,7 +27,7 @@
     },
     {
       "type": "bug",
-      "when": "Something already in the repository gives a wrong result, and a command shows it: a gate passes what it should refuse or refuses what it should pass, a script fails or writes the wrong output, or a document states what the code does not do. `bd lint` asks its body for `## Steps to Reproduce` as well as `## Acceptance Criteria`."
+      "when": "Something already in the repository gives a wrong result, and a command shows it: a gate passes what it should refuse or refuses what it should pass, a script fails or writes the wrong output, or a document states what the code does not do. It runs the defect track. `bd lint` asks its body for `## Steps to Reproduce` as well as `## Acceptance Criteria`."
     },
     {
       "type": "spike",
@@ -35,15 +35,15 @@
     },
     {
       "type": "feature",
-      "when": "Adds something a person or a session cannot do here today: a new skill, agent, gate, emitter, script or check. A change to what the product does is not one: it is a product change, filed as an epic."
+      "when": "One use case of the product, one primary actor and one goal: the feature track's unit, filed by the `refine` skill under its epic if it has one, with its spec linked by `--spec-id` and its stories filed under it. A use case whose acceptance criteria name several things a user would name separately is an epic."
     },
     {
       "type": "chore",
-      "when": "Upkeep that changes no behaviour and no rule: rewording, renaming, regenerating, moving, or removing what nothing reads. A rewording that corrects a document the code contradicts is a bug."
+      "when": "Upkeep that changes no behaviour and no rule: rewording, renaming, regenerating, moving, or removing what nothing reads. It runs the small-change track. A rewording that corrects a document the code contradicts is a bug."
     },
     {
       "type": "task",
-      "when": "Everything the rows above leave: improving or extending something that exists, writing a document, or a step a person performs outside the repository."
+      "when": "A story: a slice of a feature that one session completes, filed under the feature by the `plan-stories` skill. Also everything the rows above leave: a new skill, agent, gate or script for the harness, improving or extending something that exists, writing a document, or a step a person performs outside the repository."
     }
   ],
   "issueTypesMeans": "The type every issue is filed with: each row a type `bd create -t` takes and when it applies, tried in order, the first row that fits winning, so an issue that would fit two takes the earlier (`.beads/PRIME.md` says when a type is set). The type decides what `bd lint --help` asks the body to carry, and what `bd count --by-type` and `bd list --type` separate. `mise run beads:check` refuses an issue that is not closed whose type no row names, reading the rows here and spelling none, so `story` and `milestone`, which `bd create --help` also lists, are refused; a closed issue keeps the type it closed with. Adding a row lets an issue take its type, and moving one changes which of two rows wins; removing or renaming one refuses every open issue that carries it, so retype them in the same change. Where it loses: the line between feature, chore and task stays a filer's judgement, and the order settles only an issue that fits two rows, not one that two filers read differently.",
@@ -58,7 +58,7 @@
     },
     {
       "priority": 2,
-      "when": "Planned work: what a person asked for, an epic and its tasks, and a failure that stops a workflow loudly. It is `bd`'s default."
+      "when": "Planned work: what a person asked for, an epic, its features and their stories, and a failure that stops a workflow loudly. It is `bd`'s default."
     },
     {
       "priority": 3,
