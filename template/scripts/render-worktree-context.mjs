@@ -140,8 +140,26 @@ function stamp(date) {
 const ports = await allocate(branch)
 const now = new Date()
 
+/**
+ * The primary checkout, which `git worktree list` prints first: where `main` is checked out, and
+ * where a `via-merge` finish fast-forwards it. Without git, this checkout, which is the primary one
+ * whenever the worktree script runs from there.
+ */
+function primaryCheckout() {
+  try {
+    const porcelain = execFileSync('git', ['worktree', 'list', '--porcelain'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    })
+    return porcelain.match(/^worktree (.+)$/m)?.[1] ?? ROOT
+  } catch {
+    return ROOT
+  }
+}
+
 const values = {
   WORKTREE_PATH: worktreePath,
+  PRIMARY_CHECKOUT: primaryCheckout(),
   BRANCH: branch,
   BASE_SHA: baseSha,
   TASK_REF: taskRef,

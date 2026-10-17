@@ -699,7 +699,9 @@ function render(template) {
   const files = readdirSync(root, { recursive: true })
     .filter((p) => statSync(join(root, p)).isFile())
     .sort()
-  return { code: r.status ?? 1, stderr: r.stderr ?? '', worktree, files }
+  // The renderer's own path, as Node resolves it, so a symlinked temporary directory still matches.
+  const checkout = realpathSync(join(root, 'checkout'))
+  return { code: r.status ?? 1, stderr: r.stderr ?? '', worktree, checkout, files }
 }
 
 const rendered = render(TEMPLATE_TEXT)
@@ -720,7 +722,13 @@ check(
 // Each value appears exactly as often as its placeholder does in the template. A mangled value is
 // missing from the count; one that `$&` expanded also leaves its placeholder for the check above.
 let exercised = 0
-for (const [key, value] of Object.entries({ WORKTREE_PATH: rendered.worktree, ...HOSTILE })) {
+// The scratch checkout is no git repository, so PRIMARY_CHECKOUT takes the renderer's fallback.
+const renderedValues = {
+  WORKTREE_PATH: rendered.worktree,
+  PRIMARY_CHECKOUT: rendered.checkout,
+  ...HOSTILE,
+}
+for (const [key, value] of Object.entries(renderedValues)) {
   const want = TEMPLATE_TEXT.split(`{{${key}}}`).length - 1
   if (want === 0) continue
   exercised += 1

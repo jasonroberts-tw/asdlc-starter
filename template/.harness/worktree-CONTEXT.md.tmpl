@@ -22,7 +22,7 @@ Other agents and humans are editing this repository right now, in worktrees you 
 
 - Do not checkout, switch to, or push `main`. It is checked out in another worktree and git will refuse. There is no workaround worth attempting.
 - Do not run `git worktree`, `git gc`, `git prune`, or `git reflog expire`. The object store is shared with sibling worktrees.
-- Do not read or write outside `{{WORKTREE_PATH}}`, except through the MCP server's configured in this project. Sibling worktrees are in active use by other agents.
+- Do not read or write outside `{{WORKTREE_PATH}}`, except through the MCP server's configured in this project and by Finishing's `via-merge` merge. Sibling worktrees are in active use by other agents.
 - Commit and force-push freely, to `{{BRANCH}}` only.
 - Open every pull request with the `open-pr` skill. It names `main` as the base rather than letting a tool infer one, and opens the pull request ready for review, never as a draft unless the request says draft.
 
@@ -53,7 +53,7 @@ this repository deliberately does not contain. Do not edit `tasks.toml`, `packag
 1. Run the test suite (`npm ci` first, if you have not already this session).
 2. `git fetch origin`, then `git rebase origin/main`, each as its own command (Windows PowerShell has no `&&`).
 3. Run the suite again as `AGENTS.md` § The gate ladder says.
-4. Open the PR from `{{BRANCH}}` with the `open-pr` skill. It waits for the merge, then cleans up. In the description, list: what changed; shared interfaces, schemas, or config files touched; flags added; and what you deliberately left undone.
-5. Stop. Do not merge, do not pick up follow-up work, do not open a second task.
+4. Integrate as the `work` skill was told. With `via-merge`, check that `git -C {{PRIMARY_CHECKOUT}} branch --show-current` prints `main`, then run `git -C {{PRIMARY_CHECKOUT}} merge --ff-only {{BRANCH}}`, and push nothing. Otherwise open the PR from `{{BRANCH}}` with the `open-pr` skill. It waits for the merge, then cleans up. In the description, list: what changed; shared interfaces, schemas, or config files touched; flags added; and what you deliberately left undone.
+5. Stop. Merge nothing else, do not pick up follow-up work, do not open a second task.
 
 If no person is directing this session and the merge window closes before you finish: commit what is green behind the flag, open the PR marked partial with the remaining work listed, and stop. Do not widen scope to reach a tidier stopping point. A person directing the session decides when it stops; the window does not bind them.
