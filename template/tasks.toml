@@ -126,10 +126,11 @@ run = "node scripts/bootstrap.mjs --selftest"
 ["doctor"]
 description = '''
 Probes this machine's setup and changes nothing: Git's floor, mise and its pins, the PATH's node,
-node_modules against the lockfile, the git hooks, the Tracker, and the plugins and installed skills
-against `policy/skill-sources.json`; with `--container`, the GitHub App's token and the commit
-identity. One line per probe, each warn and fail naming its fix; exits 1 on a fail. It reads the
-machine, so no hook or CI job runs it.'''
+node_modules against the lockfile, the git hooks, the Tracker, the plugins and installed skills
+against `policy/skill-sources.json`, and whether GitHub holds a pull request into `main` for verify's
+check and an approving review; with `--container`, the GitHub App's token and the commit identity.
+One line per probe, each warn and fail naming its fix, and each skip why; exits 1 on a fail. It reads
+the machine and GitHub, so no hook or CI job runs it.'''
 run = "node scripts/doctor.mjs"
 
 ["doctor:selftest"]

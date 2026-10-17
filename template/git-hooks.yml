@@ -123,12 +123,14 @@ pre-push:
     - name: doctor-selftest
       glob:
         - 'scripts/doctor.mjs'
+        - 'scripts/hooks/_shared.mjs'
         - 'tasks.toml'
       run: mise run doctor:selftest
     - name: bootstrap-selftest
       glob:
         - 'scripts/bootstrap.mjs'
         - 'scripts/doctor.mjs'
+        - 'scripts/hooks/_shared.mjs'
         - 'tasks.toml'
       run: mise run bootstrap:selftest
     - name: beads

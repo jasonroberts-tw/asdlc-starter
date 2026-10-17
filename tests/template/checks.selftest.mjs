@@ -130,7 +130,7 @@ const TEMPLATE = [resolve(dirname(fileURLToPath(import.meta.url)), '../../templa
 /** A committed clone holding the Template's sync, doctor and policy, with the checkout hook installed or not. */
 function skillsClone(t, hooked) {
   const root = scratch(t)
-  for (const file of ['scripts/skill-sources.mjs', 'scripts/doctor.mjs', 'scripts/git-hooks.mjs', 'tools/lib/policy.ts', 'tools/lib/git-env.ts']) {
+  for (const file of ['scripts/skill-sources.mjs', 'scripts/doctor.mjs', 'scripts/hooks/_shared.mjs', 'scripts/git-hooks.mjs', 'tools/lib/policy.ts', 'tools/lib/git-env.ts']) {
     mkdirSync(dirname(join(root, file)), { recursive: true })
     cpSync(join(TEMPLATE, file), join(root, file))
   }
