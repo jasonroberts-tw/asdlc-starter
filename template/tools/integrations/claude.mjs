@@ -35,7 +35,9 @@ export const claude = {
         ...match,
         hooks: group.handlers.map(({ script, timeout, statusMessage }) => ({
           type: 'command',
-          command: 'node "$CLAUDE_PROJECT_DIR"/' + script,
+          // Copilot CLI runs this file's hooks too, and its docs name no CLAUDE_PROJECT_DIR; a
+          // command that fails there denies the tool call, so git's root stands in for it.
+          command: 'node "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}"/' + script,
           timeout,
           statusMessage,
         })),

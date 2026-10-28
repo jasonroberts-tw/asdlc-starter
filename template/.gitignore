@@ -6,6 +6,7 @@
 # worktree, and `.scratch/` a session's working files.
 .claude/worktrees/
 .codex/worktrees/
+.copilot/worktrees/
 .worktree/
 .scratch/
 node_modules/

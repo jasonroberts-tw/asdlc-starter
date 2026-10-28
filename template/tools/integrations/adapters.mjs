@@ -7,9 +7,10 @@ import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { claude } from './claude.mjs'
 import { codex } from './codex.mjs'
+import { copilot } from './copilot.mjs'
 import { compare } from './formats.mjs'
 
-export const adapters = Object.fromEntries([claude, codex].map((adapter) => [adapter.id, adapter]))
+export const adapters = Object.fromEntries([claude, codex, copilot].map((adapter) => [adapter.id, adapter]))
 
 export function selectIntegrations(integrations = ['claude']) {
   if (!Array.isArray(integrations) || integrations.length === 0) {

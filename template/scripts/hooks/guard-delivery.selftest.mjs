@@ -156,6 +156,20 @@ try {
     tool_input: { command: `*** Begin Patch\n*** Update File: ${LIST}\n+tests/b.test.mjs demo-x1.1.2\n*** End Patch\n` },
   })
   check('a Codex patch that adds a line is allowed', patchAdd.code === 0, why(patchAdd))
+  // Copilot's Claude-compatible payload: Claude's tool names, Copilot's argument names.
+  const copilotAdd = run({ tool_name: 'Edit', tool_input: { path: listPath, old_str: 'demo-x1.1.1\n', new_str: 'demo-x1.1.1\ntests/b.test.mjs demo-x1.1.2\n' } })
+  check('a Copilot edit that adds a line to the list is allowed', copilotAdd.code === 0, why(copilotAdd))
+  const copilotTest = run({ tool_name: 'Edit', tool_input: { path: join(primary, 'tests', 'a.test.mjs'), old_str: 'x', new_str: 'y' } })
+  check('a Copilot edit to a listed test is refused', refusedFor(copilotTest, PROTECTED), why(copilotTest))
+  const copilotDrop = run({ tool_name: 'Edit', tool_input: { path: listPath, old_str: 'tests/a.test.mjs demo-x1.1.1\n', new_str: '' } })
+  check('a Copilot edit that drops a listed line is refused', refusedFor(copilotDrop, DROPS), why(copilotDrop))
+  const copilotCreate = run({ tool_name: 'Write', tool_input: { path: listPath, file_text: '# protected tests\n' } })
+  check('a Copilot create that drops a listed line is refused', refusedFor(copilotCreate, DROPS), why(copilotCreate))
+  const copilotPatch = run({
+    tool_name: 'Edit', cwd: primary,
+    tool_input: { input: `*** Begin Patch\n*** Update File: ${LIST}\n-tests/a.test.mjs demo-x1.1.1\n*** End Patch\n` },
+  })
+  check('a Copilot patch named Edit that drops a listed line is refused', refusedFor(copilotPatch, DROPS), why(copilotPatch))
 
   console.log('guard-delivery: Gate 2 on an agent branch')
   const wt = join(primary, '.claude', 'worktrees', 'story')

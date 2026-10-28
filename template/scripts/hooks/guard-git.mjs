@@ -162,8 +162,8 @@ function inLinkedWorktree(dir) {
   return gitDir !== common
 }
 
-/** A provisioned worktree directory under either CLI's worktrees folder. */
-const WORKTREE_PATH = /^(.*?[\\/]\.(?:claude|codex)[\\/]worktrees[\\/][^\\/]+)(?:[\\/]|$)/
+/** A provisioned worktree directory under any CLI's worktrees folder. */
+const WORKTREE_PATH = /^(.*?[\\/]\.(?:claude|codex|copilot)[\\/]worktrees[\\/][^\\/]+)(?:[\\/]|$)/
 
 /** The path with symlinks resolved, or the path itself if it cannot be resolved. */
 function realpathOr(p) {

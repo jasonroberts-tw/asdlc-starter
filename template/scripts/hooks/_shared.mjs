@@ -40,9 +40,39 @@ export async function readHookInput() {
   const text = Buffer.concat(chunks).toString('utf8').trim()
   if (text === '') return null
   try {
-    return JSON.parse(text)
+    return claudeFields(JSON.parse(text))
   } catch {
     return null
+  }
+}
+
+/**
+ * The payload in the field names these hooks read.
+ *
+ * GitHub Copilot CLI's Claude-compatible payload gives Claude's tool names but keeps its own argument
+ * names, and it names a patch `Edit`. Read as it comes, every Copilot edit would name no file, and
+ * every edit guard would let it through. So each Claude field is filled from Copilot's name when it
+ * is absent: `file_path` from `path`, `content` from `file_text`, and `old_string` and `new_string`
+ * from `old_str` and `new_str`. Patch text becomes the `apply_patch` payload Codex sends. A Claude
+ * or Codex payload reads as it did before.
+ */
+function claudeFields(input) {
+  if (input === null || typeof input !== 'object' || input.tool_name === 'Bash' || input.tool_name === 'apply_patch') return input
+  const ti = input.tool_input
+  const patch = typeof ti === 'string' ? ti : ti?.input ?? ti?.patch
+  if (typeof patch === 'string' && patch.trimStart().startsWith('*** Begin Patch')) {
+    return { ...input, tool_name: 'apply_patch', tool_input: { command: patch } }
+  }
+  if (ti === null || typeof ti !== 'object') return input
+  return {
+    ...input,
+    tool_input: {
+      ...ti,
+      file_path: ti.file_path ?? ti.path,
+      content: ti.content ?? ti.file_text,
+      old_string: ti.old_string ?? ti.old_str,
+      new_string: ti.new_string ?? ti.new_str,
+    },
   }
 }
 
@@ -61,7 +91,8 @@ export function editTargets(input) {
       text: [ti.content, ti.file_text, ti.new_string].find((t) => typeof t === 'string') ?? '',
     }]
   }
-  // Codex sends a patch in tool_input.command. Every source and move destination is an edit.
+  // Codex sends a patch in tool_input.command, as `claudeFields` puts Copilot's. Every source and
+  // move destination is an edit.
   const targets = []
   let current
   for (const line of (typeof ti.command === 'string' ? ti.command : '').split(/\r?\n/)) {

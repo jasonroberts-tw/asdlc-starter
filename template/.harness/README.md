@@ -20,7 +20,8 @@ local edits to generated files cause a conflict, so rendering cannot silently di
 |---|---|
 | `claude` | `CLAUDE.md`, `.claude/skills/`, `.claude/agents/*.md`, `.claude/settings.json`, `.claude/worktree-CONTEXT.md.tmpl` |
 | `codex` | `.agents/skills/`, `.codex/agents/*.toml`, `.codex/config.toml` |
-| `claude,codex` | Both sets of files, with shared definitions as their source |
+| `copilot` | `.github/skills/`, `.github/agents/*.agent.md`, `.github/hooks/harness.json` |
+| Several, such as `claude,copilot` | Each selected set of files, with shared definitions as their source |
 
 ## Source format
 
@@ -28,8 +29,9 @@ Skills keep their standard `SKILL.md` frontmatter and supporting directory conte
 and executable file modes are preserved. Each agent
 has a filename matching its `name`, and single-line string fields for `name` and `description`.
 Use plain strings, YAML single-quoted strings, or JSON double-quoted strings. Agent bodies are
-instructions; model and tool settings belong in the adapter when a CLI needs them, except `tools`,
-which Claude's adapter passes through to limit a read-only agent and Codex's ignores.
+instructions; model and tool settings belong in the adapter when a CLI needs them, except `tools`.
+The Claude and Copilot adapters pass `tools` through to limit a read-only agent, and Codex's ignores
+it. Copilot reads Claude's tool names there.
 
 CLI substitutions are `{{CLI_WORKTREE_CREATE}}`, `{{CLI_WORKTREE_REMOVE}}`, and
 `{{CLI_WORKTREE_ISOLATION}}`. Unknown CLI substitutions are errors. Briefing substitutions such
@@ -38,21 +40,38 @@ as `{{WORKTREE_PATH}}` are filled later by `scripts/render-worktree-context.mjs`
 Hook groups have an `event` and a nonempty `handlers` array. Each handler specifies `script`,
 `timeout`, and `statusMessage`. The script must exist under `scripts/hooks/`.
 
-| Logical event | Claude mapping | Codex mapping |
-|---|---|---|
-| `before-command` | `PreToolUse`, `Bash` | `PreToolUse`, `Bash` |
-| `before-edit` | `PreToolUse`, `Write|Edit` | `PreToolUse`, `apply_patch` |
-| `worktree-create` | `WorktreeCreate` | Unsupported; reported when rendering |
-| `worktree-remove` | `WorktreeRemove` | Unsupported; reported when rendering |
+| Logical event | Claude mapping | Codex mapping | Copilot mapping |
+|---|---|---|---|
+| `before-command` | `PreToolUse`, `Bash` | `PreToolUse`, `Bash` | `PreToolUse`, `Bash` |
+| `before-edit` | `PreToolUse`, `Write|Edit` | `PreToolUse`, `apply_patch` | `PreToolUse`, `Write|Edit` |
+| `worktree-create` | `WorktreeCreate` | Unsupported; reported when rendering | Unsupported; reported when rendering |
+| `worktree-remove` | `WorktreeRemove` | Unsupported; reported when rendering | Unsupported; reported when rendering |
 
 Codex's Bash hook payload is compatible with the command guards. The edit guard extracts every
 path from Codex's patch payload, including deletion and move targets. Hook commands resolve from
 the git root, so starting Codex in a subdirectory does not change the script location.
 
-Codex worktree workflows run the provision script with `HARNESS_CLI=codex`; it creates
-`.codex/worktrees/` and a briefing without Claude-specific worktree isolation text. With both
-integrations selected, the script defaults to Claude unless `HARNESS_CLI` selects Codex. Cleanup
-happens from the primary checkout after the worktree session ends.
+Copilot's hooks use its Claude-compatible format, which the PascalCase `PreToolUse` key selects.
+Copilot then maps its own tools to Claude's names and sends Claude's payload fields. It keeps its own
+argument names, such as `path` and `file_text`, and it calls a patch `Edit`.
+`scripts/hooks/_shared.mjs` reads both sets of names, so the edit guards see every Copilot edit.
+Copilot differs from Claude in three ways:
+
+- A `PreToolUse` hook that exits with any code other than 0 or 2 denies the call, where Claude lets
+  it run.
+- Copilot shows no status message for a hook.
+- Copilot also runs the hooks in `.claude/settings.json`, so with `claude,copilot` each guard runs
+  twice in a Copilot session.
+
+Copilot reads `AGENTS.md` itself, so it needs no entry point. It also reads `.claude/skills/` and
+`.agents/skills/`. When two of those directories hold a skill with the same name, the copy in
+`.github/skills/` wins, so Copilot gets its own text beside another CLI's.
+
+Codex and Copilot worktree workflows run the provision script with `HARNESS_CLI` set to their name.
+The script creates `.codex/worktrees/` or `.copilot/worktrees/`, with a briefing that has no
+Claude-specific worktree isolation text. With several integrations selected, the script defaults to
+the first in alphabetical order unless `HARNESS_CLI` selects another. Cleanup happens from the
+primary checkout after the worktree session ends.
 
 ## Rendering and checking
 
@@ -71,8 +90,9 @@ when selection changes; conflicting local files and destination symlinks are ref
 also finds stale owned files. An I/O failure during writing can leave partial output; this is a
 local renderer, not an atomic filesystem transaction.
 
-The renderer does not install CLIs or change machine Bootstrap. Start Codex in the Target project
-and complete its project and hook trust review before relying on the configured hooks.
+The renderer does not install CLIs or change machine Bootstrap. Start Codex or Copilot in the Target
+project and complete its project and hook trust review before relying on the configured hooks.
+Copilot loads a folder's hooks only after the folder is trusted.
 
 ## Official Codex formats
 
@@ -80,3 +100,13 @@ The adapter follows [skill discovery](https://learn.chatgpt.com/docs/build-skill
 [custom agent TOML](https://learn.chatgpt.com/docs/agent-configuration/subagents), and
 [hook configuration and payloads](https://learn.chatgpt.com/docs/hooks). These documented formats
 take precedence over older CLI assumptions. A Codex release supporting these formats is required.
+
+## Official Copilot formats
+
+The Copilot adapter follows [skills](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/create-skills),
+[custom agents](https://docs.github.com/en/copilot/reference/custom-agents-configuration),
+[CLI hooks and payloads](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-hooks-reference),
+and [custom instructions](https://docs.github.com/en/copilot/reference/custom-instructions-support).
+The hooks reference documents no argument names for Copilot's tools. The names
+`scripts/hooks/_shared.mjs` reads were not checked against a live payload. Skill precedence was
+checked with `copilot skill list` in Copilot CLI 1.0.94.
