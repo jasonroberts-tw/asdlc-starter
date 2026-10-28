@@ -57,6 +57,8 @@ test('Deploy publishes one clean main commit and a Tracker that Bob can hydrate'
   assert.ok(existsSync(join(f.target, '.claude/settings.json')))
   assert.ok(!existsSync(join(f.target, '.codex')))
   assert.equal(JSON.parse(readFileSync(join(f.target, 'package.json'))).name, values.projectName)
+  // MIT requires the notice in every copy, so the Target's notice must match this repository's LICENSE.
+  assert.ok(readFileSync(join(f.target, 'THIRD_PARTY_NOTICES'), 'utf8').endsWith(readFileSync(join(source, 'LICENSE'), 'utf8')))
   assert.equal(readFileSync(join(f.target, '.beads/config.yaml'), 'utf8'),
     readFileSync(join(source, 'template/.beads/config.yaml'), 'utf8').replace(/<REPLACE_ME:trackerRemote>/g, f.origin))
   const bob = join(f.directory, 'bob')
