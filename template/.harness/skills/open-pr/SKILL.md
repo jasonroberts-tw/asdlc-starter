@@ -1,6 +1,6 @@
 ---
 name: open-pr
-description: Open a pull request from an agent branch and see it through to its merge - test the merge against the open pull requests, watch with one watcher, act on each outcome of verify and the pull-request reviewer, enable auto-merge once both pass, wait for the merge, and remove the worktree and branch after it. Use whenever a session opens a pull request
+description: Open a pull request from an agent branch and see it through to its merge - test the merge against the open pull requests, watch its checks with one watcher, fix a failing check up to a bound, wait for a person's approval and the merge, and remove the worktree and branch after it. Use whenever a session opens a pull request
 ---
 
 # Open a pull request
@@ -73,22 +73,23 @@ not a failing check, and starting it again is not a second watcher.
 
 ## 6. Act on the outcome
 
-The watcher ends once all checks have finished. The reviewer's
-verdict is its review on the head (`gh pr view <number> --json reviews`); the run each names gives
-every reason.
+The watcher ends once all checks have finished. For a failing check, find its cause with the
+`root-cause` skill, push the fix, and watch again from step 5. After `rootCauseMaxFixes`
+(`policy/agent-workflows.json`) pushes that each left a check failing, push no further fix: hand the
+caller each failing check and each fix, and leave the pull request open, because a loop with no
+bound spends without converging.
 
-Resolve the issues identified and push the fixes. Repeat until all checks pass.
+Once every check passes, the pull request waits for the approving review `main`'s ruleset requires,
+from a person. Never approve it from a session, and never merge it before that review, since either
+would merge code no person read.
 
 ## 7. Wait for the merge, then clean up
 
-Run in the background, as the one watcher:
+Run in the background, as the one watcher. It exits 0 once the pull request has merged, and 1 once
+it has closed unmerged:
 
-    env PR=<number> node scripts/pr-review.mjs wait
-
-It prints one line, and exits 0 once the pull request has merged. It exits 1 once it has closed
-unmerged.
+    until s=$(gh pr view <number> --json state --jq .state) && [ "$s" != OPEN ]; do sleep 60; done; [ "$s" = MERGED ]
 
 Once it has merged, leave and remove the worktree: {{CLI_WORKTREE_REMOVE}}.
 
-Hand the caller the pull request's number and URL, whether it merged, in `wait`'s line or the words
-of its review
+Hand the caller the pull request's number and URL, whether it merged, and the words of any review.

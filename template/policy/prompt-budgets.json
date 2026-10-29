@@ -18,8 +18,8 @@
       "means": "The most words `.harness/agents/skill-assessor.md` may hold: the read-only agent the `add-skill` skill hands an outside skill to, loaded into each admission. Set to its count on 2026-10-12, when it was written; a raise edits this value and says why here."
     },
     ".harness/agents/fan-out-work.md": {
-      "words": 681,
-      "means": "The most words `.harness/agents/fan-out-work.md` may hold: the agent a session runs as to dispatch ready issues to parallel lanes, loaded whenever one does. Set to its count on 2026-10-11; raised to 681 on 2026-10-16 for the review its branch takes before the pull request opens; a raise edits this value and says why here."
+      "words": 705,
+      "means": "The most words `.harness/agents/fan-out-work.md` may hold: the agent a session runs as to dispatch ready issues to parallel lanes, loaded whenever one does. Set to its count on 2026-10-11; raised to 681 on 2026-10-16 for the review its branch takes before the pull request opens; a raise edits this value and says why here. Raised to 705 on 2026-10-29, when § 2 capped a sweep at `fanOutMaxLanes` lanes, because a loop with no cap is one a client's governance forbids."
     },
     ".harness/skills/add-skill/SKILL.md": {
       "words": 709,
@@ -34,8 +34,8 @@
       "means": "The most words `.harness/skills/work/SKILL.md` may hold: the skill a session loads to work an issue from its claim to its close. Retains the workflow's existing ceiling after its rename to `work`; raised to 1495 on 2026-10-16 for the delivery workflow's three tracks, its stop conditions and the fresh-context review; a raise edits this value and says why here. Raised to 1496 on 2026-10-16, when a story and a defect list their protected tests in `protectedTestsFile` in place of a note on the issue."
     },
     ".harness/skills/open-pr/SKILL.md": {
-      "words": 596,
-      "means": "The most words `.harness/skills/open-pr/SKILL.md` may hold: the skill every pull request is opened with, loaded by each session that opens one. Set to its count on 2026-10-11; a raise edits this value and says why here."
+      "words": 667,
+      "means": "The most words `.harness/skills/open-pr/SKILL.md` may hold: the skill every pull request is opened with, loaded by each session that opens one. Set to its count on 2026-10-11; a raise edits this value and says why here. Raised to 667 on 2026-10-29, when § 6 bounded the fixes to a failing check by `rootCauseMaxFixes` and said a person gives the approval, and § 7 replaced a script the Template never held with the `gh` loop that waits for the merge."
     },
     ".harness/skills/root-cause/SKILL.md": {
       "words": 644,
@@ -51,7 +51,7 @@
     },
     "AGENTS.md": {
       "words": 2313,
-      "means": "The most words `AGENTS.md` may hold: the rules every session loads natively or through Claude's instruction entry point. Set to its count on 2026-10-11, and raised to 2244 on 2026-10-16 for § Delivery workflow, whose track table, protected-test rule and dependency rule hold in every session whatever skill is loaded; a raise edits this value and says why here. Raised to 2313 on 2026-10-16, when § Delivery workflow named the hook that enforces Gate 2 and protected tests, the list that protects a test, and how the operator lifts a protection, and § Git workflow said an agent branch names its issue, which the hook reads."
+      "means": "The most words `AGENTS.md` may hold: the rules every session loads natively or through Claude's instruction entry point. Set to its count on 2026-10-11, and raised to 2244 on 2026-10-16 for § Delivery workflow, whose track table, protected-test rule and dependency rule hold in every session whatever skill is loaded; a raise edits this value and says why here. Raised to 2313 on 2026-10-16, when § Delivery workflow named the hook that enforces Gate 2 and protected tests, the list that protects a test, and how the operator lifts a protection, and § Git workflow said an agent branch names its issue, which the hook reads. Raised to 2344 on 2026-10-29, when the dependency rule added the licence check and sent a copyleft licence, or none, to the operator."
     },
     ".harness/CLAUDE.md": {
       "words": 2,

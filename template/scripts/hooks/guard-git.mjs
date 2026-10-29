@@ -41,9 +41,8 @@
  *
  * IT ALSO GUARDS THE APPROVAL AND THE MERGE PAST THE CHECKS, EVERYWHERE. It refuses `gh pr review`
  * with `--approve`, since the trunk's ruleset merges a head once `verify` passes and one approving
- * review stands, and the reviewer approves every head off the high-risk floor itself: an approval a
- * session gives is a person's approval of a head on the floor, and a session holding any login with
- * write could otherwise give it. It refuses `gh pr merge` with `--admin`,
+ * review stands, and that review is a person's: a session holding any login with write could
+ * otherwise give it. It refuses `gh pr merge` with `--admin`,
  * which merges with the maintainer's bypass of the checks the ruleset requires, the same head's
  * merge. From a worktree it lets `gh pr merge --auto` through, which only
  * asks GitHub to merge once the ruleset is met, and refuses any other merge as the orchestrator's
@@ -652,17 +651,16 @@ const PR_BASE =
   `branch, a setting outside this repository that need not be the trunk.`
 const PR_MERGE =
   `a merge now is the orchestrator's call, not a task agent's. From a worktree, ask GitHub to merge ` +
-  `once \`verify\` has passed and the reviewer has approved: ` +
+  `once \`verify\` has passed and a person has approved: ` +
   `\`gh pr merge <number> --auto --rebase\`.`
 const PR_ADMIN =
   `\`--admin\` merges past the checks the trunk's ruleset requires, with the maintainer's bypass: ` +
-  `that is a person's merge of a head on the high-risk floor, never an agent's (AGENTS.md § Git ` +
-  `workflow). Enable auto-merge with \`--auto\`, and leave a head on the floor to a person.`
+  `that is a person's merge, never an agent's. Enable auto-merge with \`--auto\`, which waits for ` +
+  `the checks and a person's approval.`
 const PR_APPROVE =
-  `an approval is the person's gate on a head on the high-risk floor, never an agent's (AGENTS.md ` +
-  `§ Git workflow): the trunk's ruleset merges once one approving review stands, and the reviewer ` +
-  `approves a head off the floor itself. Leave a head on the floor to a person; a comment or a ` +
-  `request for changes is not an approval.`
+  `an approval is a person's review of the change, never an agent's: the trunk's ruleset merges ` +
+  `once one approving review stands, so an agent's approval would merge code no person read. A ` +
+  `comment or a request for changes is not an approval.`
 
 /**
  * Does this `gh pr create` explicitly target the trunk?

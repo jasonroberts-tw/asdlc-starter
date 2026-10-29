@@ -17,7 +17,7 @@ and the row is corrected.
 
 | Record | What it holds |
 |---|---|
-| `agent-workflows.json` | The bounds on how a session works: how many fixes that each failed it makes against one failure before it stops and reports (`rootCauseMaxFixes`, which the `root-cause` skill reads). |
+| `agent-workflows.json` | The bounds on how a session works: how many fixes that each failed it makes against one failure before it stops and reports (`rootCauseMaxFixes`, which the `root-cause` and `open-pr` skills read), and how many lanes one sweep dispatches (`fanOutMaxLanes`, which the `fan-out-work` agent reads). |
 | `delivery.json` | The bindings of the delivery workflow: where a feature's spec lives (`specDirectory`), and the least mutation score Review accepts on changed code (`mutationMinScore`). |
 | `prompt-budgets.json` | `promptWordBudgets`, one table keyed by each prompt's path, each row the most words the prompt may hold and the reason for the figure. |
 | `skill-sources.json` | Which outside skills every machine gets: the Claude Code plugins enabled (`claudeEnabledPlugins`) and their pinned marketplaces (`claudePluginMarketplaces`), the skills the `skills` CLI installs at a pinned commit with the assessment and audit each passed (`installedSkills`), and the bounds on admission and sync (`skillAssessorMaxFindings`, `skillAuditTimeoutSeconds`). |

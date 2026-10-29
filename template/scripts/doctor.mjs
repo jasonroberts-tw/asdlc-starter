@@ -113,7 +113,9 @@ function verifyCheck(root) {
  * this probe's two reads with `[]` and 404. Either a ruleset or classic branch protection can hold
  * each half, so it reads both: the branch's active rules, which a token with Metadata read gets, and
  * its protection, which needs Administration read and answers 404 "Branch not protected" when there
- * is none, so any other failure there is named in the warning
+ * is none, so any other failure there is named in the warning. A rule missing from both answers
+ * fails, because without it GitHub merges an agent's pull request that no person reviewed; it only
+ * warns when a read was refused, since the rule may stand in the half it could not read
  * (https://docs.github.com/en/rest/repos/rules, "Get rules for a branch";
  * https://docs.github.com/en/rest/branches/branch-protection, "Get branch protection";
  * https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens;
@@ -142,7 +144,7 @@ function trunkRules(root) {
   const missing = [!contexts.includes(check) && `the \`${check}\` check`, !approvals.some((n) => n >= 1) && 'an approving review'].filter(Boolean)
   if (!missing.length) return result('ok')
   const unread = [[rules, 'its rulesets'], [protection, 'its branch protection']].filter(([r]) => !r.ok && !r.out.includes('Branch not protected'))
-  return result('warn', `no rule requires ${missing.join(' or ')}${unread.map(([r, what]) => `, and ${what} could not be read: ${/gh: .*\(HTTP \d{3}\)/.exec(r.out)?.[0] ?? r.out}`).join('')}`, `an Active branch ruleset on \`${TRUNK}\` (the repository's Settings, Rulesets) requiring a pull request with 1 approval and the \`${check}\` status check`)
+  return result(unread.length ? 'warn' : 'fail', `no rule requires ${missing.join(' or ')}${unread.map(([r, what]) => `, and ${what} could not be read: ${/gh: .*\(HTTP \d{3}\)/.exec(r.out)?.[0] ?? r.out}`).join('')}`, `an Active branch ruleset on \`${TRUNK}\` (the repository's Settings, Rulesets) requiring a pull request with 1 approval and the \`${check}\` status check`)
 }
 
 export function probes(root = ROOT, { container = false } = {}) {
@@ -274,11 +276,11 @@ async function selftest() {
     ['a sync that fails', ({ env }) => { env.STUB_SYNC = 'fail: reading Claude Code\'s plugins' }, /fail claude code: .* -- fail: reading/],
     ['an App that mints no token, in the container', ({ env }) => { env.STUB_TOKEN_FAILS = '1' }, /warn container: the GitHub App mints a token/, 0, ['--container']],
     ['no commit identity, in the container', ({ git }) => git('config', '--global', '--unset', 'user.email'), /warn container: git has a commit identity/, 0, ['--container']],
-    ['a ruleset that requires no `gates` check', ({ env }) => { env.STUB_GH_RULES = JSON.stringify([REVIEW]) }, /warn github: `main` requires verify's check and an approving review -- no rule requires the `gates` check; fix: an Active branch ruleset on `main`/, 0],
+    ['a ruleset that requires no `gates` check', ({ env }) => { env.STUB_GH_RULES = JSON.stringify([REVIEW]) }, /fail github: `main` requires verify's check and an approving review -- no rule requires the `gates` check; fix: an Active branch ruleset on `main`/],
     ['branch protection that requires the check and no approving review', ({ env }) => {
       env.STUB_GH_RULES = '[]'
       env.STUB_GH_PROTECTION = JSON.stringify({ required_status_checks: { contexts: ['gates'] }, required_pull_request_reviews: { required_approving_review_count: 0 } })
-    }, /warn github: .* -- no rule requires an approving review; fix:/, 0],
+    }, /fail github: .* -- no rule requires an approving review; fix:/],
     ['no rule, and branch protection it cannot read', ({ env }) => { env.STUB_GH_RULES = '[]'; env.STUB_GH_PROTECTION = 'gh: Resource not accessible by integration (HTTP 403)' }, /warn github: .* -- no rule requires the `gates` check or an approving review, and its branch protection could not be read: gh: Resource not accessible by integration \(HTTP 403\); fix:/, 0],
     ['an origin not on GitHub', ({ git }) => git('remote', 'set-url', 'origin', '/srv/origin.git'), /skip github: .* -- origin is not on GitHub: \/srv\/origin\.git$/, 0],
     ['a verify.yml with no job', ({ root }) => writeFileSync(join(root, '.github/workflows/verify.yml'), 'name: verify\n'), /skip github: .* -- \.github\/workflows\/verify\.yml names no job$/, 0],
