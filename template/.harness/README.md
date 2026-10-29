@@ -65,7 +65,23 @@ Copilot differs from Claude in three ways:
 
 Copilot reads `AGENTS.md` itself, so it needs no entry point. It also reads `.claude/skills/` and
 `.agents/skills/`. When two of those directories hold a skill with the same name, the copy in
-`.github/skills/` wins, so Copilot gets its own text beside another CLI's.
+`.github/skills/` wins, so Copilot gets its own text beside another CLI's. The adapter rewrites an
+agent's `tools` line into Copilot's aliases, such as `read` and `search`, because VS Code maps
+Claude's tool names only for an agent under `.claude/agents/`.
+
+The `copilot` selection also serves Copilot in VS Code, which reads the same `.github/` files. VS
+Code has two agent runtimes. Its Copilot runtime handles hooks as Copilot CLI does. Its Local runtime
+differs from both Copilot CLI and Claude:
+
+- It ignores `matcher`, so every hook runs for every tool call, reads included.
+- It sends VS Code's own tool names and argument names, such as `replace_string_in_file` with
+  `filePath`.
+- A hook that exits with any code other than 0 or 2 shows a warning and lets the call run.
+
+So each hook script decides which tools it judges. The edit guards judge only the edit tools that
+`scripts/hooks/_shared.mjs` lists, so a `read_file` of a protected test passes. The two command
+guards judge any call that carries a `command`. `guard-unprovisioned-worktree.mjs` judges every call,
+so in the Local runtime it refuses reads in an unprovisioned worktree too.
 
 Codex and Copilot worktree workflows run the provision script with `HARNESS_CLI` set to their name.
 The script creates `.codex/worktrees/` or `.copilot/worktrees/`, with a briefing that has no
@@ -92,7 +108,7 @@ local renderer, not an atomic filesystem transaction.
 
 The renderer does not install CLIs or change machine Bootstrap. Start Codex or Copilot in the Target
 project and complete its project and hook trust review before relying on the configured hooks.
-Copilot loads a folder's hooks only after the folder is trusted.
+Copilot loads a folder's hooks only after the folder is trusted. VS Code's hooks are in preview.
 
 ## Official Codex formats
 
@@ -107,6 +123,13 @@ The Copilot adapter follows [skills](https://docs.github.com/en/copilot/how-tos/
 [custom agents](https://docs.github.com/en/copilot/reference/custom-agents-configuration),
 [CLI hooks and payloads](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-hooks-reference),
 and [custom instructions](https://docs.github.com/en/copilot/reference/custom-instructions-support).
-The hooks reference documents no argument names for Copilot's tools. The names
+The hooks reference documents no argument names for Copilot's tools. The Copilot CLI names
 `scripts/hooks/_shared.mjs` reads were not checked against a live payload. Skill precedence was
 checked with `copilot skill list` in Copilot CLI 1.0.94.
+
+For VS Code it follows [agent hooks](https://code.visualstudio.com/docs/copilot/customization/hooks),
+[custom agents](https://code.visualstudio.com/docs/copilot/customization/custom-agents), and
+[agent skills](https://code.visualstudio.com/docs/copilot/customization/agent-skills). Those pages
+name neither the Local runtime's tools nor their arguments. The Local runtime's tool names, argument
+names, hook locations, exit codes, and Claude tool-name mapping were read from VS Code 1.143's own
+code and its built-in Copilot extension 0.71.0.

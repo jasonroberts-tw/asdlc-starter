@@ -125,14 +125,15 @@ partway through. The credential helper answers only for github.com, so the token
 another host. A Target project Deployed without an App still gets the container, but its work is
 pushed from the host.
 
-### One harness source for Claude Code, Codex and GitHub Copilot CLI
+### One harness source for Claude Code, Codex and GitHub Copilot
 
 Skills, agents and hook declarations live once, under `.harness/`. `render-integrations.mjs` renders
-them into each CLI's native format. Claude Code gets `.claude/`. Codex gets `.codex/` with
-`.agents/skills/`. GitHub Copilot CLI gets `.github/skills/`, `.github/agents/` and
-`.github/hooks/harness.json`. A team can use any of the CLIs, or several, without keeping copies of
-the rules that drift apart. The renderer records which files it owns. It refuses to overwrite a local edit to a generated
-file, so rendering cannot silently discard someone's change. Its `--check` flag reports drift
+them into each tool's native format. Claude Code gets `.claude/`. Codex gets `.codex/` with
+`.agents/skills/`. GitHub Copilot gets `.github/skills/`, `.github/agents/` and
+`.github/hooks/harness.json`, which both Copilot CLI and Copilot in VS Code read. A team can use any
+of the tools, or several, without keeping copies of the rules that drift apart. The renderer records
+which files it owns. It refuses to overwrite a local edit to a generated file, so rendering cannot
+silently discard someone's change. Its `--check` flag reports drift
 without writing.
 
 ### Rules with one home, and constants with their reasons
@@ -203,9 +204,10 @@ conflicting local files, and supports `--check` with the same selection to verif
 writing. From a deployed Target project, invoke `node scripts/render-integrations.mjs` instead.
 
 Codex uses `.codex/` for configuration and agents, and `.agents/skills/` for skill discovery.
-GitHub Copilot CLI uses `.github/skills/`, `.github/agents/` and `.github/hooks/harness.json`, and
-reads `AGENTS.md` itself. Neither CLI has a worktree lifecycle hook, so the renderer reports those
-two hooks as unsupported, and their workflows run the shared worktree script. See the
+GitHub Copilot uses `.github/skills/`, `.github/agents/` and `.github/hooks/harness.json`, in Copilot
+CLI and in VS Code, and reads `AGENTS.md` itself. Neither Codex nor Copilot has a worktree lifecycle
+hook, so the renderer reports those two hooks as unsupported, and their workflows run the shared
+worktree script. See the
 [source and format guide](template/.harness/README.md) for details.
 
 Run the adapter tests with `mise run integrations:selftest` from `template/`, after installing the

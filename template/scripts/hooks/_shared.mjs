@@ -47,49 +47,70 @@ export async function readHookInput() {
 }
 
 /**
- * The payload in the field names these hooks read.
- *
- * GitHub Copilot CLI's Claude-compatible payload gives Claude's tool names but keeps its own argument
- * names, and it names a patch `Edit`. Read as it comes, every Copilot edit would name no file, and
- * every edit guard would let it through. So each Claude field is filled from Copilot's name when it
- * is absent: `file_path` from `path`, `content` from `file_text`, and `old_string` and `new_string`
- * from `old_str` and `new_str`. Patch text becomes the `apply_patch` payload Codex sends. A Claude
- * or Codex payload reads as it did before.
+ * Every name a hook payload gives a tool that writes files: Claude's, which GitHub Copilot CLI's
+ * Claude-compatible payload uses too; the patch tool Codex and VS Code share; and VS Code's own.
+ * VS Code's Local agent ignores `matcher` and runs every hook for every tool, so its reads reach the
+ * edit guards too, and a `read_file` of a protected test must not count as an edit to it. A tool
+ * missing here is never judged an edit.
  */
-function claudeFields(input) {
-  if (input === null || typeof input !== 'object' || input.tool_name === 'Bash' || input.tool_name === 'apply_patch') return input
-  const ti = input.tool_input
-  const patch = typeof ti === 'string' ? ti : ti?.input ?? ti?.patch
-  if (typeof patch === 'string' && patch.trimStart().startsWith('*** Begin Patch')) {
-    return { ...input, tool_name: 'apply_patch', tool_input: { command: patch } }
-  }
-  if (ti === null || typeof ti !== 'object') return input
+const EDIT_TOOLS = new Set([
+  'Write', 'Edit', 'MultiEdit', 'apply_patch',
+  'create_file', 'replace_string_in_file', 'multi_replace_string_in_file', 'insert_edit_into_file', 'edit_notebook_file',
+])
+
+/** One edit's arguments in Claude's names, each filled from Copilot CLI's or VS Code's when absent. */
+function claudeArgs(args) {
   return {
-    ...input,
-    tool_input: {
-      ...ti,
-      file_path: ti.file_path ?? ti.path,
-      content: ti.content ?? ti.file_text,
-      old_string: ti.old_string ?? ti.old_str,
-      new_string: ti.new_string ?? ti.new_str,
-    },
+    ...args,
+    file_path: args.file_path ?? args.path ?? args.filePath,
+    content: args.content ?? args.file_text,
+    old_string: args.old_string ?? args.old_str ?? args.oldString,
+    new_string: args.new_string ?? args.new_str ?? args.newString,
   }
 }
 
 /**
- * The file path a Write/Edit call is aimed at, from either spelling of the payload.
+ * The payload in the field names these hooks read.
  *
- * `tool_input.file_path` is the documented field; the text is `content` on Write and `new_string` on
- * Edit. Both are read because a Write to a path that does not exist yet has no file on disk to
- * inspect, and the incoming TEXT is then the only evidence available.
+ * Copilot CLI's Claude-compatible payload gives Claude's tool names with Copilot's argument names,
+ * and calls a patch `Edit`. VS Code gives its own tool names with `filePath`, `oldString` and
+ * `newString`, a list of `replacements` for an edit to several files, and a patch's text in `input`.
+ * Read as they come, those edits name no file, and every edit guard lets them through. So each
+ * edit's arguments take Claude's names (`claudeArgs`), and patch text becomes the `apply_patch`
+ * payload Codex sends. A Claude or Codex payload reads as it did before.
+ */
+function claudeFields(input) {
+  if (input === null || typeof input !== 'object' || !EDIT_TOOLS.has(input.tool_name)) return input
+  const ti = input.tool_input
+  const patch = typeof ti === 'string' ? ti : ti?.command ?? ti?.input ?? ti?.patch
+  if (typeof patch === 'string' && patch.trimStart().startsWith('*** Begin Patch')) {
+    return { ...input, tool_name: 'apply_patch', tool_input: { command: patch } }
+  }
+  if (ti === null || typeof ti !== 'object') return input
+  const args = claudeArgs(ti)
+  if (Array.isArray(ti.replacements)) {
+    args.replacements = ti.replacements.filter((r) => r !== null && typeof r === 'object').map(claudeArgs)
+  }
+  return { ...input, tool_input: args }
+}
+
+/**
+ * The files an edit tool's call writes, each with the text it writes there, or none for any other
+ * tool.
+ *
+ * `tool_input.file_path` is the documented field; the text is `content` on Write, `new_string` on
+ * Edit, and `code` on VS Code's `insert_edit_into_file`. The text is read because a Write to a path
+ * that does not exist yet has no file on disk to inspect, and the incoming TEXT is then the only
+ * evidence available. VS Code's `multi_replace_string_in_file` names a file in each replacement.
  */
 export function editTargets(input) {
   const ti = input?.tool_input ?? {}
-  if (input?.tool_name !== 'apply_patch') {
-    return [{
-      filePath: typeof ti.file_path === 'string' ? ti.file_path : null,
-      text: [ti.content, ti.file_text, ti.new_string].find((t) => typeof t === 'string') ?? '',
-    }]
+  if (!EDIT_TOOLS.has(input?.tool_name)) return []
+  if (input.tool_name !== 'apply_patch') {
+    return (Array.isArray(ti.replacements) ? ti.replacements : [ti]).map((args) => ({
+      filePath: typeof args.file_path === 'string' ? args.file_path : null,
+      text: [args.content, args.new_string, args.code].find((t) => typeof t === 'string') ?? '',
+    }))
   }
   // Codex sends a patch in tool_input.command, as `claudeFields` puts Copilot's. Every source and
   // move destination is an edit.

@@ -7,7 +7,7 @@
 | `adapters.mjs` | Registry, selection validation, CLI substitutions, and active integration |
 | `claude.mjs` | Claude skill locations, agent format, entry points, and hook mapping |
 | `codex.mjs` | Codex skill locations, TOML agents, hooks, and unsupported-event reporting |
-| `copilot.mjs` | GitHub Copilot CLI skill locations, agent profiles, hooks, and unsupported-event reporting |
+| `copilot.mjs` | GitHub Copilot skill locations, agent profiles and tool aliases, hooks, and unsupported-event reporting, for Copilot CLI and VS Code |
 | `formats.mjs` | Deterministic serialization and shared Markdown metadata |
 | `render.mjs` | Dependency-free in-memory rendering API |
 | `write.mjs` | Ownership preflight, writing, stale output removal, and read-only checks |

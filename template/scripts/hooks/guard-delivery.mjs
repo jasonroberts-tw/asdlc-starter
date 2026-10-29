@@ -79,10 +79,15 @@ function listed(text) {
   return map
 }
 
-/** The list as a Write or an Edit leaves it, or null when its payload cannot say. */
-function listAfter(abs, ti) {
+/**
+ * The list as a Write or an Edit leaves it, or null when its payload cannot say. An edit to several
+ * files applies only its replacements for `filePath`, the path that named the list.
+ */
+function listAfter(abs, ti, filePath) {
   if (typeof ti.content === 'string') return ti.content
-  const edits = Array.isArray(ti.edits) ? ti.edits : [ti]
+  const edits = Array.isArray(ti.edits)
+    ? ti.edits
+    : Array.isArray(ti.replacements) ? ti.replacements.filter((r) => r.file_path === filePath) : [ti]
   let text = readOr(abs)
   for (const { old_string: from, new_string: to, replace_all: all } of edits) {
     if (typeof from !== 'string' || typeof to !== 'string') return null
@@ -163,7 +168,7 @@ for (const { filePath } of editTargets(input)) {
   }
   if (rel.toLowerCase() === listFile.toLowerCase() && protectedPaths.size > 0) {
     const patch = input.tool_name === 'apply_patch'
-    const after = patch ? null : listAfter(join(root, rel), input.tool_input ?? {})
+    const after = patch ? null : listAfter(join(root, rel), input.tool_input ?? {}, filePath)
     const dropped = patch
       ? patchDrops(filePath, protectedPaths)
       : after === null ? [] : [...protectedPaths.keys()].filter((path) => !listed(after).has(path))

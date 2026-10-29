@@ -82,12 +82,16 @@ test('Copilot renders .github skills, agent profiles, and Claude-compatible comm
   assert.equal(warnings.length, 2)
   assert.ok(warnings.every((warning) => warning.includes('copilot') && warning.includes('worktree')))
   const assessor = files.get('.github/agents/skill-assessor.agent.md')
-  assert.ok(assessor.includes('name: skill-assessor') && assessor.includes('tools: Read, Grep, Glob'))
+  assert.ok(assessor.includes('name: skill-assessor') && assessor.includes('tools: read, search\n'))
   assert.ok(files.has('.github/skills/root-cause/LICENSE'))
   assert.ok(files.get('.github/skills/work/SKILL.md').includes('HARNESS_CLI=copilot'))
   assert.ok(!files.get('.github/skills/work/SKILL.md').includes('EnterWorktree'))
   assert.ok(!files.get('.github/skills/open-pr/SKILL.md').includes('ExitWorktree'))
   assert.ok([...files.keys()].every((file) => /^\.github\/(?:skills\/|agents\/|hooks\/harness\.json$)/.test(file)))
+  const source = copySource()
+  const agent = join(source, '.harness/agents/skill-assessor.md')
+  writeFileSync(agent, read(source, '.harness/agents/skill-assessor.md').replace('tools: Read, Grep, Glob', 'tools: Read, Frobnicate'))
+  assert.throws(() => renderIntegrations({ root: source, integrations: ['copilot'] }), /No Copilot alias for agent tool Frobnicate/)
 })
 
 test('every adapter coexists and output does not depend on selection order', () => {
@@ -212,7 +216,7 @@ test('Codex patches check every edited, deleted, added, and moved generated file
   }
 })
 
-test('Copilot edits, creations, and patches named Edit reach the generated-file guard', () => {
+test('Copilot CLI and VS Code edits reach the generated-file guard, and reads do not', () => {
   const dir = target()
   mkdirSync(join(dir, 'scripts/hooks'), { recursive: true })
   for (const file of ['_shared.mjs', 'block-generated-edit.mjs']) {
@@ -227,17 +231,39 @@ test('Copilot edits, creations, and patches named Edit reach the generated-file 
     input: JSON.stringify({ cwd: join(dir, 'subdir'), tool_name, tool_input }),
     encoding: 'utf8',
   })
-  const control = run('Edit', { path: join(dir, 'ordinary.js'), old_str: 'hand', new_str: 'still hand' })
-  assert.equal(control.status, 0, control.stderr)
+  // VS Code's Local agent ignores matchers, so its reads reach this hook too.
   for (const [tool, input] of [
+    ['Edit', { path: join(dir, 'ordinary.js'), old_str: 'hand', new_str: 'still hand' }],
+    ['replace_string_in_file', { filePath: join(dir, 'ordinary.js'), oldString: 'hand', newString: 'still hand' }],
+    ['read_file', { filePath: join(dir, 'generated.js'), startLine: 1, endLine: 1 }],
+    ['mcp_files_read', { file_path: join(dir, 'generated.js') }],
+    ['run_in_terminal', { command: 'cat generated.js', explanation: 'read it' }],
+  ]) {
+    const control = run(tool, input)
+    assert.equal(control.status, 0, tool + ' ' + control.stderr)
+  }
+  for (const [tool, input] of [
+    // Copilot CLI's Claude-compatible payload.
     ['Edit', { path: join(dir, 'generated.js'), old_str: 'GENERATED', new_str: 'edited' }],
     ['Write', { path: join(dir, 'generated.js'), file_text: 'replaced\n' }],
     ['Write', { path: join(dir, 'new.js'), file_text: banner }],
     ['Edit', { input: '*** Begin Patch\n*** Update File: ../generated.js\n@@\n-old\n+new\n*** End Patch' }],
     ['Edit', '*** Begin Patch\n*** Delete File: ../generated.js\n*** End Patch'],
+    // VS Code's own tools.
+    ['replace_string_in_file', { filePath: join(dir, 'generated.js'), oldString: 'GENERATED', newString: 'edited' }],
+    ['create_file', { filePath: join(dir, 'new.js'), content: banner }],
+    ['insert_edit_into_file', { filePath: join(dir, 'generated.js'), code: '// ...existing code...\nx\n', explanation: 'add x' }],
+    ['multi_replace_string_in_file', {
+      explanation: 'two files',
+      replacements: [
+        { filePath: join(dir, 'ordinary.js'), oldString: 'hand', newString: 'still hand' },
+        { filePath: join(dir, 'generated.js'), oldString: 'GENERATED', newString: 'edited' },
+      ],
+    }],
+    ['apply_patch', { input: '*** Begin Patch\n*** Update File: ' + join(dir, 'generated.js') + '\n@@\n-old\n+new\n*** End Patch', explanation: 'patch' }],
   ]) {
     const result = run(tool, input)
-    assert.equal(result.status, 2, JSON.stringify(input) + ' ' + result.stderr)
+    assert.equal(result.status, 2, tool + ' ' + JSON.stringify(input) + ' ' + result.stderr)
     assert.match(result.stderr, /generator.*do not edit by hand/i)
   }
 })

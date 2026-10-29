@@ -1,14 +1,31 @@
-/** GitHub Copilot CLI's native skills, agents, and command hooks; prevents Claude-shaped inert config.
+/** GitHub Copilot's native skills, agents, and command hooks, for Copilot CLI and for VS Code;
+ * prevents Claude-shaped inert config.
  * Called by renderIntegrations. Formats follow the official references in .harness/README.md.
  * Needs no CLI or network. Worktree lifecycle events are explicitly reported as unsupported.
  */
 import { generatedMarkdown, json } from './formats.mjs'
 
-// PascalCase `PreToolUse` selects Claude's payload and matcher names. Copilot maps its own tools to
-// them: bash and powershell to Bash, create to Write, edit and apply_patch to Edit.
+// PascalCase `PreToolUse` selects Claude's payload and matcher names. Copilot CLI maps its own tools
+// to them: bash and powershell to Bash, create to Write, edit and apply_patch to Edit. VS Code's
+// Local agent reads this file too, but ignores `matcher` and sends its own tool names, so each hook
+// script decides for itself which tools it judges.
 const matchers = {
   'before-command': 'Bash',
   'before-edit': 'Write|Edit',
+}
+
+// Copilot's tool aliases for Claude's tool names. Copilot CLI accepts either, but VS Code maps
+// Claude's names only for an agent under .claude/agents, and drops a name it does not know.
+const toolAliases = {
+  Bash: 'execute', Read: 'read', Edit: 'edit', Write: 'edit', Grep: 'search', Glob: 'search',
+  Task: 'agent', WebFetch: 'web', WebSearch: 'web', TodoWrite: 'todo',
+}
+
+function copilotTools(tools, file) {
+  return [...new Set(tools.split(',').map((name) => {
+    if (!Object.hasOwn(toolAliases, name.trim())) throw new Error('No Copilot alias for agent tool ' + name.trim() + ': ' + file)
+    return toolAliases[name.trim()]
+  }))].join(', ')
 }
 
 export const copilot = {
@@ -24,7 +41,8 @@ export const copilot = {
     CLI_WORKTREE_ISOLATION: '',
   },
   agent(agent, source, file) {
-    return ['.github/agents/' + agent.name + '.agent.md', generatedMarkdown(source, file)]
+    const text = agent.tools === undefined ? source : source.replace(/^tools:.*$/m, 'tools: ' + copilotTools(agent.tools, file))
+    return ['.github/agents/' + agent.name + '.agent.md', generatedMarkdown(text, file)]
   },
   hooks(groups) {
     const PreToolUse = []

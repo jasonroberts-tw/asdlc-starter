@@ -170,6 +170,24 @@ try {
     tool_input: { input: `*** Begin Patch\n*** Update File: ${LIST}\n-tests/a.test.mjs demo-x1.1.1\n*** End Patch\n` },
   })
   check('a Copilot patch named Edit that drops a listed line is refused', refusedFor(copilotPatch, DROPS), why(copilotPatch))
+  // VS Code's Local agent: its own tool names and arguments, and no matcher, so reads arrive too.
+  const vscodeRead = run({ tool_name: 'read_file', tool_input: { filePath: join(primary, 'tests', 'a.test.mjs'), startLine: 1, endLine: 9 } })
+  check('a VS Code read of a listed test is allowed', vscodeRead.code === 0, why(vscodeRead))
+  const vscodeTest = run({ tool_name: 'replace_string_in_file', tool_input: { filePath: join(primary, 'tests', 'a.test.mjs'), oldString: 'x', newString: 'y' } })
+  check('a VS Code edit to a listed test is refused', refusedFor(vscodeTest, PROTECTED), why(vscodeTest))
+  const vscodeDrop = run({ tool_name: 'replace_string_in_file', tool_input: { filePath: listPath, oldString: 'tests/a.test.mjs demo-x1.1.1\n', newString: '' } })
+  check('a VS Code edit that drops a listed line is refused', refusedFor(vscodeDrop, DROPS), why(vscodeDrop))
+  const multi = (...replacements) => run({ tool_name: 'multi_replace_string_in_file', tool_input: { explanation: 'several', replacements } })
+  const otherFile = { filePath: join(primary, 'src', 'x.mjs'), oldString: 'tests/a.test.mjs demo-x1.1.1\n', newString: '' }
+  const multiAdd = multi(otherFile, { filePath: listPath, oldString: 'demo-x1.1.1\n', newString: 'demo-x1.1.1\ntests/b.test.mjs demo-x1.1.2\n' })
+  check("a VS Code edit to several files applies only the list's replacements to the list", multiAdd.code === 0, why(multiAdd))
+  const multiTest = multi(otherFile, { filePath: join(primary, 'tests', 'a.test.mjs'), oldString: 'x', newString: 'y' })
+  check('a VS Code edit to several files that touches a listed test is refused', refusedFor(multiTest, PROTECTED), why(multiTest))
+  const vscodePatch = run({
+    tool_name: 'apply_patch', cwd: primary,
+    tool_input: { input: `*** Begin Patch\n*** Update File: ${listPath}\n-tests/a.test.mjs demo-x1.1.1\n*** End Patch\n`, explanation: 'patch' },
+  })
+  check('a VS Code patch that drops a listed line is refused', refusedFor(vscodePatch, DROPS), why(vscodePatch))
 
   console.log('guard-delivery: Gate 2 on an agent branch')
   const wt = join(primary, '.claude', 'worktrees', 'story')
