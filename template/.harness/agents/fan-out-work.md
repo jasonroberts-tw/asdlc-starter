@@ -26,6 +26,8 @@ files each will touch, not the titles:
 | Same generated file | two issues each change an input of one emitter | accept it: separate lanes, and regenerate that file after each merge |
 
 An issue whose premise you cannot verify from the checkout is not dispatched; note why on the issue.
+Dispatch at most `fanOutMaxLanes` lanes (`policy/agent-workflows.json`), because each lane is a
+session that spends on its own; the rest wait for the next sweep.
 
 Write the partition down before you claim anything: one row per lane, with its issues, the files
 each touches, the overlap kind and the anchor. Claiming is the first step another session or a
