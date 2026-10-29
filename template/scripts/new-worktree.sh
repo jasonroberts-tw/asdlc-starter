@@ -38,7 +38,7 @@ if [ -n "$SLUG" ]; then NAME="${TASK_REF}-${SLUG}"; else NAME="$TASK_REF"; fi
 # `<primary>/.git`, so stripping that suffix gives the primary working tree from anywhere.
 REPO_ROOT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
 # Worktrees live inside the selected CLI's worktrees folder. Claude uses its native location;
-# Codex and Copilot invoke this script explicitly. HARNESS_CLI overrides the recorded selection when
+# Codex, Copilot and OpenCode invoke this script explicitly. HARNESS_CLI overrides the recorded selection when
 # several integrations are deployed. Each folder is gitignored to prevent phantom gitlinks.
 HARNESS_CLI="$(node "$REPO_ROOT/tools/integrations/adapters.mjs" "$REPO_ROOT")"
 export HARNESS_CLI

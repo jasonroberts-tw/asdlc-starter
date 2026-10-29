@@ -9,8 +9,9 @@ import { claude } from './claude.mjs'
 import { codex } from './codex.mjs'
 import { copilot } from './copilot.mjs'
 import { compare } from './formats.mjs'
+import { opencode } from './opencode.mjs'
 
-export const adapters = Object.fromEntries([claude, codex, copilot].map((adapter) => [adapter.id, adapter]))
+export const adapters = Object.fromEntries([claude, codex, copilot, opencode].map((adapter) => [adapter.id, adapter]))
 
 export function selectIntegrations(integrations = ['claude']) {
   if (!Array.isArray(integrations) || integrations.length === 0) {

@@ -7,6 +7,7 @@
 .claude/worktrees/
 .codex/worktrees/
 .copilot/worktrees/
+.opencode/worktrees/
 .worktree/
 .scratch/
 node_modules/

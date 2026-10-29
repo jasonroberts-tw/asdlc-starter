@@ -30,8 +30,8 @@ Ask for these values:
 - **`OWNER`**: the GitHub account or organization that will own the repository. Default:
   `gh api user --jq .login`.
 - **`REPO`**: the repository name. Default: the last segment of `TARGET`.
-- **`INTEGRATIONS`**: a comma-separated list of `claude`, `codex` and `copilot`, such as
-  `claude,copilot`. Default: `claude`.
+- **`INTEGRATIONS`**: a comma-separated list of `claude`, `codex`, `copilot` and `opencode`, such
+  as `claude,copilot`. Default: `claude`.
 
 ```sh
 test ! -e "$TARGET" || test -z "$(ls -A "$TARGET")"   # refuse an existing, non-empty directory

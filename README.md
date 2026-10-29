@@ -125,16 +125,17 @@ partway through. The credential helper answers only for github.com, so the token
 another host. A Target project Deployed without an App still gets the container, but its work is
 pushed from the host.
 
-### One harness source for Claude Code, Codex and GitHub Copilot
+### One harness source for Claude Code, Codex, GitHub Copilot and OpenCode
 
 Skills, agents and hook declarations live once, under `.harness/`. `render-integrations.mjs` renders
 them into each tool's native format. Claude Code gets `.claude/`. Codex gets `.codex/` with
 `.agents/skills/`. GitHub Copilot gets `.github/skills/`, `.github/agents/` and
-`.github/hooks/harness.json`, which both Copilot CLI and Copilot in VS Code read. A team can use any
-of the tools, or several, without keeping copies of the rules that drift apart. The renderer records
-which files it owns. It refuses to overwrite a local edit to a generated file, so rendering cannot
-silently discard someone's change. Its `--check` flag reports drift
-without writing.
+`.github/hooks/harness.json`, which both Copilot CLI and Copilot in VS Code read. OpenCode gets
+`.opencode/skills/`, `.opencode/agents/` and, for OpenCode 1 and OpenCode 2 each, a plugin that runs
+the same hook scripts. A team can use any of the tools, or several, without keeping copies of the
+rules that drift apart. The renderer records which files it owns. It refuses to overwrite a local
+edit to a generated file, so rendering cannot silently discard someone's change. Its `--check` flag
+reports drift without writing.
 
 ### Rules with one home, and constants with their reasons
 
@@ -172,7 +173,8 @@ To have an agent walk you through it, including the GitHub repository and App, p
 
 The Target must be an empty git repository with an empty `origin`. Deploy needs Node, git, a git
 identity, and the Template's pinned bd. It installs no npm packages. Add
-`--integrations codex`, `--integrations copilot` or a list such as `--integrations claude,copilot`
+`--integrations codex`, `--integrations copilot`, `--integrations opencode` or a list such as
+`--integrations claude,copilot`
 to select the integrations; Claude is the default. See [Deploy's contract](plans/template-test-plan.md#what-the-template-test-requires-of-deploy)
 for the values file and [implementation notes](plans/deploy-plan.md) for failure handling.
 
@@ -196,6 +198,7 @@ node template/scripts/render-integrations.mjs --integrations claude ../target-pr
 node template/scripts/render-integrations.mjs --integrations codex ../target-project
 node template/scripts/render-integrations.mjs --integrations claude,codex ../target-project
 node template/scripts/render-integrations.mjs --integrations claude,copilot ../target-project
+node template/scripts/render-integrations.mjs --integrations opencode ../target-project
 ```
 
 Choose one command. Claude is the default when `--integrations` is omitted. The Target directory
@@ -205,9 +208,12 @@ writing. From a deployed Target project, invoke `node scripts/render-integration
 
 Codex uses `.codex/` for configuration and agents, and `.agents/skills/` for skill discovery.
 GitHub Copilot uses `.github/skills/`, `.github/agents/` and `.github/hooks/harness.json`, in Copilot
-CLI and in VS Code, and reads `AGENTS.md` itself. Neither Codex nor Copilot has a worktree lifecycle
-hook, so the renderer reports those two hooks as unsupported, and their workflows run the shared
-worktree script. See the
+CLI and in VS Code, and reads `AGENTS.md` itself. OpenCode uses `.opencode/skills/` and
+`.opencode/agents/`, and reads `AGENTS.md` itself. It runs no hook commands, so a plugin runs the
+hook scripts before its tool calls: `.opencode/plugins/harness.js` in OpenCode 1, and
+`.opencode/plugins/harness-v2/` in OpenCode 2. None of Codex, Copilot and OpenCode has a worktree
+lifecycle hook, so the renderer reports those two hooks as unsupported, and their workflows run the
+shared worktree script. See the
 [source and format guide](template/.harness/README.md) for details.
 
 Run the adapter tests with `mise run integrations:selftest` from `template/`, after installing the

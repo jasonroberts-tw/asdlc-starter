@@ -14,11 +14,12 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { chmodSync, copyFileSync, cpSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { after, test } from 'node:test'
 import { parse } from 'smol-toml'
 import { SCRATCH_GIT_ENV } from '../lib/git-env.ts'
 import { adapters } from './adapters.mjs'
+import { markdown } from './formats.mjs'
 import { renderIntegrations } from './render.mjs'
 import { writeIntegrations } from './write.mjs'
 
@@ -94,13 +95,43 @@ test('Copilot renders .github skills, agent profiles, and Claude-compatible comm
   assert.throws(() => renderIntegrations({ root: source, integrations: ['copilot'] }), /No Copilot alias for agent tool Frobnicate/)
 })
 
+test('OpenCode renders .opencode skills, agents with permission rules, and a plugin per version that runs the hooks', () => {
+  const { files, warnings } = renderIntegrations({ root: ROOT, integrations: ['opencode'] })
+  for (const file of ['.opencode/plugins/harness.js', '.opencode/plugins/harness-v2/server.js']) {
+    const plugin = files.get(file)
+    assert.ok(['guard-git', 'guard-unprovisioned-worktree', 'block-generated-edit', 'guard-delivery'].every((script) => plugin.includes('scripts/hooks/' + script + '.mjs')), file)
+    assert.ok(!plugin.includes('worktree-create') && !plugin.includes('worktree-remove'), file)
+  }
+  assert.ok(!files.get('.opencode/plugins/harness.js').includes('export default'), 'OpenCode 1 loads every export as a plugin function')
+  assert.equal(warnings.length, 2)
+  assert.ok(warnings.every((warning) => warning.includes('opencode') && warning.includes('worktree')))
+  const assessor = files.get('.opencode/agents/skill-assessor.md')
+  assert.ok(assessor.startsWith('---\ndescription: "Reads an outside skill'))
+  assert.ok(assessor.includes('\npermission:\n  "*": deny\n  read: allow\n  grep: allow\n  glob: allow\n---\n'))
+  assert.ok(!/^(?:name|tools):/m.test(assessor.split('\n---\n')[0]))
+  assert.ok(!files.get('.opencode/agents/spec-reviewer.md').split('\n---\n')[0].includes('permission:'))
+  for (const [file, text] of files) {
+    if (file.endsWith('/SKILL.md')) assert.ok(markdown(text, file).description.length <= 1024, 'OpenCode skips a skill whose description is longer: ' + file)
+  }
+  assert.ok(files.has('.opencode/skills/root-cause/LICENSE'))
+  assert.ok(files.get('.opencode/skills/work/SKILL.md').includes('HARNESS_CLI=opencode'))
+  assert.ok(!files.get('.opencode/skills/work/SKILL.md').includes('EnterWorktree'))
+  assert.ok(!files.get('.opencode/skills/open-pr/SKILL.md').includes('ExitWorktree'))
+  assert.ok([...files.keys()].every((file) => /^\.opencode\/(?:skills\/|agents\/|plugins\/harness\.js$|plugins\/harness-v2\/server\.js$)/.test(file)))
+  const source = copySource()
+  const agent = join(source, '.harness/agents/skill-assessor.md')
+  writeFileSync(agent, read(source, '.harness/agents/skill-assessor.md').replace('tools: Read, Grep, Glob', 'tools: Read, Frobnicate'))
+  assert.throws(() => renderIntegrations({ root: source, integrations: ['opencode'] }), /No OpenCode permission for agent tool Frobnicate/)
+})
+
 test('every adapter coexists and output does not depend on selection order', () => {
-  const first = renderIntegrations({ root: ROOT, integrations: ['claude', 'codex', 'copilot'] })
-  const second = renderIntegrations({ root: ROOT, integrations: ['copilot', 'codex', 'claude', 'codex'] })
+  const first = renderIntegrations({ root: ROOT, integrations: ['claude', 'codex', 'copilot', 'opencode'] })
+  const second = renderIntegrations({ root: ROOT, integrations: ['opencode', 'copilot', 'codex', 'claude', 'codex'] })
   assert.deepEqual([...first.files], [...second.files])
   assert.ok(first.files.has('.claude/settings.json'))
   assert.ok(first.files.has('.codex/config.toml'))
   assert.ok(first.files.has('.github/hooks/harness.json'))
+  assert.ok(first.files.has('.opencode/plugins/harness.js'))
 })
 
 test('another adapter can declare its native output paths without changing the writer', () => {
@@ -268,6 +299,54 @@ test('Copilot CLI and VS Code edits reach the generated-file guard, and reads do
   }
 })
 
+/**
+ * A rendered OpenCode plugin's check before a tool call, started as its OpenCode version starts it for
+ * a session at `directory`: `(tool, args) => Promise`, which rejects with the reason a hook refused.
+ */
+async function opencodeGuard(dir, file, directory) {
+  const module = await import(pathToFileURL(join(dir, file)).href)
+  if (module.default) {
+    assert.match(module.default.id, /^harness-hooks-[0-9a-f]{12}$/)
+    const hooks = {}
+    await module.default.setup({ location: { directory }, tool: { hook: async (name, callback) => { hooks[name] = callback } } })
+    return async (tool, input) => hooks['execute.before']({ tool, sessionID: 'session', id: 'call', input })
+  }
+  const hooks = await module.HarnessHooks({ directory, worktree: dir })
+  return async (tool, args) => hooks['tool.execute.before']({ tool, sessionID: 'session', callID: 'call' }, { args })
+}
+
+for (const [version, plugin, names] of [
+  ['OpenCode 1', '.opencode/plugins/harness.js', { shell: 'bash', patch: 'apply_patch', path: 'filePath' }],
+  ['OpenCode 2', '.opencode/plugins/harness-v2/server.js', { shell: 'shell', patch: 'patch', path: 'path' }],
+]) test(version + "'s plugin runs the edit and command guards on its own tool calls, and not on reads", async () => {
+  const dir = copySource()
+  assert.equal(spawnSync('git', ['init', '-q', dir], { env: SCRATCH_GIT_ENV }).status, 0)
+  writeIntegrations({ root: dir, target: dir, integrations: ['opencode'] })
+  const banner = '// GENERATED by tools/example.mjs; do not edit by hand.\n'
+  writeFileSync(join(dir, 'generated.js'), banner)
+  writeFileSync(join(dir, 'ordinary.js'), '// hand-maintained\n')
+  mkdirSync(join(dir, 'subdir'))
+  // OpenCode starts the plugin with the session's directory, here a subdirectory of the checkout.
+  const call = await opencodeGuard(dir, plugin, join(dir, 'subdir'))
+  for (const [tool, args] of [
+    ['read', { [names.path]: join(dir, 'generated.js') }],
+    ['edit', { [names.path]: '../ordinary.js', oldString: 'hand', newString: 'still hand' }],
+    [names.shell, { command: 'pwd' }],
+  ]) await call(tool, args)
+  for (const [tool, args] of [
+    ['edit', { [names.path]: join(dir, 'generated.js'), oldString: 'GENERATED', newString: 'edited' }],
+    ['write', { [names.path]: '../new.js', content: banner }],
+    [names.patch, { patchText: '*** Begin Patch\n*** Update File: ../generated.js\n@@\n-old\n+new\n*** End Patch' }],
+    ['edit', { [names.path]: join(dir, plugin), oldString: 'HOOKS', newString: 'NONE' }],
+  ]) await assert.rejects(call(tool, args), /generator.*do not edit by hand/i, tool + ' ' + JSON.stringify(args))
+  await assert.rejects(call(names.shell, { command: 'gh pr review 1 --approve', workdir: '..' }), /approv/i)
+  // A worktree under .opencode/worktrees/ holds its own copy, and only the nearest copy judges.
+  mkdirSync(dirname(join(dir, 'nested', plugin)), { recursive: true })
+  writeFileSync(join(dir, 'nested', plugin), '')
+  const outer = await opencodeGuard(dir, plugin, join(dir, 'nested'))
+  await outer('edit', { [names.path]: join(dir, 'generated.js'), oldString: 'GENERATED', newString: 'edited' })
+})
+
 test('source changes update both integrations and preserve binary assets and executable modes', () => {
   const source = copySource()
   const dir = target()
@@ -313,9 +392,14 @@ const provisioned = {
     skills: '.github/skills',
     hookCommands: (dir) => JSON.parse(read(dir, '.github/hooks/harness.json')).hooks.PreToolUse.map(({ command }) => command),
   },
+  opencode: {
+    skills: '.opencode/skills',
+    // No hook commands: each version's plugin runs the hook scripts itself.
+    plugins: { '.opencode/plugins/harness.js': 'bash', '.opencode/plugins/harness-v2/server.js': 'shell' },
+  },
 }
 
-for (const [cli, { skills, hookCommands }] of Object.entries(provisioned)) test(cli + ' hooks resolve from a subdirectory and its worktrees use the shared provisioner', () => {
+for (const [cli, { skills, hookCommands, plugins = {} }] of Object.entries(provisioned)) test(cli + ' hooks resolve from a subdirectory and its worktrees use the shared provisioner', async () => {
   const dir = target()
   cpSync(ROOT, dir, {
     recursive: true,
@@ -339,12 +423,15 @@ for (const [cli, { skills, hookCommands }] of Object.entries(provisioned)) test(
   git('remote', 'add', 'origin', origin)
   git('push', '-q', 'origin', 'main')
   mkdirSync(join(dir, 'subdirectory'))
-  for (const command of hookCommands(dir)) {
+  for (const command of hookCommands?.(dir) ?? []) {
     const hook = spawnSync('sh', ['-c', command], {
       cwd: join(dir, 'subdirectory'), env, encoding: 'utf8',
       input: JSON.stringify({ cwd: join(dir, 'subdirectory'), tool_name: 'Bash', tool_input: { command: 'pwd' } }),
     })
     assert.equal(hook.status, 0, command + ' ' + hook.stderr)
+  }
+  for (const [plugin, shell] of Object.entries(plugins)) {
+    await (await opencodeGuard(dir, plugin, join(dir, 'subdirectory')))(shell, { command: 'pwd' })
   }
   const provision = read(dir, skills + '/work/SKILL.md')
     .match(new RegExp('`(HARNESS_CLI=' + cli + ' [^`]+)`'))[1]

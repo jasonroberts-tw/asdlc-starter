@@ -818,6 +818,8 @@ console.log('citation scanner selftest\n')
     '.agents/skills/fixture/SKILL.md',
     '.github/skills/fixture/SKILL.md',
     '.github/agents/fixture.agent.md',
+    '.opencode/skills/fixture/SKILL.md',
+    '.opencode/agents/fixture.md',
     '.harness/skills/fixture/SKILL.md',
     '.beads/formulas/fixture.formula.toml',
     '.beads/PRIME.md',
