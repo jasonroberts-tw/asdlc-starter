@@ -695,7 +695,7 @@ const TEMPLATE_TEXT = readFileSync(
   'utf8',
 )
 const HOSTILE = { BRANCH: 'agent/b&r\\$&', BASE_SHA: 's&h\\$$a', TASK_REF: 't&sk\\$&$1' }
-const ADAPTER_FILES = ['adapters.mjs', 'claude.mjs', 'codex.mjs', 'copilot.mjs', 'formats.mjs']
+const ADAPTER_FILES = ['adapters.mjs', 'claude.mjs', 'codex.mjs', 'copilot.mjs', 'formats.mjs', 'opencode.mjs']
 function copyAdapters(checkout) {
   const destination = join(checkout, 'tools', 'integrations')
   mkdirSync(destination, { recursive: true })

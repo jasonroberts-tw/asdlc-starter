@@ -159,8 +159,8 @@ run = "node scripts/check-trace.mjs --selftest"
 description = '''
 The CLI integration adapters and writer over temporary Target projects: native settings and agents,
 shared skills and assets, supported and unsupported hooks, selection, read-only drift checks,
-ownership conflicts, symlink destinations, Codex patches, and Copilot edits. Without it a new CLI
-can load inert configuration or rendering can overwrite local settings.'''
+ownership conflicts, symlink destinations, Codex patches, Copilot edits, and OpenCode's guard plugins.
+Without it a new CLI can load inert configuration or rendering can overwrite local settings.'''
 run = "node tools/integrations/selftest.mjs"
 
 ["bootstrap"]

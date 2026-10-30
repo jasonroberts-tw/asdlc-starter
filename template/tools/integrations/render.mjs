@@ -92,7 +92,7 @@ export function renderIntegrations({ root = TEMPLATE_ROOT, integrations } = {}) 
       files.set(output, renderCliText(readFileSync(join(root, source), 'utf8'), id))
     }
     const hooks = adapter.hooks(groups, plugins)
-    files.set(hooks.file, hooks.contents)
+    for (const [file, contents] of hooks.files ?? [[hooks.file, hooks.contents]]) files.set(file, contents)
     warnings.push(...hooks.warnings)
   }
   return { integrations: selected, files: new Map([...files].sort(([a], [b]) => compare(a, b))), modes, warnings }

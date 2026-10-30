@@ -27,7 +27,7 @@
  * when one appears, with the review that found it.
  *
  * WHERE IT LOOKS. The prompt files and their shared sources: `.claude/`, `.codex/`, `.agents/`,
- * `.github/skills/`, `.github/agents/`, `.harness/`,
+ * `.github/skills/`, `.github/agents/`, `.opencode/skills/`, `.opencode/agents/`, `.harness/`,
  * a workflow's own directory once one exists, `.beads/formulas/`, `.beads/PRIME.md`, `AGENTS.md`,
  * `CLAUDE.md` and `README.md` (`MEMORY_SCOPE`). `.beads/PRIME.md` is what `bd prime` prints, in place of its own text,
  * whenever the tracker's plugin runs it at a session's start or before a compaction; on 2026-10-03
@@ -78,6 +78,8 @@ export const MEMORY_SCOPE: ReadonlyArray<string> = [
   '.agents/',
   '.github/skills/',
   '.github/agents/',
+  '.opencode/skills/',
+  '.opencode/agents/',
   '.harness/',
   '.beads/formulas/',
   '.beads/PRIME.md',

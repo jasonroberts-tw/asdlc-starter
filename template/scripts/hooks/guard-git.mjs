@@ -163,7 +163,7 @@ function inLinkedWorktree(dir) {
 }
 
 /** A provisioned worktree directory under any CLI's worktrees folder. */
-const WORKTREE_PATH = /^(.*?[\\/]\.(?:claude|codex|copilot)[\\/]worktrees[\\/][^\\/]+)(?:[\\/]|$)/
+const WORKTREE_PATH = /^(.*?[\\/]\.(?:claude|codex|copilot|opencode)[\\/]worktrees[\\/][^\\/]+)(?:[\\/]|$)/
 
 /** The path with symlinks resolved, or the path itself if it cannot be resolved. */
 function realpathOr(p) {

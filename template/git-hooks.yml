@@ -58,6 +58,8 @@ pre-push:
         - '.agents/**'
         - '.github/skills/**'
         - '.github/agents/**'
+        - '.opencode/skills/**'
+        - '.opencode/agents/**'
         - '.harness/**'
         - '.beads/formulas/**'
         - '.beads/PRIME.md'

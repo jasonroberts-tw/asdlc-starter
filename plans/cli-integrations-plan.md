@@ -7,12 +7,13 @@
 ## Contract
 
 - Keep skills, agent prompts, hook declarations, the Claude instruction entry point, and the worktree briefing under `template/.harness/` as hand-maintained source.
-- Render Claude by default; accept an explicit selection of any of `claude`, `codex` and `copilot`. Reject unknown names and an empty selection before writing anything.
+- Render Claude by default; accept an explicit selection of any of `claude`, `codex`, `copilot` and `opencode`. Reject unknown names and an empty selection before writing anything.
 - Claude receives `.claude/skills/`, Markdown agents, settings hooks, its worktree briefing, and `CLAUDE.md`.
 - Codex receives `.agents/skills/`, `.codex/agents/*.toml`, and `.codex/config.toml`. Shared `AGENTS.md` remains the instruction authority. Use the documented native formats; do not invent a `.codex/skills` discovery location.
 - Hook declarations name logical events and scripts. Each adapter maps those events to its CLI's configuration. Report unsupported lifecycle events; never imply that a skipped hook is active.
 - Codex invokes the existing worktree provisioning script explicitly. Its patch edit payload must reach the generated-file guard for every affected path.
 - GitHub Copilot, in Copilot CLI and in VS Code, receives `.github/skills/`, `.github/agents/*.agent.md` with Copilot tool aliases, and `.github/hooks/harness.json` in the Claude-compatible `PreToolUse` format. It reads `AGENTS.md` natively. Like Codex, it invokes the worktree provisioning script explicitly. Its edit payloads use Copilot CLI's or VS Code's own tool and argument names, and they must reach every edit guard. VS Code's Local runtime ignores matchers, so a read must not count as an edit.
+- OpenCode receives `.opencode/skills/`, `.opencode/agents/*.md` with `permission` rules in place of a `tools` list, and a plugin per version: `.opencode/plugins/harness.js` for OpenCode 1 and the directory `.opencode/plugins/harness-v2/` for OpenCode 2, which OpenCode 1 never loads. OpenCode runs no hook commands, so the plugin runs the hook scripts before each tool call, with the call translated into the Claude payload they read, and refuses a call whose script exits 2. Only the plugin in the nearest checkout above the session judges a call. It reads `AGENTS.md` natively, and it invokes the worktree provisioning script explicitly.
 - Provide a dependency-free renderer API for Deploy to call, plus `node template/scripts/render-integrations.mjs --integrations claude,codex <target-dir>`. The caller copies common Template files first. The adapter neither creates a Tracker nor commits or pushes.
 - Generated paths are recorded in `.harness/integrations.json`. Repeated rendering is deterministic. Updating or deselecting an integration touches only unchanged files recorded as owned; refuse conflicting local files and symlink destinations before any mutation.
 - `--check` compares the selected output, including stale owned paths, without writing. Sources remain in the Target project so changes can be rendered again there.
@@ -35,5 +36,6 @@ Use the existing ES module style and no new package dependency. Add the Template
 - [Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference)
 - [Copilot CLI hooks reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-hooks-reference)
 - [Copilot custom agents configuration](https://docs.github.com/en/copilot/reference/custom-agents-configuration)
+- [OpenCode plugins](https://opencode.ai/docs/plugins/), [tools](https://opencode.ai/docs/tools/), [agents](https://opencode.ai/docs/agents/) and [agent skills](https://opencode.ai/docs/skills/)
 
 CLI execution and hook trust review are separate from writing their configuration. The automated tests validate native configuration and execute the hook scripts over fixtures without a model credential.
