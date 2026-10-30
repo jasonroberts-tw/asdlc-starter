@@ -59,7 +59,8 @@ repository at the same time. So the agent prefers additive changes, and it stops
 conflict it did not expect. The `fan-out-work` agent splits the ready queue into lanes by the files
 each issue touches, so two lanes never rewrite the same lines. Before it pushes, the `open-pr` skill
 test-merges the branch against each open pull request that touches the same files. It then watches
-the checks, enables auto-merge, and removes the worktree after the merge.
+the checks, fixes a failing one a bounded number of times, waits for a person's approval and the merge,
+and removes the worktree after the merge.
 
 ### Guards that hold when a prompt is forgotten
 

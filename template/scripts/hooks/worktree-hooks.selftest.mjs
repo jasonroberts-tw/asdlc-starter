@@ -337,8 +337,8 @@ check('control: a command that is not git is allowed there', strayEcho.code === 
 /* --------------------------------------------------------------------------------------------- *
  * guard-git: an approval, and a merge past the checks, from any checkout.
  *
- * GitHub merges a pull request once `verify` passes and one approving review stands, which the
- * reviewer gives off the high-risk floor and a person gives on it, and `gh pr merge --admin` merges
+ * GitHub merges a pull request once `verify` passes and one approving review stands, which a
+ * person gives, and `gh pr merge --admin` merges
  * past the checks with the maintainer's bypass, which is a person's. So the guard refuses
  * `gh pr review --approve` and `--admin` everywhere, and from a
  * worktree any merge but auto-merge. Each refusal is asserted by its reason. The controls are the
@@ -364,7 +364,7 @@ function ghGuard(dir, command) {
 }
 const refusedFor = (r, reason) => r.code === 2 && r.stderr.includes(reason)
 const ADMIN_RULE = "merges past the checks the trunk's ruleset requires"
-const APPROVE_RULE = "an approval is the person's gate on a head on the high-risk floor"
+const APPROVE_RULE = "an approval is a person's review of the change, never an agent's"
 const MERGE_RULE = "a merge now is the orchestrator's call"
 
 for (const [label, dir, command] of [

@@ -206,7 +206,9 @@ gh api "repos/$OWNER/$REPO/rules/branches/main" --jq '.[].type'
 
 The Target's doctor asks GitHub the same question at the end of every Bootstrap. It prints
 `[doctor] ok   github:` when both rules hold, either from a ruleset or from classic branch
-protection. It prints `[doctor] warn github:` when a rule is missing, and the warning names the
+protection. It prints `[doctor] fail github:` when GitHub answers both reads and a rule is missing,
+because then nothing stops a merge that no person reviewed. It prints `[doctor] warn github:` when
+GitHub refuses one of the reads, because the rule may stand in the part it could not read. Either line names the
 missing rule. It prints `[doctor] skip github:` with the reason when it cannot ask GitHub: the
 origin is not on GitHub, `gh` is missing or not logged in, or the network is down.
 

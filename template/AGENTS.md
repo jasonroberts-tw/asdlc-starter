@@ -62,8 +62,10 @@ say why, and wait. Only the operator approves a change to one, by making it or b
 in a commit of their own, and a changed contract changes the spec too.
 
 **New dependencies.** Before adding a third-party dependency, confirm that it exists in the official
-registry under that exact name, that it is maintained and that it is needed. Record why in the spec
-or the story's notes: a misremembered name installs whoever registered it.
+registry under that exact name, that it is maintained, that it is needed, and what licence it
+carries. A copyleft licence, or none, goes to the operator before the install, because code built on
+a dependency the project cannot ship is rewritten. Record why, and the licence, in the spec or the
+story's notes: a misremembered name installs whoever registered it.
 
 ## Git workflow
 
