@@ -69,7 +69,7 @@ wants an App for this project. If they do not, skip to step 6 and leave the four
 
 Ask whether the person already has an App for this project. If they do, set `APP_SLUG` to the name
 shown in its URL (`github.com/apps/<slug>`) and `APP_ID` to the **App ID** under **About** on its
-settings page. Skip to **Installation** if it is already installed on this repository only.
+settings page, and skip to **Installation**.
 
 **Create** (`gh` cannot create an App, so the person does this in the browser). Send them to
 `https://github.com/settings/apps/new`, or to
@@ -85,8 +85,15 @@ them to:
    `gh api /apps/<slug>` returns 404 for an App that is private to its account, so ask for the ID.
 
 **Installation:** on the App's page, choose **Install App**, pick `OWNER`, and choose **Only select
-repositories → `REPO`**. A token minted from the App's key can reach every repository the
-installation covers, so keep this installation limited to the one repository.
+repositories → `REPO`**. If the App is already installed on `OWNER`, open that installation's
+settings and add `REPO` to its selected repositories instead, because an account holds one
+installation of an App.
+
+An installation that also covers other repositories is a warning, not a reason to stop. Tell the
+person which other repositories it covers, and that a session in the dev container can write to each
+of them. The token helper narrows each token it mints to `REPO`. But the session can read the App's
+key, and a token minted from that key can reach every repository the installation covers. Then
+continue.
 
 **Private key:** on the App's settings page, choose **Generate a private key**. Move the downloaded
 `.pem` into the key directory the dev container mounts. That directory must hold exactly one key:
