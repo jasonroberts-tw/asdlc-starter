@@ -1,0 +1,39 @@
+# The Template's dependency gate, run over template/ in this repository.
+#
+# THE FAILURE IT EXISTS TO PREVENT. Advisories published from 2026-10-23 to 2026-10-30 made
+# deps:check refuse the Template's package-lock.json, and nothing here noticed. The first to see it
+# was spec-storming, a Target Deployed on 2026-11-05, whose `gates` check then failed on every pull
+# request. A Target's CI runs the gate only after Deploy, so this repository runs it too.
+#
+# The daily run catches an advisory against a lockfile nobody changed. It also fails once an
+# `ignoreUntil` date in template/osv-scanner.toml passes, which is the reminder to re-judge that
+# advisory before Targets Deployed from the Template fail on the same date.
+name: template-deps
+
+on:
+  pull_request:
+  push:
+    branches: ['main']
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: template
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
+        with:
+          version: 2026.10.0
+          sha256: 57ced973f968b8fbab07aa8e32bd7077d4a357e200a22356d98963c723c6de0a
+          working_directory: template
+      - name: no lockfile in the Template holds a package version with a known vulnerability
+        run: mise run deps:check
