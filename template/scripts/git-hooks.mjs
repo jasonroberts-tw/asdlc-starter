@@ -48,7 +48,9 @@
  * fails, and a new worktree has no `node_modules` until `npm ci`. So at prepare-commit-msg,
  * post-checkout and post-merge, which gate nothing, a runner that cannot start (no `js-yaml`, a job
  * file it refuses, an older Git) prints why and exits 0; a job that runs and fails still fails the
- * event. At pre-commit and pre-push the same refusal fails the commit or the push.
+ * event. At pre-commit and pre-push the same refusal fails the commit or the push. A non-gating event
+ * with no block in the job file runs nothing and prints nothing, because its block exists only to run
+ * jobs; a gating event with no block is refused, because then no gate runs.
  *
  * INVOCATION.
  *   node scripts/git-hooks.mjs <event> [git's arguments]   what each `hook.asdlc-<event>.command` runs
@@ -569,6 +571,8 @@ async function hookMain(event, args) {
     requireGit()
     const hooks = await readJobs(ROOT)
     hook = hooks[event]
+    // A non-gating event's block exists only to run jobs, so no block means none to run.
+    if (!hook && NON_GATING.has(event)) return 0
     if (!hook) throw new Refusal(`${JOB_FILE} has no \`${event}\` block, and Git ran its hook`)
     cap = readCap(ROOT)
   } catch (error) {
@@ -1249,6 +1253,14 @@ async function gitCases(base, env, record) {
       `a commit with no pre-commit block was not refused: ${both(committed)}`,
     )
     return 'refused'
+  })
+
+  await check('a non-gating event with no block in the job file runs nothing and says nothing', () => {
+    const { repo } = scratch(FIXTURE_JOBS.replace(/^prepare-commit-msg:\n(?: {2}.*\n)+/m, ''))
+    const committed = commit(repo, 'docs/a.md', 'a\n')
+    expect(committed.status === 0, both(committed))
+    expect(!/prepare-commit-msg/.test(both(committed)), `the missing block was mentioned: ${both(committed)}`)
+    return 'silent'
   })
 
   await check('--prepare installs nothing when CI is set', () => {
