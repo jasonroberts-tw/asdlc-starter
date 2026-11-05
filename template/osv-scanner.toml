@@ -1,0 +1,12 @@
+# Advisories the dependency gate (scripts/check-deps.mjs) accepts for package-lock.json. Each entry
+# fails the gate again after its ignoreUntil date, so a finding is re-judged rather than forgotten.
+
+[[IgnoredVulns]]
+id = "GHSA-3g3m-2fjr-6pw4"
+ignoreUntil = 2027-01-31
+reason = "glob 13 comes only through @stryker-mutator/tap-runner, a dev dependency, and 10.1.1 still pins ~13.0.0. The flaw is a walk that keeps reading after its AbortSignal fires; tap-runner calls glob with no signal. Re-check when Stryker moves to glob 14."
+
+[[IgnoredVulns]]
+id = "GHSA-g3hv-75wg-m249"
+ignoreUntil = 2027-01-31
+reason = "minimatch 10 comes only through Stryker, a dev dependency, and 10.1.1 still pins ~10.2.4. The flaw is a slowdown from a crafted pattern; Stryker's patterns come from this repository's own config, so crafting one needs commit access. Re-check when Stryker moves to minimatch 11."
