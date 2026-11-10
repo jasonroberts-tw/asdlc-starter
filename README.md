@@ -25,8 +25,10 @@ refactor does not pay for steps it does not need.
 Each feature has one Markdown spec under `docs/specs/`, holding numbered acceptance criteria and a
 test plan. `check-trace.mjs` reports each criterion that no story builds or no test checks. Without
 that check, a feature with a gap would pass review, because the reviewer reads the stories rather
-than the spec. A test written from a spec's test plan is protected from the commit that adds it, and
-so is a test that reproduces a defect. The edit hook refuses an edit to a protected test, because a
+than the spec. A test written from a spec's test plan is listed by the commit that adds it, and
+so is a test that reproduces a product defect. A listed test is protected once that commit has
+merged. Until then its own branch may correct it, and the reviewer reads the change. A selftest of
+the harness is never listed, because a fix to a guard changes its selftest. The edit hook refuses an edit to a protected test, because a
 test changed until it passes proves nothing. Only the operator changes one, in a commit of their
 own.
 

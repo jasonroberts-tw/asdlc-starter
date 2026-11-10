@@ -22,9 +22,12 @@ Run every check that the scope the parent passed names:
    every gap it can find mechanically; read the rest.
 2. **Conformance** (story, feature). The diff keeps to the spec's contracts, its module list and
    dependencies, its decision records and its NFR targets. Module dependencies form no cycle.
-3. **Protected tests** (every scope). Each is unchanged since the commit that listed it, by
-   `git diff <that commit> HEAD -- <path>`, and no line left the list in the diff, unless the issue
-   records the operator's approval. A defect's reproducing test was listed before its fix.
+3. **Protected tests** (every scope). A test `origin/main` lists is unchanged, and no line it
+   holds left the list, unless the issue records the operator's approval: one
+   `git diff origin/main...HEAD -- <the list and each path it names>` shows both. A test this
+   change lists is read where it changed after the commit that listed it, and a change that weakens
+   it is a gap. A defect's reproducing test was committed before its fix. No harness selftest is
+   listed.
 4. **Tests** (every scope). The full suite is green in the output the parent passed; rerun
    `mise run gates` when that output is missing or older than the head. A feature adds every fitness
    function, and the mutation score of the unit and functional tests on the changed code, with the
