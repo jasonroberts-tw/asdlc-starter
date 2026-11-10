@@ -111,8 +111,9 @@ run = "node scripts/github-app-token.mjs --selftest"
 
 ["hooks:install"]
 description = '''
-Writes the five `hook.asdlc-*` entries into the repository's config, the same from any checkout, and
-removes lefthook's shims from `.git/hooks`; it reports a `.old` or `.backup` file and a tracker
+Writes the five `hook.asdlc-<event>` entries into the repository's config, the same from any checkout,
+with `hook.asdlc-protect-refs`, which makes Git refuse a write to `main` or `release` from a linked
+worktree, and removes lefthook's shims from `.git/hooks`; it reports a `.old` or `.backup` file and a tracker
 section it leaves. `npm ci` runs it through `prepare`; run it by hand after an install that skipped
 scripts. Without it no commit or push here runs a gate. It refuses a Git older than 2.54.0, under
 which the entries run nothing.'''

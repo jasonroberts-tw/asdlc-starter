@@ -81,12 +81,15 @@ and removes the worktree after the merge.
 
 ### Guards that hold when a prompt is forgotten
 
-A prompt is advice, so in-session hooks enforce the rules that matter most. Worktrees share one
+A prompt is advice, so hooks enforce the rules that matter most. Worktrees share one
 object store and one trunk, which means a `git gc` or a push to `main` from one worktree lands on
-work its agent cannot see. `guard-git.mjs` refuses those commands in a worktree. It also refuses a
+work its agent cannot see. Git itself refuses a write or a push to `main` or `release` from a
+worktree. The hook runner installs a hook that Git runs before every ref write, so the refusal does
+not depend on how the command is spelt. `guard-git.mjs` reads a command's text, and refuses what no
+ref hook sees, such as a `git gc` in a worktree. It also refuses a
 `gh pr create` that does not name `main` as its base, because GitHub's default branch is a setting
-the repository cannot read. `guard-unprovisioned-worktree.mjs` refuses work in a worktree the script
-did not make, because that worktree has no briefing. `block-generated-edit.mjs` refuses hand edits
+the repository cannot read. `guard-unprovisioned-worktree.mjs` refuses work in a worktree until the
+setup script has run there, because that worktree has no briefing yet. `block-generated-edit.mjs` refuses hand edits
 to generated files, because the generator's next run silently reverts them. `guard-delivery.mjs`
 enforces protected tests and Gate 2. `AGENTS.md` tells an agent not to retry a refused command in
 another form, because each workaround gets past a judgement the session cannot overrule.
