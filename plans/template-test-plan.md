@@ -187,7 +187,7 @@ Bootstrap steps, because a copy would drift from the Template.
 The entrypoint and bootstrap only warn and never fail there, so the test checks what they made:
 
 - `node_modules/.devcontainer-lock-hash` equals the hash of `package-lock.json`;
-- the clone's config holds the five `hook.asdlc-*` command entries;
+- the clone's config holds the five `hook.asdlc-<event>` command entries, and the `hook.asdlc-protect-refs` entry that refuses a write to `main` or `release` from a linked worktree;
 - `.beads/embeddeddolt` exists, and bd reads it;
 - the doctor ran, at least one probe passed, and none failed;
 - the host's route, `mise run bootstrap`, run again over it, exits 0 and finds nothing to do for

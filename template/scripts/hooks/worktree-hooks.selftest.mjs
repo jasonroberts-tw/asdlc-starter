@@ -234,6 +234,7 @@ check('primary checkout is allowed', prim.code === 0, `code=${prim.code} ${prim.
 console.log('guard-git: the git rules in a worktree the session has entered')
 const oursDir = join(primary, '.claude', 'worktrees', 'ours')
 const WORKTREE_RULE = 'worktree management belongs to the orchestrator'
+const OBJECTS_RULE = 'the object store is shared with sibling worktrees'
 const why = (r) => `code=${r.code} ${JSON.stringify(r.stderr.slice(0, 200))}`
 
 const primList = guardFrom(primary, { command: 'git worktree list' })
@@ -245,11 +246,24 @@ check(
   why(listed),
 )
 mkdirSync(join(oursDir, 'sub'))
-const pushed = guardFrom(join(oursDir, 'sub'), { command: 'git push origin main' })
+const collected = guardFrom(join(oursDir, 'sub'), { command: 'git gc' })
 check(
-  'a subdirectory of it, after a cd, refuses a push to main, by its reason',
-  pushed.code === 2 && pushed.stderr.includes('you cannot push to a long-lived branch'),
-  why(pushed),
+  'a subdirectory of it, after a cd, refuses a gc, by its reason',
+  collected.code === 2 && collected.stderr.includes(OBJECTS_RULE),
+  why(collected),
+)
+// A write to a long-lived branch is no longer this hook's to read: Git's own hooks refuse it,
+// whatever its spelling, and `mise run hooks:selftest` holds them. So the guard must let these
+// through, or a session would be refused twice by two readings that can disagree.
+for (const command of ['git push origin main', 'git checkout main', 'git switch -C release', 'git branch -f main HEAD']) {
+  const r = guardFrom(oursDir, { command })
+  check(`the guard leaves \`${command}\` to Git's own hooks`, r.code === 0, why(r))
+}
+const mergedTrunk = guardFrom(oursDir, { command: 'git merge origin/main' })
+check(
+  'a merge of the trunk into the branch is refused still, by its reason',
+  mergedTrunk.code === 2 && mergedTrunk.stderr.includes('rebase onto origin/main rather than merging'),
+  why(mergedTrunk),
 )
 const byPayload = guardFrom(primary, { command: 'git worktree list', payloadDir: oursDir })
 check(
@@ -379,28 +393,28 @@ check(
   why(aliased),
 )
 // A brace inside a word is now a letter, so `{owner}` above keeps its endpoint; one standing as a
-// word must still group commands, or the push inside this group would be read as the command `{`.
-const grouped = ghGuard(oursDir, '{ git push origin main; }')
+// word must still group commands, or the gc inside this group would be read as the command `{`.
+const grouped = ghGuard(oursDir, '{ git gc; }')
 check(
-  'a brace group still splits statements, so its push to main is refused, by its reason',
-  refusedFor(grouped, 'you cannot push to a long-lived branch'),
+  'a brace group still splits statements, so its gc is refused, by its reason',
+  refusedFor(grouped, 'the object store is shared with sibling worktrees'),
   why(grouped),
 )
 
 // AN INHERITED GIT_DIR: one in the hook's environment outranks the payload's
 // cwd, so the guard judged the checkout it named. Each case runs with it and, as its control,
 // without any GIT_* key, and both must give the same verdict, by its reason: the unfixed guard
-// refused the push from a subdirectory by the stray rule's reason, so asserting the refusal alone
+// refused a command from a subdirectory by the stray rule's reason, so asserting the refusal alone
 // passed. The primary checkout's value is the one git exports to a hook run from that worktree.
 console.log('guard-git: an inherited GIT_DIR does not move the checkout judged')
-const PUSH_RULE = 'you cannot push to a long-lived branch'
+const GC_RULE = 'the object store is shared with sibling worktrees'
 const SHARED_GIT_DIR = { GIT_DIR: join(primary, '.git') }
 const WORKTREE_GIT_DIR = { GIT_DIR: join(primary, '.git', 'worktrees', 'ours') }
 for (const [label, dir, command, env, reason] of [
-  ['a push to main from the worktree', oursDir, 'git push origin main', SHARED_GIT_DIR, PUSH_RULE],
-  ['a push to main from a subdirectory of it', join(oursDir, 'sub'), 'git push origin main', SHARED_GIT_DIR, PUSH_RULE],
+  ['a gc from the worktree', oursDir, 'git gc', SHARED_GIT_DIR, GC_RULE],
+  ['a gc from a subdirectory of it', join(oursDir, 'sub'), 'git gc', SHARED_GIT_DIR, GC_RULE],
   ['a merge now from the worktree', oursDir, 'gh pr merge 1 --rebase', SHARED_GIT_DIR, MERGE_RULE],
-  ['a push to main from the primary checkout', primary, 'git push origin main', WORKTREE_GIT_DIR, null],
+  ['a gc from the primary checkout', primary, 'git gc', WORKTREE_GIT_DIR, null],
 ]) {
   for (const [how, extra] of [['with GIT_DIR', env], ['control, with no GIT_* key', {}]]) {
     const r = guardFrom(dir, { command, env: extra })

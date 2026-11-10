@@ -164,6 +164,9 @@ export function checkBootstrap(root) {
     const command = git(root, ['config', '--get', 'hook.asdlc-' + event + '.command']).trim()
     if (command !== 'node scripts/git-hooks.mjs ' + event) throw new Error('Bootstrap hook command wrong: ' + event)
   }
+  // The ref hook that holds main and release against a linked worktree: one inline shell command.
+  if (git(root, ['config', '--get', 'hook.asdlc-protect-refs.event']).trim() !== 'reference-transaction') throw new Error('Bootstrap ref hook event missing')
+  if (!git(root, ['config', '--get', 'hook.asdlc-protect-refs.command']).includes('refs/heads/')) throw new Error('Bootstrap ref hook command missing')
   if (!existsSync(join(root, '.beads/embeddeddolt'))) throw new Error('Bootstrap embedded Tracker missing')
 }
 export function runCI(root) {

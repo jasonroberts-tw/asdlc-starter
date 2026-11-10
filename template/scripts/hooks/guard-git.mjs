@@ -2,10 +2,19 @@
  * PreToolUse hook. Refuses a Bash command that would damage state SHARED between git worktrees.
  *
  * THE DEFECT THIS PREVENTS: a task agent running in a linked worktree reaching past its branch. The
- * object store, the packed refs and the trunk branch itself are shared with every sibling worktree,
- * so `git push origin main`, `git gc` and `git worktree remove` are not local mistakes -- they land on
+ * object store and the worktree records are shared with every sibling worktree, so `git gc` and
+ * `git worktree remove` are not local mistakes -- they land on
  * work an agent cannot see and did not consent to. `.worktree/CONTEXT.md` asks the agent not to do
  * this, but context is advice; this is the part that holds.
+ *
+ * A WRITE TO A LONG-LIVED BRANCH IS GIT'S TO REFUSE, NOT THIS HOOK'S. Until 2026-11-10 this file
+ * also read each `git push`, `checkout`, `switch` and `branch` for one that would land on `main`
+ * or `release`. That reading could not be finished, since Git decides what a command writes after
+ * this hook has read its text (the next paragraph has the count). A `reference-transaction` hook
+ * and the pre-push event now refuse the write itself, whatever its spelling, and
+ * `scripts/git-hooks.mjs` installs and holds both. What stays here is what no ref hook sees: the
+ * object store, the worktree records, a merge of the trunk into a branch, a merge into the primary
+ * checkout, and the `gh` commands.
  *
  * IT STOPS A SLIP, NOT AN INTENT. It reads a command as a session typed it, so it holds the forms
  * sessions type by mistake. The incidents this header records from real runs are a guard that
@@ -21,8 +30,8 @@
  * missed; none came from a session that had run the command, and 12 were forms only a search for
  * a way past would write.
  *
- * THE GIT RULES ARE A NO-OP IN THE PRIMARY CHECKOUT. AGENTS.md § Git workflow forbids pushing to,
- * switching to or rewriting a protected branch from a worktree; the primary checkout is where a
+ * THE GIT RULES ARE A NO-OP IN THE PRIMARY CHECKOUT. They are about what a worktree shares with
+ * its siblings; the primary checkout is where a
  * person works, and what they commit or push there is theirs to decide. So the guard asks git
  * whether the command runs in a linked worktree and skips every git rule if not. The PR-base,
  * merge-bypass, primary-merge, worktree-prune and graphify rules below are the exceptions and apply everywhere,
@@ -38,7 +47,7 @@
  * refused `git push origin agent/BD-12-fix-main-nav`, `git switch development` and
  * `echo 'see docs/git worktree notes'` while allowing `git -C /repo push origin main` and
  * `git push --all`. Wrong in both directions. Commands here are split into statements, tokenised
- * quote-aware, and matched on the git SUBCOMMAND and the resolved REF.
+ * quote-aware, and matched on the git SUBCOMMAND.
  *
  * IT REFUSES EVERY GIT CALL IN A STRAY WORKTREE DIRECTORY: one under `.claude/worktrees/<name>/`
  * where git answers for another checkout, which is what a worktree removed under a live session
@@ -537,13 +546,9 @@ const TRUNK_REMOTE = `origin/${TRUNK}`
  * trunk rename cannot quietly drop it from this set.
  */
 const PROTECTED = new Set([TRUNK, 'release'])
-const protectedNames = [...PROTECTED].join(', ')
-
 /** Does this ref token land on a branch a task agent must not write? */
 const isProtected = (t) => PROTECTED.has(refTarget(t))
 
-const PUSH = `you cannot push to a long-lived branch (${protectedNames}). Push your own branch and open a PR against ${TRUNK}.`
-const CHECKOUT = `you cannot switch to or rewrite a long-lived branch (${protectedNames}); ${TRUNK} is checked out in the primary worktree and git would refuse anyway. Stay on your branch.`
 const MERGE = `rebase onto ${TRUNK_REMOTE} rather than merging ${TRUNK} into your branch.`
 const WORKTREE = 'worktree management belongs to the orchestrator, not to a task agent.'
 const OBJECTS = 'the object store is shared with sibling worktrees currently in use.'
@@ -567,41 +572,15 @@ const isBarePrune = ({ sub, rest }) => {
   return !dryRun
 }
 
-/** Flags that create or reset a branch; the name that FOLLOWS one is the branch being written. */
-const BRANCH_CREATE = new Set(['-b', '-B', '-c', '-C'])
-/** Flags that make `git branch` a write rather than a read. */
-const BRANCH_WRITE = new Set(['-f', '--force', '-m', '-M', '-d', '-D', '--delete', '--move'])
-
 /**
  * The reason to deny this git call, or `null` to allow it.
  *
  * `rebase` is deliberately absent: `.worktree/CONTEXT.md` instructs agents to rebase onto
- * `origin/main`, and forbidding it here would contradict the briefing.
+ * `origin/main`, and forbidding it here would contradict the briefing. So are `push`, `checkout`,
+ * `switch` and `branch`: a write to a long-lived branch is refused by Git's own hooks (the header).
  */
 function denialFor({ sub, rest }) {
   switch (sub) {
-    case 'push': {
-      // `--all` and `--mirror` name no ref and push every local branch, the protected ones
-      // included. This is the case the substring version allowed outright.
-      if (rest.some((t) => t === '--all' || t === '--mirror')) return PUSH
-      return nonOptions(rest).some(isProtected) ? PUSH : null
-    }
-    case 'checkout':
-    case 'switch': {
-      // `git checkout main -- path` restores one file FROM main without switching branches, which
-      // is not the thing this rule exists to stop. An explicit `--` says the command is about
-      // paths, so nothing is being checked out.
-      if (rest.includes('--')) return null
-      // `-b agent/x main` creates a branch FROM main, which is fine. `-B main` rewrites main.
-      // Same for the other protected names.
-      const created = rest.findIndex((t) => BRANCH_CREATE.has(t))
-      if (created !== -1) return isProtected(rest[created + 1] ?? '') ? CHECKOUT : null
-      return nonOptions(rest).some(isProtected) ? CHECKOUT : null
-    }
-    case 'branch': {
-      if (!rest.some((t) => BRANCH_WRITE.has(t))) return null
-      return nonOptions(rest).some(isProtected) ? CHECKOUT : null
-    }
     case 'merge':
       return nonOptions(rest).some((t) =>
         t.startsWith('origin/') ? PROTECTED.has(t.slice(7)) : isProtected(t),

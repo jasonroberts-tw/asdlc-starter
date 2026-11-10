@@ -14,3 +14,4 @@ decision costs; where a row here and a record disagree, the record wins and the 
 | `0006-the-guards-stop-a-slip.md` | The in-session guards stop a slip, not an intent, and a form a guard would miss that only a way past it would write takes priority 3, not 1. |
 | `0007-a-test-is-protected-from-its-merge.md` | A listed test is protected once its listing commit is on `origin/main`, and no selftest of the harness is listed. |
 | `0008-claude-code-makes-its-own-worktrees.md` | Claude Code makes and removes its own worktrees, the worktree script serves the other CLIs, and one setup script is every worktree's first command. |
+| `0009-git-refuses-a-write-to-the-trunk.md` | A ref hook and the pre-push event refuse a write to `main` or `release` from a linked worktree, and the git guard no longer parses for one. |

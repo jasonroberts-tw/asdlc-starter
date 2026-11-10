@@ -46,8 +46,8 @@
       "means": "The most words `.harness/skills/should-i-adopt/SKILL.md` may hold: the skill a session loads to assess a tool or a pattern for the harness. Set to its count on 2026-10-11; a raise edits this value and says why here."
     },
     ".harness/worktree-CONTEXT.md.tmpl": {
-      "words": 655,
-      "means": "The most words `.harness/worktree-CONTEXT.md.tmpl` may hold: the briefing every session in a worktree reads at `AGENTS.md`'s instruction. Set to its count on 2026-10-11; a raise edits this value and says why here."
+      "words": 657,
+      "means": "The most words `.harness/worktree-CONTEXT.md.tmpl` may hold: the briefing every session in a worktree reads at `AGENTS.md`'s instruction. Set to its count on 2026-10-11; a raise edits this value and says why here. Raised to 657 on 2026-11-10, when it said Git itself refuses a write to a long-lived branch from a worktree."
     },
     "AGENTS.md": {
       "words": 2462,
@@ -70,8 +70,8 @@
       "means": "The most words `scripts/hooks/guard-delivery.mjs` may hold: its string and template literals: its refusals of an edit to a protected test and of code written before Gate 2, which a session reads and acts on. Set to its count on 2026-10-16, once a security review had it read the policy from `origin/main` and a story's spec by the feature's id; a raise edits this value and says why here."
     },
     "scripts/hooks/guard-git.mjs": {
-      "words": 738,
-      "means": "The most words `scripts/hooks/guard-git.mjs` may hold: its string and template literals: its refusals of a git or gh command, which a session reads and acts on. Set to its count on 2026-10-11; a raise edits this value and says why here. Raised from 628 on 2026-10-17 for the primary-merge rule: its two refusals, and the option names and git arguments it reads a merge's directory and options with."
+      "words": 672,
+      "means": "The most words `scripts/hooks/guard-git.mjs` may hold: its string and template literals: its refusals of a git or gh command, which a session reads and acts on. Set to its count on 2026-10-11; a raise edits this value and says why here. Raised from 628 on 2026-10-17 for the primary-merge rule: its two refusals, and the option names and git arguments it reads a merge's directory and options with. Lowered by 66, to 672, on 2026-11-10, when its refusals of a push to, a switch to and a rewrite of a long-lived branch left with the parsing behind them, because Git's own hooks now refuse that write; 66 is the difference the change made to its string literals, since the first count is not reproduced by a script here."
     },
     "scripts/hooks/guard-unprovisioned-worktree.mjs": {
       "words": 174,
