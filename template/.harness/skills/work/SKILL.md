@@ -71,12 +71,13 @@ task.
   existing codebase, `mise run gates` is green before the feature's first story; if it is not,
   report and wait. When the story's protected tests do not exist yet, write them from the spec's test
   plan, list each in `protectedTestsFile` (`policy/delivery.json`) as `<path> <issue id>`, and commit
-  both before any implementation code: the tests are protected from that commit on. Then implement
+  both before any implementation code. Then implement
   test-first with unit tests: red, green, refactor, running the module's unit tests after each green
-  step. Make the protected tests pass without changing them.
+  step. Make those tests pass without weakening them. One that was written wrong is corrected in a
+  commit of its own that says why.
 - **Defect.** Reproduce it with a failing test at the lowest layer that shows it; where its cause is
-  not yet known, the `root-cause` skill finds it first. List that test in `protectedTestsFile` and
-  commit both before the fix. Then fix the code until the test passes. A fix that needs a contract, a criterion or the
+  not yet known, the `root-cause` skill finds it first. Commit that test before the fix, and list
+  it in `protectedTestsFile` in that commit unless it is a selftest of the harness. Then fix the code until the test passes. A fix that needs a contract, a criterion or the
   spec changed stops here. With the operator's confirmation, it becomes feature-track work that
   enters at the `refine` or `design` skill.
 - **Small change.** `mise run gates` is green before anything changes; if it is not, stop and report.

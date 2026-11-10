@@ -15,12 +15,21 @@
  * session can point at another feature's approved spec.
  *
  * PROTECTED TESTS, EVERYWHERE. The list is the file `protectedTestsFile` names, one
- * `<path> <issue id>` per line, read as HEAD has it: a test is protected from the commit that lists
- * it, and a line a session drops from its working copy protects the test still. Paths compare
- * without case, since macOS and Windows open `Tests/A.mjs` for `tests/a.mjs`. The hook refuses an
- * edit to a listed path, and an edit to the list that drops or moves one of HEAD's lines. A
- * person's own editor runs no hook, so the operator approves a change by making it, or by deleting
- * the line in a commit of their own.
+ * `<path> <issue id>` per line, read as `origin/main` has it (HEAD where there is no
+ * `origin/main`): a test is protected once the commit that lists it has merged, and a line a
+ * session drops from its own copy protects the test still. Paths compare without case, since macOS
+ * and Windows open `Tests/A.mjs` for `tests/a.mjs`. The hook refuses an edit to a path that list
+ * holds, and an edit to the list that drops or moves one of its lines. A person's own editor runs
+ * no hook, so the operator approves a change by making it, or by deleting the line in a commit of
+ * their own.
+ *
+ * NOT FROM THE COMMIT THAT LISTS IT, which is what it read until 2026-11-10. In a Target, sessions
+ * listed 21 tests over 47 hours, and the hook refused no weakening of one. It did stop one guard
+ * fix twice, each time on a selftest no merge had reached yet, which the fix had to change. Each
+ * stop waited on the operator, 47 minutes and then 69, and the operator ended the run at the third
+ * request. A test a branch listed itself is that branch's to correct until it merges, and the
+ * `spec-reviewer` agent reads each change to it. Where it loses: a session can weaken a test it
+ * listed, inside its branch, and only that review sees it.
  *
  * GATE 2, ON AN AGENT BRANCH. A worktree named `<issue id>-<slug>` is on `agent/<issue id>-<slug>`,
  * and one `bd show` over every dash-prefix of the name finds the issue. On a feature's or an epic's
@@ -69,6 +78,16 @@ function committedPolicy(root) {
   }
 }
 
+/**
+ * The protected-tests list as `origin/main` has it, or as HEAD has it where the checkout has no
+ * `origin/main`. A list `origin/main` does not hold yet is an empty one: nothing has merged, so
+ * nothing is protected, whatever HEAD lists.
+ */
+function mergedList(root, listFile) {
+  const trunk = git(root, 'rev-parse', '--verify', '--quiet', 'refs/remotes/origin/main') === null ? 'HEAD' : 'origin/main'
+  return listed(git(root, 'show', `${trunk}:${listFile}`))
+}
+
 /** A list's text as a map from each protected path to the issue that protected it. */
 function listed(text) {
   const map = new Map()
@@ -98,7 +117,7 @@ function listAfter(abs, ti, filePath) {
   return text
 }
 
-/** HEAD's paths a Codex patch takes out of the list, or null when it deletes, moves or overwrites the list wholesale. */
+/** The merged list's paths a Codex patch takes out of the list, or null when it deletes, moves or overwrites the list wholesale. */
 function patchDrops(listPath, head) {
   // Resolved as `editTargets` resolves a patch's paths, so the two cannot disagree about which is the list.
   const isList = (path) => resolve(input.cwd ?? ROOT, path).toLowerCase() === listPath.toLowerCase()
@@ -155,7 +174,7 @@ for (const { filePath } of editTargets(input)) {
   const policy = committedPolicy(root)
   if (!policy) continue
   const listFile = policy.protectedTestsFile
-  const protectedPaths = typeof listFile === 'string' ? listed(git(root, 'show', `HEAD:${listFile}`)) : new Map()
+  const protectedPaths = typeof listFile === 'string' ? mergedList(root, listFile) : new Map()
 
   if (protectedPaths.has(rel.toLowerCase())) {
     refuse([
@@ -176,8 +195,8 @@ for (const { filePath } of editTargets(input)) {
       refuse([
         `This edit drops ${dropped === null ? 'every protected test' : dropped.join(', ')} from ${listFile}.`,
         '',
-        'Only the operator lifts a protection. Add lines to the list, and ask the operator to delete',
-        'one (AGENTS.md § Delivery workflow).',
+        'Only the operator lifts the protection of a test that has merged. Add lines to the list, and',
+        'ask the operator to delete one (AGENTS.md § Delivery workflow).',
       ])
     }
   }

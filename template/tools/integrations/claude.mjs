@@ -21,7 +21,7 @@ export const claude = {
   replacements: {
     CLI_WORKTREE_CREATE: 'EnterWorktree',
     CLI_WORKTREE_REMOVE: '`ExitWorktree`, action `remove`',
-    CLI_WORKTREE_ISOLATION: "Claude Code's own worktree isolation refuses too (verified against the CLI, 2.1.292): a git command naming git twice, as in a file name, and a command such as \`bd\`, \`gh\` or \`docker exec\` whose text names git. Leave the word out where you can; a step that needs it is a person's (\`AGENTS.md\` § Guards).",
+    CLI_WORKTREE_ISOLATION: "Claude Code's own worktree isolation refuses too (verified against the CLI, 2.1.322): a loop whose text holds the letters git anywhere, in a file name, a path or \`github\`; a \`$(…)\` that runs git or sits in a git command, but for a commit message's here-document; \`sh -c\` or \`bash -c\` with text that names git; and \`git -C\`. So run each git command plain, from this worktree: a pipe, \`&&\` and \`;\` pass. In place of a loop over such names, run the command once for each, or use \`xargs\` or \`find -exec\`. A step that still cannot pass is a person's (\`AGENTS.md\` § Guards).",
   },
   agent(agent, source, file) {
     return ['.claude/agents/' + agent.name + '.md', generatedMarkdown(source, file)]

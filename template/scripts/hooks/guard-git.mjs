@@ -7,6 +7,20 @@
  * work an agent cannot see and did not consent to. `.worktree/CONTEXT.md` asks the agent not to do
  * this, but context is advice; this is the part that holds.
  *
+ * IT STOPS A SLIP, NOT AN INTENT. It reads a command as a session typed it, so it holds the forms
+ * sessions type by mistake. The incidents this header records from real runs are a guard that
+ * judged the wrong directory, a prune a hook ran, and a merge after a `cd`: none was a spelling a
+ * session chose to get past it. A session set on an effect has the shell, where a variable, an
+ * alias, a script written one call earlier or a writer that runs no git at all decides what
+ * happens after this hook has read the text. No parser closes that, and each form added here is
+ * one more form to maintain. So a form this guard would miss, which a session would write only to
+ * get past it, is not a safeguard failing silently: it is filed as a finding, at the priority
+ * `issuePriorities` gives one (`policy/vocabulary.json`), and nobody hunts for more. What must hold
+ * against any spelling is moved into git itself, as `scripts/new-worktree.sh` did for a worktree's
+ * removal with a lock. In a Target on 2026-11-09, 20 open issues each named a form this guard
+ * missed; none came from a session that had run the command, and 12 were forms only a search for
+ * a way past would write.
+ *
  * THE GIT RULES ARE A NO-OP IN THE PRIMARY CHECKOUT. AGENTS.md § Git workflow forbids pushing to,
  * switching to or rewriting a protected branch from a worktree; the primary checkout is where a
  * person works, and what they commit or push there is theirs to decide. So the guard asks git
@@ -15,8 +29,8 @@
  * because what they guard is not worktree isolation. Where the command runs is the payload's `cwd`, never `CLAUDE_PROJECT_DIR`;
  * `commandDir` below says what reading the variable cost.
  *
- * IT FAILS CLOSED, unlike the three advisory hooks beside it. A guard that allows the command when
- * it cannot read the payload is not a guard: the shell version of this file needed `jq`, which is
+ * IT FAILS CLOSED WHEN IT CANNOT READ THE PAYLOAD, unlike the three advisory hooks beside it. A
+ * guard that allows the command then is not a guard: the shell version of this file needed `jq`, which is
  * not installed here, and its `[ -z "$cmd" ] && exit 0` therefore allowed every command -- including
  * the one command it existed to stop.
  *
