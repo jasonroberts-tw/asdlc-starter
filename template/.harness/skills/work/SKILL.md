@@ -52,8 +52,9 @@ With several issues, use the `fan-out-work` sub-agent
 ## 3. Claim, then work in a worktree
 
 Claim the issue in the tracker (`bd update <id> --claim`); with several, claim every one step 2
-kept, in one bracket, before the first worktree. Make the worktree with the one worktree script,
-never natively: `{{CLI_WORKTREE_CREATE}}`. Read `.worktree/CONTEXT.md` there. Tracker writes that carry a
+kept, in one bracket, before the first worktree. Make the worktree: {{CLI_WORKTREE_CREATE}}. Its
+first command is `node scripts/setup-worktree.mjs`, which names its branch, sets its commit
+identity, installs and writes the briefing. Read `.worktree/CONTEXT.md` there. Tracker writes that carry a
 body, such as step 1's re-scoping, are made from here. Work agreed in conversation has no issue to
 claim yet, so the order turns round: make the worktree, search for an issue that already carries the
 work, then file it from here and claim it. Step 1

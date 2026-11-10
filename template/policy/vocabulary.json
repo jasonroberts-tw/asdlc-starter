@@ -6,7 +6,7 @@
   "provenance": "Came with the template this repository was bootstrapped from; each key's `Means` gives the reason for its value.",
   "assetLabels": {
     "asset:docs": "a document that is not the register: a README or a page under docs/",
-    "asset:environment": "what a session runs on: the worktree script and its briefing template, the toolchain's versions, the harness's settings, the dev container",
+    "asset:environment": "what a session runs on: the worktree scripts and the briefing template, the toolchain's versions, the harness's settings, the dev container",
     "asset:gate": "a gate, a hook, a test runner, or a job that runs one (git-hooks.yml, .github/workflows/verify.yml)",
     "asset:product": "the product's code and its tests",
     "asset:prompt": "AGENTS.md, CLAUDE.md, a skill or an agent",

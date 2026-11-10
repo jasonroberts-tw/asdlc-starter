@@ -15,11 +15,8 @@ must exercise. `checks.mjs` reads the actual deployed commands rather than invok
 | `block-generated-edit.allow.json` | Writes plain echo source |
 | `guard-delivery.refuse.json` | Edits a test the unprovisioned worktree's list protects |
 | `guard-delivery.allow.json` | Writes plain echo source in Bob's primary checkout |
-| `worktree-create.refuse.json` | Supplies a name with two path segments |
-| `worktree-create.allow.json` | Creates the provisioned `agent/probe` worktree |
-| `worktree-remove.refuse.json` | Omits `worktree_path` |
-| `worktree-remove.allow.json` | Removes the just-created worktree, retaining its branch |
 
 Before the hooks run, the checker commits one line to the protected-tests list on the unprovisioned
-worktree's branch, so `guard-delivery`'s refusal has a protected test to refuse. The checker confirms refusal leaves the worktree registry unchanged, confirms the allowed create
-and remove effects, and deletes the probe branch afterwards so it cannot satisfy Work-run evidence.
+worktree's branch, and moves the clone's `origin/main` ref onto that commit for the step, so
+`guard-delivery`'s refusal has a protected test to refuse. The checker confirms refusal leaves the
+worktree registry unchanged.

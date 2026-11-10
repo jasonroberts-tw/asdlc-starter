@@ -72,9 +72,10 @@ story's notes: a misremembered name installs whoever registered it.
 
 ## Git workflow
 
-The trunk is `main`. Agent work happens on `agent/<name>` branches cut from
-`origin/main` by the one worktree script, and reaches the trunk by pull request. `<name>` starts
-with the id of the issue the branch carries, because the delivery hook finds the issue there. Name the base
+The trunk is `main`. Agent work happens in a worktree, on an `agent/<name>` branch cut from
+`origin/main`, and reaches the trunk by pull request. `scripts/setup-worktree.mjs` names that
+branch, as the first command in the worktree, and no other command runs there before it. `<name>`
+starts with the id of the issue the branch carries, because the delivery hook finds the issue there. Name the base
 explicitly on every pull request, because a tool that infers one infers the default branch. The
 protected branches are main, release: never push to, switch to or rewrite one from a
 worktree. 
@@ -82,7 +83,7 @@ worktree.
 ## Worktree-local context
 
 Read `.worktree/CONTEXT.md` when it exists. Its briefing wins where it and this file disagree;
-outside a worktree the worktree script made, no briefing exists.
+outside a worktree the setup script has run in, no briefing exists.
 
 ## Guards
 

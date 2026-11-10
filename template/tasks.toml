@@ -128,10 +128,11 @@ run = "node scripts/git-hooks.mjs --selftest"
 
 ["worktree:selftest"]
 description = '''
-The worktree hooks, the git guard and the unprovisioned-worktree guard, negative-tested against a
-scratch repository it builds; the worktree briefing rendered from its template into a scratch
-directory; new-worktree.sh beside a held `.git/config.lock`; and every rendered Claude hook,
-loaded from another working directory. Without it a guard could stop refusing what it
+The git guard and the unprovisioned-worktree guard, negative-tested against a scratch repository
+it builds; the worktree briefing rendered from its template into a scratch directory;
+new-worktree.sh beside a held `.git/config.lock`, the lock it adds a worktree with and the commit
+identity set there; setup-worktree.mjs in a worktree made as Claude Code makes one; and every
+rendered Claude hook, loaded from another working directory. Without it a guard could stop refusing what it
 exists to refuse, or a hook stop loading, and every commit and push would still pass.'''
 run = "node scripts/hooks/worktree-hooks.selftest.mjs"
 

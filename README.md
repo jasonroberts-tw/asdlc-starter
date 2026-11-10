@@ -60,10 +60,14 @@ choice.
 ### Isolated worktrees for parallel agents
 
 Each agent task gets its own git worktree, on an `agent/<issue id>-<slug>` branch cut from
-`origin/main`. `new-worktree.sh` also reserves a pair of ports for the worktree and writes a
-briefing to `.worktree/CONTEXT.md`. It adds the worktree locked, so git itself refuses to remove or
-prune it until someone unlocks it. It also sets the GitHub App's bot account as that worktree's
-commit identity, so an agent's commit is told from the operator's by its author. The briefing tells
+`origin/main`. Claude Code makes its own worktrees, and removes one once its agent finishes with
+nothing changed. For Codex, Copilot and OpenCode, which have no worktree tool, `new-worktree.sh`
+makes the worktree and adds it locked, so git itself refuses to remove or prune it until someone
+unlocks it. Either way, the first command in a worktree is `setup-worktree.mjs`. It names the
+branch for its issue, and it sets the GitHub App's bot account as that worktree's commit identity,
+so an agent's commit is told from the operator's by its author. It also reserves a pair of ports,
+installs the packages and writes a briefing to `.worktree/CONTEXT.md`. A guard refuses every
+other command in a worktree until that script has run. The briefing tells
 the agent that other agents are editing the
 repository at the same time. So the agent prefers additive changes, and it stops on a rebase
 conflict it did not expect. The `fan-out-work` agent splits the ready queue into lanes by the files
@@ -226,8 +230,8 @@ CLI and in VS Code, and reads `AGENTS.md` itself. OpenCode uses `.opencode/skill
 `.opencode/agents/`, and reads `AGENTS.md` itself. It runs no hook commands, so a plugin runs the
 hook scripts before its tool calls: `.opencode/plugins/harness.js` in OpenCode 1, and
 `.opencode/plugins/harness-v2/` in OpenCode 2. None of Codex, Copilot and OpenCode has a worktree
-lifecycle hook, so the renderer reports those two hooks as unsupported, and their workflows run the
-shared worktree script. See the
+tool, so their workflows run the shared worktree script, and every CLI's worktree is finished by
+the same setup script. See the
 [source and format guide](template/.harness/README.md) for details.
 
 Run the adapter tests with `mise run integrations:selftest` from `template/`, after installing the

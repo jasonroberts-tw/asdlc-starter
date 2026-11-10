@@ -224,8 +224,7 @@ non-blocking error and runs the tool call unguarded. So the test runs every hook
 `.claude/settings.json` exactly as written, through `sh -c`, with `CLAUDE_PROJECT_DIR` set to Bob's
 clone. It feeds each one a payload it must refuse and a payload it must allow. A guard refuses by
 exiting 2, with its reason on stderr. `guard-git.mjs`'s reason starts `BLOCKED by repository
-policy:`, and the other guards word theirs differently. A provisioning hook fails by exiting
-non-zero.
+policy:`, and the other guards word theirs differently.
 
 | Hook | Must refuse | Must allow |
 |---|---|---|
@@ -233,8 +232,10 @@ non-zero.
 | `guard-unprovisioned-worktree.mjs` | Bash `git status`, run from a linked worktree whose branch does not start with `agent/` | the same command from the primary checkout |
 | `block-generated-edit.mjs` | a Write of `probe.mjs` whose first line says it is generated and not to be edited by hand | a Write of `echo.mjs` with plain content |
 | `guard-delivery.mjs` | an Edit of `tests/probe.test.mjs` in the unprovisioned worktree, whose branch has a commit listing that test as protected, with Bob's `origin/main` ref moved onto that commit for the step | a Write of `echo.mjs` in the primary checkout |
-| `worktree-create.mjs` | a `name` of two path segments: it must exit non-zero and make no worktree | `name: "probe"`: it prints a worktree path, on branch `agent/probe` |
-| `worktree-remove.mjs` | a payload with no `worktree_path` | the worktree made above: afterwards it is gone |
+
+Until 2026-11-10 the settings also registered a WorktreeCreate and a WorktreeRemove hook, and this
+step ran both. Claude Code now makes and removes its own worktrees, so the settings register
+neither, and `worktree:selftest` holds the setup script that every worktree runs first.
 
 The payloads live in `tests/template/fixtures/hook-payloads/`, one pair per hook script. A hook in
 `settings.json` with no pair fails the step with "no fixture for `<command>`", so a hook added later
