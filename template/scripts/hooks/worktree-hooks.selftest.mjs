@@ -2,8 +2,9 @@
  * Self-test for scripts/hooks/worktree-create.mjs, scripts/hooks/worktree-remove.mjs,
  * scripts/render-worktree-context.mjs with the briefing template it renders,
  * scripts/new-worktree.sh's choice of which copy of that template renders, its run beside
- * another that holds `.git/config.lock`
- * and the branch a failed run of it made, and for the hook registrations in
+ * another that holds `.git/config.lock`,
+ * the branch a failed run of it made, the lock it adds a worktree with and the commit identity it
+ * sets there, and for the hook registrations in
  * the rendered Claude settings: each must load
  * whatever the session's working directory is (the last section says what broke).
  *
@@ -617,21 +618,31 @@ check('a record this checkout cannot see keeps it', unseenRegistered('unseen'))
 check('a removed worktree keeps it too: the hook prunes nothing', unseenRegistered('removed'))
 // The fallback's own admin directory, for a path the hook owns. git names one after the worktree's
 // last path segment and adds a number on a collision, so `.git/worktrees/<basename>` can be another
-// worktree's. `elsewhere/lane` is registered first, as `lane`; the owned `lane` second, as `lane1`,
-// and locked, so `git worktree remove --force` refuses it, as the sandbox does, and the fallback runs.
-const twinPrimary = join(realpathSync(mkdtempSync(join(tmpdir(), 'wt-twin-'))), 'primary')
+// worktree's. `elsewhere/lane` is registered first, as `lane`; the owned `lane` second, as `lane1`.
+// A `git` first on PATH refuses `worktree remove` and runs everything else, as the sandbox does, so
+// the fallback runs. A lock stood in for the sandbox until the hook began to unlock first.
+const twinRoot = realpathSync(mkdtempSync(join(tmpdir(), 'wt-twin-')))
+const twinPrimary = join(twinRoot, 'primary')
+const REAL_GIT = execFileSync('sh', ['-c', 'command -v git'], { env: GIT_ENV, encoding: 'utf8' }).trim()
+const busyBin = join(twinRoot, 'bin')
+mkdirSync(busyBin)
+writeFileSync(
+  join(busyBin, 'git'),
+  `#!/bin/sh\ncase " $* " in *" worktree remove "*) echo "error: failed to delete: Device or resource busy" >&2; exit 1 ;; esac\nexec "${REAL_GIT}" "$@"\n`,
+  { mode: 0o755 },
+)
+const BUSY_ENV = { ...GIT_ENV, PATH: `${busyBin}${delimiter}${GIT_ENV.PATH ?? ''}` }
 execFileSync('git', ['init', '-q', '-b', 'main', twinPrimary], { env: GIT_ENV, encoding: 'utf8' })
 git(twinPrimary, ...AS, 'commit', '-q', '--allow-empty', '-m', 'base')
 git(twinPrimary, 'worktree', 'add', '-q', '-b', 'agent/elsewhere-lane', join(dirname(twinPrimary), 'elsewhere', 'lane'), 'main')
 const ownedLane = join(twinPrimary, '.claude', 'worktrees', 'lane')
 git(twinPrimary, 'worktree', 'add', '-q', '-b', 'agent/lane', ownedLane, 'main')
-git(twinPrimary, 'worktree', 'lock', ownedLane)
 const twinHook = join(twinPrimary, 'scripts', 'hooks', 'worktree-remove.mjs')
 mkdirSync(dirname(twinHook), { recursive: true })
 copyFileSync(REMOVE, twinHook)
 const ownedRun = spawnSync('node', [twinHook], {
   input: JSON.stringify({ hook_event_name: 'WorktreeRemove', worktree_path: ownedLane }),
-  env: GIT_ENV,
+  env: BUSY_ENV,
   encoding: 'utf8',
 })
 const twinRecord = (id) => existsSync(join(twinPrimary, '.git', 'worktrees', id))
@@ -646,17 +657,49 @@ check('and keeps the record of the worktree whose name its own collided with', t
 // admin directory whose own `gitdir` names this worktree back, the link git itself keeps.
 const forged = join(twinPrimary, '.claude', 'worktrees', 'forged')
 git(twinPrimary, 'worktree', 'add', '-q', '-b', 'agent/forged', forged, 'main')
-git(twinPrimary, 'worktree', 'lock', forged)
 writeFileSync(join(forged, '.git'), `gitdir: ${join(twinPrimary, '.git', 'worktrees', 'lane')}\n`)
 const forgedRun = spawnSync('node', [twinHook], {
   input: JSON.stringify({ hook_event_name: 'WorktreeRemove', worktree_path: forged }),
-  env: GIT_ENV,
+  env: BUSY_ENV,
   encoding: 'utf8',
 })
 check(
   "a worktree whose .git file names another's admin directory leaves that record alone",
   forgedRun.stderr.includes('removing directly') && !existsSync(forged) && twinRecord('lane'),
   forgedRun.stderr,
+)
+// A LOCKED worktree, as scripts/new-worktree.sh adds every one: git refuses to remove it, so the
+// hook unlocks it first and the ordinary removal runs. The negative is the hook with that unlock
+// taken out, which must fall to the direct removal: without it, a git that removed a locked worktree
+// at one --force would pass the case.
+const lockedLane = join(twinPrimary, '.claude', 'worktrees', 'locked')
+git(twinPrimary, 'worktree', 'add', '-q', '--lock', '-b', 'agent/locked', lockedLane, 'main')
+const lockedRun = spawnSync('node', [twinHook], {
+  input: JSON.stringify({ hook_event_name: 'WorktreeRemove', worktree_path: lockedLane }),
+  env: GIT_ENV,
+  encoding: 'utf8',
+})
+check(
+  'the hook unlocks a locked worktree and removes it by the ordinary path, record and all',
+  lockedRun.status === 0 && !lockedRun.stderr.includes('removing directly') && !existsSync(lockedLane) && !twinRecord('locked'),
+  lockedRun.stderr,
+)
+const UNLOCKS = "git(['worktree', 'unlock', worktreePath])"
+const removeSource = readFileSync(REMOVE, 'utf8')
+check('negative: the doctoring reaches the unlock', removeSource.includes(UNLOCKS), `no ${UNLOCKS} in worktree-remove.mjs`)
+const noUnlockHook = join(twinPrimary, 'scripts', 'hooks', 'worktree-remove.no-unlock.mjs')
+writeFileSync(noUnlockHook, removeSource.replace(UNLOCKS, ''))
+const stillLocked = join(twinPrimary, '.claude', 'worktrees', 'still-locked')
+git(twinPrimary, 'worktree', 'add', '-q', '--lock', '-b', 'agent/still-locked', stillLocked, 'main')
+const noUnlockRun = spawnSync('node', [noUnlockHook], {
+  input: JSON.stringify({ hook_event_name: 'WorktreeRemove', worktree_path: stillLocked }),
+  env: GIT_ENV,
+  encoding: 'utf8',
+})
+check(
+  'with the unlock taken out, git refuses the locked worktree and the direct removal runs',
+  noUnlockRun.stderr.includes('removing directly'),
+  noUnlockRun.stderr,
 )
 // The image's half: `git gc` prunes a stale record once its index is older than
 // gc.worktreePruneExpire, so in the container it would take an old host worktree's. No selftest
@@ -865,16 +908,17 @@ git(trailingPrimary, 'reset', '-q', '--hard', 'HEAD~1')
  * and the briefing it wrote. The variables the script reads are pinned, so a developer's own
  * `WORKTREE_ROOT` or `TRUNK_BRANCH` cannot move the case.
  */
-function provision(script, name, primary = trailingPrimary) {
+function provision(script, name, primary = trailingPrimary, env = {}) {
   const worktrees = join(primary, '.claude', 'worktrees')
   const r = spawnSync('bash', [script, name], {
     cwd: primary,
-    env: { ...GIT_ENV, WORKTREE_ROOT: worktrees, TRUNK_BRANCH: 'main', LIFETIME_HOURS: '2' },
+    env: { ...GIT_ENV, WORKTREE_ROOT: worktrees, TRUNK_BRANCH: 'main', LIFETIME_HOURS: '2', ...env },
     encoding: 'utf8',
   })
   const briefing = join(worktrees, name, '.worktree', 'CONTEXT.md')
   return {
     code: r.status ?? 1,
+    stdout: r.stdout ?? '',
     stderr: r.stderr ?? '',
     path: join(worktrees, name),
     text: existsSync(briefing) ? readFileSync(briefing, 'utf8') : '',
@@ -979,7 +1023,7 @@ check(
 check('and writes no tracking config', trackingKeys('held').length === 0, JSON.stringify(trackingKeys('held')))
 
 const CUTS_BRANCH = 'git -C "$REPO_ROOT" branch --no-track "$BRANCH" "origin/$TRUNK"'
-const ADDS_WORKTREE = 'git -C "$REPO_ROOT" worktree add "$WORKTREE_PATH" "$BRANCH"'
+const ADDS_WORKTREE = 'git -C "$REPO_ROOT" worktree add --lock --reason "$LOCK_REASON" "$WORKTREE_PATH" "$BRANCH"'
 check(
   "negative: the doctoring reaches the script's branch and worktree lines",
   provisionSource.includes(CUTS_BRANCH) && provisionSource.includes(ADDS_WORKTREE),
@@ -1034,6 +1078,166 @@ check(
     raceTip('taken') === takenTip &&
     !existsSync(taken.path),
   `${raceWhy(taken)} branch=${raceTip('taken')}`,
+)
+
+/* --------------------------------------------------------------------------------------------- *
+ * new-worktree.sh: the lock a worktree is added with, and the commit identity set in it.
+ *
+ * THE LOCK. On 2026-10-06 a `git worktree prune` run in a dev container took the record of every
+ * worktree made on the host, whose paths the container cannot see (the section "a worktree record
+ * this checkout cannot see" has the incident). A command guard refuses a prune a session types, and
+ * that one was run by a hook. So the script adds each worktree locked: git must then refuse to
+ * remove it, and a prune must keep its record once its directory is gone, which is the shape a host
+ * worktree has in the container. The negative is the script doctored to add with no lock, whose
+ * record the same prune must take: without it, a git that pruned nothing would pass the case. A run
+ * that fails after the add must still remove its own locked worktree; the negative there is the
+ * trap doctored back to one --force, which must leave the worktree behind.
+ *
+ * THE IDENTITY. No incident in this repository. In a Target, a pull request opened on 2026-11-07
+ * carried three agent commits authored as the operator, because a session on a host commits under
+ * the operator's git config. `github-app-token.mjs identity` here is a stand-in that prints a bot
+ * account, or refuses as a project with no App does; that script's own selftest holds what the real
+ * one prints. The worktree's commits must carry the bot, with HEAD detached too, as a rebase leaves
+ * it; the primary checkout's must not. With no App, no identity is set and the shared config is not
+ * written. With `.git/config.lock` held and per-worktree config off, the run must warn and still
+ * make the worktree; with it on already, the run writes no shared config and sets the identity.
+ * --------------------------------------------------------------------------------------------- */
+console.log('new-worktree: the lock, and the commit identity')
+const lockRoot = mkdtempSync(join(tmpdir(), 'wt-lock-'))
+const lockPrimary = join(lockRoot, 'primary')
+const lockOrigin = join(lockRoot, 'origin.git')
+execFileSync('git', ['init', '-q', '--bare', '-b', 'main', lockOrigin], { env: GIT_ENV })
+execFileSync('git', ['init', '-q', '-b', 'main', lockPrimary], { env: GIT_ENV })
+mkdirSync(join(lockPrimary, 'scripts'))
+mkdirSync(join(lockPrimary, '.harness'))
+copyAdapters(lockPrimary)
+copyFileSync(PROVISION, join(lockPrimary, 'scripts', 'new-worktree.sh'))
+copyFileSync(RENDERER, join(lockPrimary, 'scripts', 'render-worktree-context.mjs'))
+const BOT = { name: 'example-agent[bot]', email: '7+example-agent[bot]@users.noreply.github.com' }
+writeFileSync(
+  join(lockPrimary, 'scripts', 'github-app-token.mjs'),
+  `if (process.argv[2] !== 'identity' || process.env.STUB_NO_APP) process.exit(1)\n` +
+    `process.stdout.write('user.name=${BOT.name}\\nuser.email=${BOT.email}\\n')\n`,
+)
+const lockTemplate = join(lockPrimary, '.harness', 'worktree-CONTEXT.md.tmpl')
+writeFileSync(lockTemplate, templateOf('base'))
+git(lockPrimary, 'add', '.')
+git(lockPrimary, ...AS, 'commit', '-qm', 'a checkout worktrees are cut from')
+git(lockPrimary, 'remote', 'add', 'origin', lockOrigin)
+git(lockPrimary, 'push', '-q', 'origin', 'main')
+const lockScript = join(lockPrimary, 'scripts', 'new-worktree.sh')
+const lockRecord = (name) => existsSync(join(lockPrimary, '.git', 'worktrees', name))
+/** A git command in the scratch checkout that may fail: its status and both streams. */
+const tryGit = (cwd, ...args) => {
+  const r = spawnSync('git', args, { cwd, env: GIT_ENV, encoding: 'utf8' })
+  return { code: r.status ?? 1, out: (r.stdout ?? '').trim(), err: r.stderr ?? '' }
+}
+const worktreeConfigOn = () => tryGit(lockPrimary, 'config', '--local', '--get', 'extensions.worktreeConfig').out === 'true'
+
+// With no App first, while per-worktree config is still off in this scratch repository.
+const noApp = provision(lockScript, 'no-app', lockPrimary, { STUB_NO_APP: '1' })
+check(
+  'with no App, the script provisions, sets no identity and says whose commits these are',
+  noApp.code === 0 && tryGit(noApp.path, 'config', 'user.email').out === '' && /^commits:  yours/m.test(noApp.stdout),
+  `${raceWhy(noApp)} ${JSON.stringify(noApp.stdout.slice(0, 300))}`,
+)
+check('and leaves per-worktree config off in the shared config', !worktreeConfigOn())
+
+const lockHeldOff = join(lockPrimary, '.git', 'config.lock')
+writeFileSync(lockHeldOff, '')
+const heldOff = provision(lockScript, 'held-off', lockPrimary)
+check(
+  'with .git/config.lock held and per-worktree config off, it warns and still makes the worktree',
+  heldOff.code === 0 && heldOff.text !== '' && heldOff.stderr.includes("could not set the App's commit identity") && !worktreeConfigOn(),
+  raceWhy(heldOff),
+)
+rmSync(lockHeldOff, { force: true })
+
+const locked = provision(lockScript, 'locked', lockPrimary)
+const lockedListing = tryGit(lockPrimary, 'worktree', 'list', '--porcelain').out
+check(
+  'a worktree is added locked, with the reason git gives back',
+  locked.code === 0 && new RegExp(`^worktree .*locked\\n(?:.+\\n)*locked an agent's worktree for agent/locked`, 'm').test(lockedListing),
+  `${raceWhy(locked)} ${JSON.stringify(lockedListing)}`,
+)
+const refusedRemove = tryGit(lockPrimary, 'worktree', 'remove', locked.path)
+check(
+  'git refuses to remove it, by the lock',
+  refusedRemove.code !== 0 && refusedRemove.err.includes('locked working tree') && existsSync(locked.path),
+  refusedRemove.err,
+)
+const identityOf = (dir, ...format) => tryGit(dir, 'log', '-1', `--format=${format.join('|')}`).out
+check(
+  "its commit identity is the App's bot, in the worktree's own config",
+  tryGit(locked.path, 'config', 'user.name').out === BOT.name &&
+    tryGit(locked.path, 'config', 'user.email').out === BOT.email &&
+    worktreeConfigOn() &&
+    new RegExp(`^commits:  ${BOT.name.replace(/[[\]]/g, '\\$&')} <`, 'm').test(locked.stdout),
+  `${tryGit(locked.path, 'config', 'user.email').out} ${JSON.stringify(locked.stdout.slice(0, 300))}`,
+)
+check(
+  "and not the primary checkout's, whose config names nobody",
+  tryGit(lockPrimary, 'config', 'user.email').out === '' && tryGit(lockPrimary, 'config', 'user.name').out === '',
+  tryGit(lockPrimary, 'config', 'user.email').out,
+)
+tryGit(locked.path, 'checkout', '-q', '--detach')
+const detachedCommit = tryGit(locked.path, 'commit', '-q', '--allow-empty', '-m', 'made with HEAD detached, as a rebase leaves it')
+check(
+  'a commit made there with HEAD detached carries the bot as author and committer',
+  detachedCommit.code === 0 && identityOf(locked.path, '%an', '%ae', '%cn', '%ce') === [BOT.name, BOT.email, BOT.name, BOT.email].join('|'),
+  `${detachedCommit.err} ${identityOf(locked.path, '%an', '%ae', '%cn', '%ce')}`,
+)
+
+const lockHeldOn = join(lockPrimary, '.git', 'config.lock')
+writeFileSync(lockHeldOn, '')
+const heldOn = provision(lockScript, 'held-on', lockPrimary)
+check(
+  'with .git/config.lock held and per-worktree config on already, it sets the identity and warns of nothing',
+  heldOn.code === 0 && tryGit(heldOn.path, 'config', 'user.email').out === BOT.email && !heldOn.stderr.includes('could not set'),
+  raceWhy(heldOn),
+)
+rmSync(lockHeldOn, { force: true })
+
+// The shape a host worktree has in a dev container: its record stays, its directory cannot be seen.
+rmSync(locked.path, { recursive: true, force: true })
+git(lockPrimary, 'worktree', 'prune')
+check('a prune keeps the record of a locked worktree whose directory is gone', lockRecord('locked'))
+const LOCKS = ' --lock --reason "$LOCK_REASON"'
+check('negative: the doctoring reaches the lock', provisionSource.includes(LOCKS), `no${LOCKS} in scripts/new-worktree.sh`)
+const unlockedScript = join(lockRoot, 'new-worktree.unlocked.sh')
+writeFileSync(unlockedScript, provisionSource.replace(LOCKS, ''))
+const unlocked = provision(unlockedScript, 'unlocked', lockPrimary)
+rmSync(unlocked.path, { recursive: true, force: true })
+git(lockPrimary, 'worktree', 'prune')
+check(
+  'doctored to add with no lock, the same prune takes the record',
+  unlocked.code === 0 && !lockRecord('unlocked'),
+  raceWhy(unlocked),
+)
+
+// A run that fails after the add: the base moves on to a template the renderer refuses.
+writeFileSync(lockTemplate, 'a placeholder the renderer does not supply: {{NOT_SUPPLIED}}\n')
+git(lockPrimary, ...AS, 'commit', '-qam', 'a template the renderer refuses')
+git(lockPrimary, 'push', '-q', 'origin', 'main')
+const failedAfterAdd = provision(lockScript, 'fails-late', lockPrimary)
+check(
+  'a run that fails after the add removes its own locked worktree, record and branch',
+  failedAfterAdd.code !== 0 &&
+    failedAfterAdd.stderr.includes('removing the worktree') &&
+    !existsSync(failedAfterAdd.path) &&
+    !lockRecord('fails-late') &&
+    tryGit(lockPrimary, 'rev-parse', '--verify', '--quiet', 'refs/heads/agent/fails-late').code !== 0,
+  raceWhy(failedAfterAdd),
+)
+const TWICE_FORCED = 'worktree remove --force --force "$WORKTREE_PATH"'
+check('negative: the doctoring reaches the trap', provisionSource.includes(TWICE_FORCED), `no ${TWICE_FORCED} in scripts/new-worktree.sh`)
+const onceForcedScript = join(lockRoot, 'new-worktree.once-forced.sh')
+writeFileSync(onceForcedScript, provisionSource.replace(TWICE_FORCED, 'worktree remove --force "$WORKTREE_PATH"'))
+const leftBehind = provision(onceForcedScript, 'left-behind', lockPrimary)
+check(
+  'doctored back to one --force, the trap leaves the locked worktree behind',
+  leftBehind.code !== 0 && existsSync(leftBehind.path) && lockRecord('left-behind'),
+  raceWhy(leftBehind),
 )
 
 /* --------------------------------------------------------------------------------------------- *

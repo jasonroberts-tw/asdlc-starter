@@ -57,7 +57,10 @@ choice.
 
 Each agent task gets its own git worktree, on an `agent/<issue id>-<slug>` branch cut from
 `origin/main`. `new-worktree.sh` also reserves a pair of ports for the worktree and writes a
-briefing to `.worktree/CONTEXT.md`. The briefing tells the agent that other agents are editing the
+briefing to `.worktree/CONTEXT.md`. It adds the worktree locked, so git itself refuses to remove or
+prune it until someone unlocks it. It also sets the GitHub App's bot account as that worktree's
+commit identity, so an agent's commit is told from the operator's by its author. The briefing tells
+the agent that other agents are editing the
 repository at the same time. So the agent prefers additive changes, and it stops on a rebase
 conflict it did not expect. The `fan-out-work` agent splits the ready queue into lanes by the files
 each issue touches, so two lanes never rewrite the same lines. It writes that split down before it

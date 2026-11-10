@@ -10,3 +10,4 @@ decision costs; where a row here and a record disagree, the record wins and the 
 | `0002-admit-installed-skills.md` | An outside skill is admitted only through the `add-skill` skill's three checks and the operator's call on any finding. |
 | `0003-scan-secrets-and-dependencies.md` | The Template scans commits for secrets with gitleaks and dependencies for advisories with osv-scanner, at pre-push and in CI. |
 | `0004-scan-secrets-with-betterleaks.md` | The secrets gate runs Betterleaks, gitleaks' successor, in place of gitleaks. |
+| `0005-git-holds-an-agents-worktree.md` | The worktree script adds each worktree locked and sets the App's bot account as its commit identity, so git holds what the git guard parsed for. |
