@@ -107,7 +107,12 @@ function adminDirOf(path) {
   }
 }
 
-// The ordinary path first. It is the only one that also tidies the admin directory by itself.
+// Unlocked first: scripts/new-worktree.sh adds every worktree locked, and git refuses to remove a
+// locked one. This hook is the removal the lock waits for, and unlocking one that holds no lock
+// fails and changes nothing.
+git(['worktree', 'unlock', worktreePath])
+
+// The ordinary path next. It is the only one that also tidies the admin directory by itself.
 let removed = git(['worktree', 'remove', '--force', worktreePath])
 
 // The sandbox path. `git worktree remove` refused because something holds `.git/worktrees/<name>`

@@ -15,9 +15,15 @@
 # checkout has none; `npm ci` is the first command inside the worktree, and both the summary printed
 # below and the rendered briefing say so.
 #
-# Several runs at once, as a fan-out sweep starts them, do not fail one another: no run writes the
-# shared .git/config, and a run that fails deletes the branch it made, and only that one
-# (the block that cuts the branch has the incident).
+# The worktree is added LOCKED, so git itself refuses to remove or prune it, however the command is
+# spelt, until someone unlocks it (the block that adds it has the incident). Its commits carry the
+# GitHub App's bot account, set for this worktree alone, so an agent's commit is told from the
+# operator's by its author (the block that sets it says where that loses).
+#
+# Several runs at once, as a fan-out sweep starts them, do not fail one another: a run that fails
+# deletes the branch it made, and only that one (the block that cuts the branch has the incident),
+# and no run writes the shared .git/config but the first to set a commit identity in a repository,
+# which turns on per-worktree config there, once.
 #
 # Run from the primary checkout.
 
@@ -61,7 +67,8 @@ cleanup() {
   local code=$?
   if [ "$code" -ne 0 ] && [ "$CREATED" -eq 1 ]; then
     echo "provisioning failed (exit $code); removing the worktree" >&2
-    git -C "$REPO_ROOT" worktree remove --force "$WORKTREE_PATH" 2>/dev/null || true
+    # Twice --force: once for a worktree with changes in it, and once more for a locked one.
+    git -C "$REPO_ROOT" worktree remove --force --force "$WORKTREE_PATH" 2>/dev/null || true
   fi
   if [ "$code" -ne 0 ] && [ "$BRANCH_MADE" -eq 1 ]; then
     echo "provisioning failed (exit $code); deleting $BRANCH, the branch this run made" >&2
@@ -104,8 +111,68 @@ BASE_DATE="$(git -C "$REPO_ROOT" log -1 --format=%ci "origin/$TRUNK")"
 # occupied path, so its exit status cannot say whether the branch it failed with was its own.
 git -C "$REPO_ROOT" branch --no-track "$BRANCH" "origin/$TRUNK"
 BRANCH_MADE=1
-git -C "$REPO_ROOT" worktree add "$WORKTREE_PATH" "$BRANCH"
+
+# Added locked. A lock makes git refuse `git worktree remove` and `git worktree move` on this
+# worktree, and makes `git worktree prune` keep its record even when git cannot see its directory.
+# On 2026-10-06 a prune run in a dev container, where every worktree made on the host has a path the
+# container cannot see, took the record of every one of them. scripts/hooks/guard-git.mjs refuses a
+# prune a session types, but that prune was run by a hook, which no command guard reads; a lock
+# holds whoever runs it and however it is spelt. `--lock` on the add leaves no moment between the
+# add and the lock. Where it loses: a session that ends without removing its worktree leaves the
+# lock, and nothing clears it but `git worktree unlock <path>`, which the removal the prompts give
+# runs first.
+LOCK_REASON="an agent's worktree for $BRANCH, in use until its work has merged; unlock it only to remove it then"
+git -C "$REPO_ROOT" worktree add --lock --reason "$LOCK_REASON" "$WORKTREE_PATH" "$BRANCH"
 CREATED=1
+
+# The GitHub App's bot account as THIS worktree's commit identity, and no other's. On a host, git's
+# identity is the operator's own, so an agent's commit and a commit the operator made by hand carry
+# one author, and nothing that reads history can tell which a person made: in a Target, a pull
+# request opened on 2026-11-07 carried three agent commits authored as the operator. The dev container sets
+# the bot's identity for its whole user (.devcontainer/entrypoint.sh); a host has no such place, so
+# it is set here, in the worktree's own config file, which needs `extensions.worktreeConfig` on in
+# the shared .git/config. That one key is the only shared write this script makes: once per
+# repository, tried again when a concurrent run holds the config's lock. A run that cannot set the
+# identity says so and still makes the worktree. A project Deployed with no App keeps the
+# operator's identity, as it chose. Where it loses: an operator who signs commits signs these with a
+# key the bot's address does not own, so GitHub shows them unverified; and a person who commits by
+# hand inside this worktree commits as the bot unless they name themselves with `git -c`.
+worktree_config_on() {
+  [ "$(git -C "$REPO_ROOT" config --type=bool --get extensions.worktreeConfig 2>/dev/null)" = "true" ]
+}
+enable_worktree_config() {
+  worktree_config_on && return 0
+  # With the key on, git stops applying a shared core.worktree or core.bare to the primary checkout
+  # alone (git-worktree(1), CONFIGURATION FILE), so a repository that holds either is left as it is.
+  if [ -n "$(git -C "$REPO_ROOT" config --local --get core.worktree 2>/dev/null)" ] ||
+    [ "$(git -C "$REPO_ROOT" config --local --type=bool --get core.bare 2>/dev/null)" = "true" ]; then
+    return 1
+  fi
+  local try
+  for try in 1 2 3; do
+    git -C "$REPO_ROOT" config --local extensions.worktreeConfig true 2>/dev/null && return 0
+    sleep 1
+    worktree_config_on && return 0
+  done
+  return 1
+}
+IDENTITY_LINE="yours"
+if [ ! -f "$WORKTREE_PATH/scripts/github-app-token.mjs" ]; then
+  :
+elif ! IDENTITY="$(node "$WORKTREE_PATH/scripts/github-app-token.mjs" identity 2>/dev/null)"; then
+  IDENTITY_LINE="yours (\`node scripts/github-app-token.mjs identity\` says why the App's is not used)"
+else
+  BOT_NAME="$(printf '%s\n' "$IDENTITY" | sed -n 's/^user\.name=//p')"
+  BOT_EMAIL="$(printf '%s\n' "$IDENTITY" | sed -n 's/^user\.email=//p')"
+  if [ -n "$BOT_NAME" ] && [ -n "$BOT_EMAIL" ] && enable_worktree_config &&
+    git -C "$WORKTREE_PATH" config --worktree user.name "$BOT_NAME" 2>/dev/null &&
+    git -C "$WORKTREE_PATH" config --worktree user.email "$BOT_EMAIL" 2>/dev/null; then
+    IDENTITY_LINE="$BOT_NAME <$BOT_EMAIL> (this worktree only)"
+  else
+    IDENTITY_LINE="yours (the App's could not be set for this worktree)"
+    echo "warning: could not set the App's commit identity for $WORKTREE_PATH, so commits there carry your own. Run \`git config extensions.worktreeConfig true\` in $REPO_ROOT once, then make the worktree again." >&2
+  fi
+fi
 
 # Installed skills (policy/skill-sources.json `installedSkills`) are untracked directories in the
 # primary checkout, so git does not bring them across; copy them from there, with no network. A
@@ -128,6 +195,7 @@ value_of() { printf '%s\n' "$RENDER" | sed -n "s/^$1=//p"; }
 
 echo "worktree: $WORKTREE_PATH"
 echo "branch:   $BRANCH (from $BASE_SHA, $BASE_DATE)"
+echo "commits:  $IDENTITY_LINE"
 echo "ports:    $(value_of APP_PORT) / $(value_of SB_PORT) (reserved: the first for a server's PORT, the second unused)"
 echo "deadline: $(value_of DEADLINE)"
 echo

@@ -444,7 +444,12 @@ for (const [cli, { skills, hookCommands, plugins = {} }] of Object.entries(provi
   assert.ok(!read(worktree, '.worktree/CONTEXT.md').includes("Claude Code's own worktree isolation"))
   assert.ok(!readdirSync(dir).includes('.claude'))
   assert.equal(git('status', '--short'), '')
-  git('worktree', 'remove', worktree)
+  // The script adds the worktree locked, so git refuses a bare remove, and the removal the open-pr
+  // skill gives must be the one that works: its commands are read from the rendered skill and run.
+  assert.throws(() => execFileSync('git', ['worktree', 'remove', worktree], { cwd: dir, env, encoding: 'utf8', stdio: 'pipe' }), /locked working tree/)
+  const removal = [...read(dir, skills + '/open-pr/SKILL.md').matchAll(/`git (worktree (?:unlock|remove)) <path>`/g)].map((match) => match[1])
+  assert.deepEqual(removal, ['worktree unlock', 'worktree remove'])
+  for (const words of removal) git(...words.split(' '), worktree)
   mkdirSync(worktree)
   const guarded = spawnSync(process.execPath, [join(dir, 'scripts/hooks/guard-git.mjs')], {
     env, encoding: 'utf8', input: JSON.stringify({ cwd: worktree, tool_name: 'Bash', tool_input: { command: 'git status' } }),

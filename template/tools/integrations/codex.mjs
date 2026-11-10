@@ -16,7 +16,7 @@ export const codex = {
   entryPoints: {},
   replacements: {
     CLI_WORKTREE_CREATE: 'HARNESS_CLI=codex bash "$(git rev-parse --show-toplevel)/scripts/new-worktree.sh" <task-ref> <slug>',
-    CLI_WORKTREE_REMOVE: 'end the worktree session, then run `git worktree remove <path>` from the primary checkout',
+    CLI_WORKTREE_REMOVE: 'end the worktree session, then run `git worktree unlock <path>` and `git worktree remove <path>` from the primary checkout',
     CLI_WORKTREE_ISOLATION: '',
   },
   agent(agent) {
