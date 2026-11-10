@@ -901,7 +901,7 @@ const linked = inLinkedWorktree(dir)
 // Only where git found no linked worktree: in one, `--show-toplevel` is that worktree by definition.
 const stray = linked ? null : strayWorktreeDir(dir)
 
-// A worktree the script did not provision is refused whole by `guard-unprovisioned-worktree.mjs`,
+// A worktree the setup script has not run in is refused whole by `guard-unprovisioned-worktree.mjs`,
 // which runs beside this hook on every Bash command, off the high-risk floor.
 
 // FAILING CLOSED IS A WORKTREE RULE, NOT A GLOBAL ONE. Inside a linked worktree an unreadable

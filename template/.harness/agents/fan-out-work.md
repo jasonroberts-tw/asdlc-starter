@@ -45,10 +45,9 @@ One bracket, so no second session picks up an issue between two of your claims.
 
 ## 4. One fresh agent per lane, each in its own worktree
 
-Launch each lane with the Agent tool's `isolation: "worktree"`, whose hook runs the one worktree
-script: a lane told instead to enter a worktree by path can run and write nothing there
-(not verified against the CLI). Brief each lane with: its issues, its anchors, the skill it follows
-(`work`), where it stops in it, that it makes no worktree at § 3, that its
+{{CLI_LANE_LAUNCH}} Brief each lane with: its issues, its anchors, the skill it follows
+(`work`), where it stops in it, that it makes no worktree at § 3 and its first command is
+`node scripts/setup-worktree.mjs <issue id>-<slug>`, which you name for its first issue, that its
 anchors narrow nothing § 4 asks, and these two rules, stated in every brief word for word:
 
 1. **Never end a turn while a command runs.** A turn end kills the lane's background run or leaves
@@ -59,7 +58,8 @@ anchors narrow nothing § 4 asks, and these two rules, stated in every brief wor
 A lane stops at the end of the `work` skill § 5 and writes its branch and both gate
 runs as measured, or why it stopped sooner, to `.scratch/lane-report.md` in its worktree. It opens
 no pull request and closes no issue. Read that file at the `worktreePath` its completion notice
-gives: its final message may not arrive (not verified against the CLI).
+gives: its final message may not arrive (not verified against the CLI). Take the branch from that
+file, never from the notice, which names the branch the worktree had before its setup renamed it.
 
 ## 5. Integrate on your own branch
 

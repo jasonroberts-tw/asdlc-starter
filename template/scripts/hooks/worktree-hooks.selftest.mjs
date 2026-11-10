@@ -1,26 +1,22 @@
 /**
- * Self-test for scripts/hooks/worktree-create.mjs, scripts/hooks/worktree-remove.mjs,
- * scripts/render-worktree-context.mjs with the briefing template it renders,
- * scripts/new-worktree.sh's choice of which copy of that template renders, its run beside
- * another that holds `.git/config.lock`,
- * the branch a failed run of it made, the lock it adds a worktree with and the commit identity it
- * sets there, and for the hook registrations in
+ * Self-test for scripts/hooks/guard-git.mjs, scripts/hooks/guard-unprovisioned-worktree.mjs,
+ * scripts/setup-worktree.mjs, scripts/render-worktree-context.mjs with the briefing template it
+ * renders, scripts/new-worktree.sh's choice of which copy of that template renders, its run beside
+ * another that holds `.git/config.lock`, the branch a failed run of it made, the lock it adds a
+ * worktree with and the commit identity set there, and for the hook registrations in
  * the rendered Claude settings: each must load
  * whatever the session's working directory is (the last section says what broke).
  *
- * Covers the halves of the contract that are cheap to exercise and easy to get wrong: what the hooks
- * accept on stdin, what they refuse, and -- for the remove hook -- that stdout stays clean and the
- * sandbox fallback actually deletes a directory `git worktree remove` will not touch. It deliberately
- * does NOT provision a real worktree: `git worktree add` needs the primary checkout, and a
- * worktree-isolated session is refused it by scripts/hooks/guard-git.mjs. That one round trip is
- * verified by running the create hook from the primary checkout. The new-worktree
- * case runs the script only in a scratch repository of its own.
+ * Every case that needs a worktree makes one in a scratch repository of its own under the temporary
+ * directory: `git worktree add` against THIS repository is refused to a worktree-isolated session by
+ * scripts/hooks/guard-git.mjs, and a selftest must not register a worktree in the repository it
+ * runs from.
  *
  *   node scripts/hooks/worktree-hooks.selftest.mjs
  *
  * Needs `git`, `bash` and a POSIX `sh` on PATH. It reads nothing outside the temporary directory
- * but this checkout's own files. The render and new-worktree cases bind loopback ports for a moment,
- * as the renderer's port probe does.
+ * but this checkout's own files. The render, setup and new-worktree cases bind loopback ports for a
+ * moment, as the renderer's port probe does.
  */
 import { execFileSync, spawnSync } from 'node:child_process'
 import {
@@ -41,24 +37,8 @@ import { fileURLToPath } from 'node:url'
 import { renderIntegrations } from '../../tools/integrations/render.mjs'
 
 const HOOKS = resolve(dirname(fileURLToPath(import.meta.url)))
-const CREATE = join(HOOKS, 'worktree-create.mjs')
-const REMOVE = join(HOOKS, 'worktree-remove.mjs')
 
 let failures = 0
-
-/**
- * Run a hook with `input` on stdin. Never throws; the exit code is part of what is asserted.
- *
- * `spawnSync` rather than `execFileSync` because stderr has to survive a SUCCESSFUL run:
- * `execFileSync` returns stdout only and reaches stderr through the thrown error, so on exit 0 it
- * dropped the stream on the floor. These hooks report everything they did on stderr -- stdout is
- * reserved for the harness -- which makes stderr the only evidence of what a zero-exit run actually
- * did.
- */
-function run(script, input) {
-  const r = spawnSync('node', [script], { input, encoding: 'utf8' })
-  return { code: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
-}
 
 function check(label, condition, detail) {
   if (condition) {
@@ -69,79 +49,20 @@ function check(label, condition, detail) {
   }
 }
 
-console.log('create hook: input it must refuse')
-for (const [label, input] of [
-  ['non-JSON stdin', 'not json at all'],
-  ['no name field', '{"hook_event_name":"WorktreeCreate"}'],
-  ['name with a slash', '{"hook_event_name":"WorktreeCreate","name":"a/b"}'],
-  ['name with a backslash', '{"hook_event_name":"WorktreeCreate","name":"a\\\\b"}'],
-  ['dot-segment name', '{"hook_event_name":"WorktreeCreate","name":".."}'],
-  ['traversal name', '{"hook_event_name":"WorktreeCreate","name":"../escape"}'],
-  ['empty name', '{"hook_event_name":"WorktreeCreate","name":""}'],
-  ['non-string name', '{"hook_event_name":"WorktreeCreate","name":42}'],
-  ['leading-dot name', '{"hook_event_name":"WorktreeCreate","name":".hidden"}'],
-]) {
-  const r = run(CREATE, input)
-  // A refusal must be non-zero AND must not print a path, or the harness would try to use one.
-  check(
-    label,
-    r.code !== 0 && r.stdout.trim() === '',
-    `code=${r.code} stdout=${JSON.stringify(r.stdout)}`,
-  )
-}
-
-console.log('remove hook: input it must refuse')
-for (const [label, input] of [
-  ['non-JSON stdin', 'not json at all'],
-  ['no worktree_path', '{"hook_event_name":"WorktreeRemove"}'],
-  ['empty worktree_path', '{"hook_event_name":"WorktreeRemove","worktree_path":""}'],
-]) {
-  const r = run(REMOVE, input)
-  check(label, r.code !== 0, `code=${r.code}`)
-}
-
-console.log('remove hook: the sandbox fallback')
-// A plain directory is not a registered worktree, so `git worktree remove` fails on it exactly as it
-// does under the sandbox's bind mounts. The direct-removal branch is what must clear it.
-const scratch = mkdtempSync(join(tmpdir(), 'wt-remove-'))
-const victim = join(scratch, 'not-a-worktree')
-mkdirSync(join(victim, 'nested'), { recursive: true })
-writeFileSync(join(victim, 'nested', 'file.txt'), 'content')
-const removed = run(
-  REMOVE,
-  JSON.stringify({ hook_event_name: 'WorktreeRemove', worktree_path: victim }),
-)
-check('exits zero', removed.code === 0, `code=${removed.code} stderr=${removed.stderr}`)
-check('directory is gone', !existsSync(victim))
-check('stdout stays empty', removed.stdout.trim() === '', JSON.stringify(removed.stdout))
-
-console.log('remove hook: a path that cannot be removed')
-// Nothing to delete is still "gone", so this must succeed rather than fail on a missing directory.
-const absent = run(
-  REMOVE,
-  JSON.stringify({
-    hook_event_name: 'WorktreeRemove',
-    worktree_path: join(scratch, 'never-existed'),
-  }),
-)
-check('absent path exits zero', absent.code === 0, `code=${absent.code} stderr=${absent.stderr}`)
-
 /* --------------------------------------------------------------------------------------------- *
- * guard-unprovisioned-worktree: the unprovisioned-worktree tripwire.
+ * guard-unprovisioned-worktree: a worktree the setup script has not run in.
  *
- * The one failure the WorktreeCreate hook cannot catch is the one where no WorktreeCreate hook ran.
- * A session whose settings file registers no WorktreeCreate hook gets `EnterWorktree`'s native
- * behaviour instead: a `worktree-<name>` branch cut from `origin/main` rather than `agent/<name>` cut
- * from `origin/main`. Since both now use the same LOCATION, the branch name is the discriminator.
- * `guard-unprovisioned-worktree.mjs` is a PreToolUse Bash hook, so it fires whether or not that hook
- * is registered -- and this asserts it does. Until 2026-10-08 the check lived in `guard-git.mjs`,
- * which the high-risk floor holds; `guard-git.mjs` must now let the same command through, or the
- * check would still be on the floor.
+ * Claude Code makes its own worktrees, on a `worktree-<name>` branch, and no hook fires after it
+ * makes one, so nothing runs `scripts/setup-worktree.mjs` for the session. This guard is what makes
+ * that script the first command: in a linked worktree whose branch is not `agent/<name>` it must
+ * refuse every command but the setup, run plainly. The branch name is the signal, since the setup's
+ * first step is the rename. Until 2026-10-08 the check lived in `guard-git.mjs`, which the
+ * high-risk floor holds; `guard-git.mjs` must let the same command through, or the check would
+ * still be on the floor.
  *
- * Unlike the create-hook cases above, this one CAN provision real worktrees, because it builds a
- * throwaway repository in a temp directory. The header's "no real worktree" constraint is about
- * `git worktree add` against THIS repository from an isolated session; a scratch repo is untouched
- * by it.
+ * The controls matter as much as the refusals: a guard that let any command through that names the
+ * setup script would be opened by `node scripts/setup-worktree.mjs; rm -rf .`, so a chained
+ * command, a quoted argument and another script of a like name must each still be refused.
  * --------------------------------------------------------------------------------------------- */
 console.log('guard-unprovisioned-worktree: the unprovisioned-worktree tripwire')
 const GUARD = join(HOOKS, 'guard-git.mjs')
@@ -236,8 +157,8 @@ check(
   native.stderr.includes("'worktree-native'"),
   JSON.stringify(native.stderr.slice(0, 200)),
 )
-// The hook reads no command, so an unreadable payload changes only where it looks: the process's
-// directory, which is still the native worktree.
+// With no cwd in the payload the hook looks at the process's directory, which is still the native
+// worktree.
 const nativeNoCwd = guardFrom(nativeDir, { hook: PROVISION_GUARD, payloadDir: null })
 check(
   "with no cwd in the payload, the process's directory decides, and it is refused",
@@ -267,6 +188,37 @@ check(
   !/behind origin\/main|not taken from origin\/main/.test(native.stderr),
   JSON.stringify(native.stderr.slice(0, 200)),
 )
+check(
+  'the refusal names the setup command to run',
+  native.stderr.includes('node scripts/setup-worktree.mjs <issue id>-<slug>'),
+  JSON.stringify(native.stderr.slice(0, 300)),
+)
+// The one command the guard lets through there, and only run plainly.
+for (const [label, command] of [
+  ['the setup script, with a name', 'node scripts/setup-worktree.mjs demo-1-fix'],
+  ['the setup script, with no argument', 'node scripts/setup-worktree.mjs'],
+  ['the setup script, with its options', 'node ./scripts/setup-worktree.mjs demo-1-fix --no-install --task demo-1'],
+]) {
+  const r = guardFrom(nativeDir, { hook: PROVISION_GUARD, command })
+  check(`a worktree-* branch may run ${label}`, r.code === 0, `code=${r.code} ${JSON.stringify(r.stderr.slice(0, 200))}`)
+}
+for (const [label, command] of [
+  ['with a command chained after it', 'node scripts/setup-worktree.mjs demo-1-fix; rm -rf .'],
+  ['with a command chained before it', 'cd /tmp && node scripts/setup-worktree.mjs demo-1-fix'],
+  ['with a substitution as its argument', 'node scripts/setup-worktree.mjs $(cat name.txt)'],
+  ['with a quoted argument', 'node scripts/setup-worktree.mjs "demo 1"'],
+  ['piped onward', 'node scripts/setup-worktree.mjs demo-1-fix | tee log.txt'],
+  ['by another path', 'node /tmp/scripts/setup-worktree.mjs demo-1-fix'],
+]) {
+  const r = guardFrom(nativeDir, { hook: PROVISION_GUARD, command })
+  check(
+    `control: the setup script ${label} is refused still`,
+    r.code === 2 && r.stderr.includes(PROVISION_RULE),
+    `code=${r.code} ${JSON.stringify(r.stderr.slice(0, 200))}`,
+  )
+}
+const likeNamed = guardFrom(nativeDir, { hook: PROVISION_GUARD, command: 'node scripts/setup-worktree.mjs.bak' })
+check('control: a script of a like name is refused still', likeNamed.code === 2, `code=${likeNamed.code}`)
 // Both controls matter: a tripwire that fires everywhere would block the whole repository. The
 // agent/* worktree sits at the SAME path shape as the refused one, so this also proves the check
 // keys on provenance rather than on location.
@@ -569,141 +521,11 @@ for (const [label, command] of [
   check(`control: the primary checkout allows ${label}`, r.code === 0, why(r))
 }
 
-/* --------------------------------------------------------------------------------------------- *
- * A worktree record this checkout cannot see.
- *
- * git cannot tell a worktree that was removed from one whose path it cannot see: both read as
- * `prunable`, and `git worktree prune` deletes both records. In a container on a bind-mounted clone,
- * every record of a worktree made on the host names a host path, so every one is the second kind. On
- * 2026-10-06 a push from such a container ran this selftest, whose foreign-path cases above made the
- * remove hook run `git worktree prune` on the real repository, and every linked worktree on the host
- * lost its record. In a scratch repository of its own, `unseen` has that shape, its parent directory
- * gone with it; `removed` was deleted from inside `.claude/worktrees/`, whose parent stays; `lane` is
- * live. Given a path it does not own, the remove hook touches no record: not `lane`'s, which shares
- * the foreign path's last name and so was deleted as its admin directory, and no stale one, which its
- * own prune took.
- * --------------------------------------------------------------------------------------------- */
-console.log('a worktree record this checkout cannot see')
-const unseenRepo = mkdtempSync(join(tmpdir(), 'wt-unseen-'))
-const unseenPrimary = join(unseenRepo, 'primary')
-execFileSync('git', ['init', '-q', '-b', 'main', unseenPrimary], { env: GIT_ENV, encoding: 'utf8' })
-git(unseenPrimary, ...AS, 'commit', '-q', '--allow-empty', '-m', 'base')
-git(unseenPrimary, 'update-ref', 'refs/remotes/origin/main', 'HEAD')
-const unseenWt = (path, name) =>
-  git(unseenPrimary, 'worktree', 'add', '-q', '-b', `agent/${name}`, path, 'main')
-unseenWt(join(unseenPrimary, '.claude', 'worktrees', 'lane'), 'lane')
-unseenWt(join(unseenPrimary, '.claude', 'worktrees', 'removed'), 'removed')
-const hostSide = join(unseenRepo, 'host')
-unseenWt(join(hostSide, 'worktrees', 'unseen'), 'unseen')
-rmSync(join(unseenPrimary, '.claude', 'worktrees', 'removed'), { recursive: true, force: true })
-rmSync(hostSide, { recursive: true, force: true })
-const unseenRegistered = (name) => existsSync(join(unseenPrimary, '.git', 'worktrees', name))
-
-// The hook works on the checkout it sits in, so a copy sits in the scratch one, run with no GIT_* key:
-// an inherited GIT_DIR, which the hook runner drops but another caller may not, would point its git
-// at this repository.
-const unseenHook = join(unseenPrimary, 'scripts', 'hooks', 'worktree-remove.mjs')
-mkdirSync(dirname(unseenHook), { recursive: true })
-copyFileSync(REMOVE, unseenHook)
-const foreign = join(unseenRepo, 'foreign', 'lane')
-mkdirSync(foreign, { recursive: true })
-const foreignRun = spawnSync('node', [unseenHook], {
-  input: JSON.stringify({ hook_event_name: 'WorktreeRemove', worktree_path: foreign }),
-  env: GIT_ENV,
-  encoding: 'utf8',
-})
-check('the hook removes a foreign directory', foreignRun.status === 0 && !existsSync(foreign), foreignRun.stderr)
-check("a live worktree sharing the foreign path's last name keeps its record", unseenRegistered('lane'))
-check('a record this checkout cannot see keeps it', unseenRegistered('unseen'))
-check('a removed worktree keeps it too: the hook prunes nothing', unseenRegistered('removed'))
-// The fallback's own admin directory, for a path the hook owns. git names one after the worktree's
-// last path segment and adds a number on a collision, so `.git/worktrees/<basename>` can be another
-// worktree's. `elsewhere/lane` is registered first, as `lane`; the owned `lane` second, as `lane1`.
-// A `git` first on PATH refuses `worktree remove` and runs everything else, as the sandbox does, so
-// the fallback runs. A lock stood in for the sandbox until the hook began to unlock first.
-const twinRoot = realpathSync(mkdtempSync(join(tmpdir(), 'wt-twin-')))
-const twinPrimary = join(twinRoot, 'primary')
-const REAL_GIT = execFileSync('sh', ['-c', 'command -v git'], { env: GIT_ENV, encoding: 'utf8' }).trim()
-const busyBin = join(twinRoot, 'bin')
-mkdirSync(busyBin)
-writeFileSync(
-  join(busyBin, 'git'),
-  `#!/bin/sh\ncase " $* " in *" worktree remove "*) echo "error: failed to delete: Device or resource busy" >&2; exit 1 ;; esac\nexec "${REAL_GIT}" "$@"\n`,
-  { mode: 0o755 },
-)
-const BUSY_ENV = { ...GIT_ENV, PATH: `${busyBin}${delimiter}${GIT_ENV.PATH ?? ''}` }
-execFileSync('git', ['init', '-q', '-b', 'main', twinPrimary], { env: GIT_ENV, encoding: 'utf8' })
-git(twinPrimary, ...AS, 'commit', '-q', '--allow-empty', '-m', 'base')
-git(twinPrimary, 'worktree', 'add', '-q', '-b', 'agent/elsewhere-lane', join(dirname(twinPrimary), 'elsewhere', 'lane'), 'main')
-const ownedLane = join(twinPrimary, '.claude', 'worktrees', 'lane')
-git(twinPrimary, 'worktree', 'add', '-q', '-b', 'agent/lane', ownedLane, 'main')
-const twinHook = join(twinPrimary, 'scripts', 'hooks', 'worktree-remove.mjs')
-mkdirSync(dirname(twinHook), { recursive: true })
-copyFileSync(REMOVE, twinHook)
-const ownedRun = spawnSync('node', [twinHook], {
-  input: JSON.stringify({ hook_event_name: 'WorktreeRemove', worktree_path: ownedLane }),
-  env: BUSY_ENV,
-  encoding: 'utf8',
-})
-const twinRecord = (id) => existsSync(join(twinPrimary, '.git', 'worktrees', id))
-check(
-  'the fallback removes an owned worktree and its own record',
-  ownedRun.stderr.includes('removing directly') && !existsSync(ownedLane) && !twinRecord('lane1'),
-  ownedRun.stderr,
-)
-check('and keeps the record of the worktree whose name its own collided with', twinRecord('lane'))
-// Its `.git` file is the worktree's to write, so it is not trusted alone: one rewritten to name
-// another worktree's admin directory must not get that record deleted. The fallback takes only an
-// admin directory whose own `gitdir` names this worktree back, the link git itself keeps.
-const forged = join(twinPrimary, '.claude', 'worktrees', 'forged')
-git(twinPrimary, 'worktree', 'add', '-q', '-b', 'agent/forged', forged, 'main')
-writeFileSync(join(forged, '.git'), `gitdir: ${join(twinPrimary, '.git', 'worktrees', 'lane')}\n`)
-const forgedRun = spawnSync('node', [twinHook], {
-  input: JSON.stringify({ hook_event_name: 'WorktreeRemove', worktree_path: forged }),
-  env: BUSY_ENV,
-  encoding: 'utf8',
-})
-check(
-  "a worktree whose .git file names another's admin directory leaves that record alone",
-  forgedRun.stderr.includes('removing directly') && !existsSync(forged) && twinRecord('lane'),
-  forgedRun.stderr,
-)
-// A LOCKED worktree, as scripts/new-worktree.sh adds every one: git refuses to remove it, so the
-// hook unlocks it first and the ordinary removal runs. The negative is the hook with that unlock
-// taken out, which must fall to the direct removal: without it, a git that removed a locked worktree
-// at one --force would pass the case.
-const lockedLane = join(twinPrimary, '.claude', 'worktrees', 'locked')
-git(twinPrimary, 'worktree', 'add', '-q', '--lock', '-b', 'agent/locked', lockedLane, 'main')
-const lockedRun = spawnSync('node', [twinHook], {
-  input: JSON.stringify({ hook_event_name: 'WorktreeRemove', worktree_path: lockedLane }),
-  env: GIT_ENV,
-  encoding: 'utf8',
-})
-check(
-  'the hook unlocks a locked worktree and removes it by the ordinary path, record and all',
-  lockedRun.status === 0 && !lockedRun.stderr.includes('removing directly') && !existsSync(lockedLane) && !twinRecord('locked'),
-  lockedRun.stderr,
-)
-const UNLOCKS = "git(['worktree', 'unlock', worktreePath])"
-const removeSource = readFileSync(REMOVE, 'utf8')
-check('negative: the doctoring reaches the unlock', removeSource.includes(UNLOCKS), `no ${UNLOCKS} in worktree-remove.mjs`)
-const noUnlockHook = join(twinPrimary, 'scripts', 'hooks', 'worktree-remove.no-unlock.mjs')
-writeFileSync(noUnlockHook, removeSource.replace(UNLOCKS, ''))
-const stillLocked = join(twinPrimary, '.claude', 'worktrees', 'still-locked')
-git(twinPrimary, 'worktree', 'add', '-q', '--lock', '-b', 'agent/still-locked', stillLocked, 'main')
-const noUnlockRun = spawnSync('node', [noUnlockHook], {
-  input: JSON.stringify({ hook_event_name: 'WorktreeRemove', worktree_path: stillLocked }),
-  env: GIT_ENV,
-  encoding: 'utf8',
-})
-check(
-  'with the unlock taken out, git refuses the locked worktree and the direct removal runs',
-  noUnlockRun.stderr.includes('removing directly'),
-  noUnlockRun.stderr,
-)
-// The image's half: `git gc` prunes a stale record once its index is older than
-// gc.worktreePruneExpire, so in the container it would take an old host worktree's. No selftest
-// builds the image, so this reads the Dockerfile's text; the trunk's before this case had no such line.
+// THE IMAGE'S HALF OF A PRUNE. git cannot tell a worktree that was removed from one whose path it
+// cannot see, and in a container on a bind-mounted clone every worktree made on the host is the
+// second kind. On 2026-10-06 a prune run there took the record of every one of them (the guard's
+// header has the incident). `git gc` prunes a stale record too, once its index is older than
+// gc.worktreePruneExpire. No selftest builds the image, so this reads the Dockerfile's text.
 check(
   "the dev container's image sets gc.worktreePruneExpire to never",
   /^\s*(?:RUN|&&) git config --system gc\.worktreePruneExpire never\s*$/m.test(
@@ -870,14 +692,15 @@ check(
  * second template to read by mistake.
  *
  * So this case builds a scratch repository whose checkout trails its remote by one commit, a commit
- * that changes only the template, and runs the checkout's copy of the script from the checkout, as
- * the WorktreeCreate hook runs it. The briefing must be the base's template, rendered, word for word.
- * The negative is the same script doctored back to the checkout's renderer, which must render the
- * checkout's template: without it, a scratch repository whose two templates never differed would
- * pass the case.
+ * that changes only the template, and runs the checkout's copy of the script from the checkout. The
+ * briefing must be the base's template, rendered, word for word: the script runs the new worktree's
+ * own setup script, which runs that worktree's renderer. The negative is the script doctored to run
+ * a setup that uses the checkout's renderer, which must render the checkout's template: without it,
+ * a scratch repository whose two templates never differed would pass the case.
  * --------------------------------------------------------------------------------------------- */
 console.log("new-worktree: the briefing is the base's template, not the checkout's")
 const PROVISION = resolve(HOOKS, '..', 'new-worktree.sh')
+const SETUP_SCRIPT = resolve(HOOKS, '..', 'setup-worktree.mjs')
 const trailing = mkdtempSync(join(tmpdir(), 'wt-base-'))
 const trailingPrimary = join(trailing, 'primary')
 const trailingOrigin = join(trailing, 'origin.git')
@@ -891,6 +714,7 @@ mkdirSync(join(trailingPrimary, '.harness'))
 copyAdapters(trailingPrimary)
 copyFileSync(PROVISION, join(trailingPrimary, 'scripts', 'new-worktree.sh'))
 copyFileSync(RENDERER, join(trailingPrimary, 'scripts', 'render-worktree-context.mjs'))
+copyFileSync(SETUP_SCRIPT, join(trailingPrimary, 'scripts', 'setup-worktree.mjs'))
 const trailingTemplate = join(trailingPrimary, '.harness', 'worktree-CONTEXT.md.tmpl')
 writeFileSync(trailingTemplate, templateOf('checkout'))
 git(trailingPrimary, 'add', '.')
@@ -904,7 +728,7 @@ git(trailingPrimary, 'reset', '-q', '--hard', 'HEAD~1')
 
 /**
  * Provision `name` by running `script` with bash from a scratch checkout, `primary` (the trailing
- * one unless named), as the WorktreeCreate hook runs it, and return the run with the worktree's path
+ * one unless named), as the prompts run it, and return the run with the worktree's path
  * and the briefing it wrote. The variables the script reads are pinned, so a developer's own
  * `WORKTREE_ROOT` or `TRUNK_BRANCH` cannot move the case.
  */
@@ -943,17 +767,18 @@ check(
   JSON.stringify(fromBase.text),
 )
 
-const RUNS_ITS_OWN = 'node "$WORKTREE_PATH/scripts/render-worktree-context.mjs"'
-const doctoredScript = join(trailing, 'new-worktree.doctored.sh')
+const RUNS_ITS_OWN = '(cd "$WORKTREE_PATH" && node scripts/setup-worktree.mjs '
+const RENDERS_ITS_OWN = "join(worktree, 'scripts', 'render-worktree-context.mjs')"
 const provisionSource = readFileSync(PROVISION, 'utf8')
-writeFileSync(
-  doctoredScript,
-  provisionSource.replace(RUNS_ITS_OWN, 'node "$REPO_ROOT/scripts/render-worktree-context.mjs"'),
-)
+const setupSource = readFileSync(SETUP_SCRIPT, 'utf8')
+const doctoredSetup = join(trailing, 'setup-worktree.doctored.mjs')
+writeFileSync(doctoredSetup, setupSource.replace(RENDERS_ITS_OWN, "join(primary, 'scripts', 'render-worktree-context.mjs')"))
+const doctoredScript = join(trailing, 'new-worktree.doctored.sh')
+writeFileSync(doctoredScript, provisionSource.replace(RUNS_ITS_OWN, `(cd "$WORKTREE_PATH" && node '${doctoredSetup}' `))
 check(
-  "negative: the doctoring reaches the script's renderer line",
-  provisionSource.includes(RUNS_ITS_OWN),
-  `no ${RUNS_ITS_OWN} in scripts/new-worktree.sh`,
+  "negative: the doctoring reaches the script's setup line and the setup's renderer line",
+  provisionSource.includes(RUNS_ITS_OWN) && setupSource.includes(RENDERS_ITS_OWN),
+  `no ${RUNS_ITS_OWN} in scripts/new-worktree.sh, or no ${RENDERS_ITS_OWN} in scripts/setup-worktree.mjs`,
 )
 const fromCheckout = provision(doctoredScript, 'doctored')
 check(
@@ -991,6 +816,7 @@ mkdirSync(join(racePrimary, '.harness'))
 copyAdapters(racePrimary)
 copyFileSync(PROVISION, join(racePrimary, 'scripts', 'new-worktree.sh'))
 copyFileSync(RENDERER, join(racePrimary, 'scripts', 'render-worktree-context.mjs'))
+copyFileSync(SETUP_SCRIPT, join(racePrimary, 'scripts', 'setup-worktree.mjs'))
 writeFileSync(join(racePrimary, '.harness', 'worktree-CONTEXT.md.tmpl'), templateOf('base'))
 git(racePrimary, 'add', '.')
 git(racePrimary, ...AS, 'commit', '-qm', 'a checkout lanes are cut from')
@@ -1113,6 +939,7 @@ mkdirSync(join(lockPrimary, '.harness'))
 copyAdapters(lockPrimary)
 copyFileSync(PROVISION, join(lockPrimary, 'scripts', 'new-worktree.sh'))
 copyFileSync(RENDERER, join(lockPrimary, 'scripts', 'render-worktree-context.mjs'))
+copyFileSync(SETUP_SCRIPT, join(lockPrimary, 'scripts', 'setup-worktree.mjs'))
 const BOT = { name: 'example-agent[bot]', email: '7+example-agent[bot]@users.noreply.github.com' }
 writeFileSync(
   join(lockPrimary, 'scripts', 'github-app-token.mjs'),
@@ -1241,6 +1068,161 @@ check(
 )
 
 /* --------------------------------------------------------------------------------------------- *
+ * setup-worktree.mjs: a worktree Claude Code made.
+ *
+ * Claude Code cuts `worktree-<name>` from origin's default branch and runs nothing of this
+ * repository's, so the setup script is what turns that into the worktree the prompts and the hooks
+ * expect. A stand-in for Claude Code's own `git worktree add` makes each one here: `--no-track`, on
+ * `worktree-<name>`, under `.claude/worktrees/`. No incident yet, since the script is new with
+ * this change; the cases hold what its header promises.
+ *
+ * The rename must write no shared config, because lanes that start together would race for its
+ * lock: with `.git/config.lock` held it must still rename. A worktree whose base trails
+ * `origin/main` must be brought up to it, and the negative is the script with that step taken out,
+ * which must leave the worktree behind: without it, a scratch repository whose trunk never moved
+ * would pass the case. A worktree cut from a commit `origin/main` does not hold is refused. A
+ * subagent's worktree, named `agent-<id>`, names no issue, so the script must ask for the name. An
+ * `agent/<name>` branch with no commit of its own is what Claude Code leaves behind when it removes
+ * an unchanged worktree, and must be replaced; one that holds work must not be.
+ * --------------------------------------------------------------------------------------------- */
+console.log('setup-worktree: a worktree Claude Code made')
+const nativeRoot = mkdtempSync(join(tmpdir(), 'wt-setup-'))
+const nativePrimary = join(nativeRoot, 'primary')
+const nativeOrigin = join(nativeRoot, 'origin.git')
+execFileSync('git', ['init', '-q', '--bare', '-b', 'main', nativeOrigin], { env: GIT_ENV })
+execFileSync('git', ['init', '-q', '-b', 'main', nativePrimary], { env: GIT_ENV })
+mkdirSync(join(nativePrimary, 'scripts'))
+mkdirSync(join(nativePrimary, '.harness'))
+copyAdapters(nativePrimary)
+copyFileSync(RENDERER, join(nativePrimary, 'scripts', 'render-worktree-context.mjs'))
+copyFileSync(SETUP_SCRIPT, join(nativePrimary, 'scripts', 'setup-worktree.mjs'))
+copyFileSync(join(lockPrimary, 'scripts', 'github-app-token.mjs'), join(nativePrimary, 'scripts', 'github-app-token.mjs'))
+writeFileSync(join(nativePrimary, '.harness', 'worktree-CONTEXT.md.tmpl'), templateOf('base'))
+writeFileSync(join(nativePrimary, '.gitignore'), '.worktree/\n.claude/worktrees/\n')
+git(nativePrimary, 'add', '.')
+git(nativePrimary, ...AS, 'commit', '-qm', 'the commit worktrees are cut from')
+git(nativePrimary, 'remote', 'add', 'origin', nativeOrigin)
+git(nativePrimary, 'push', '-q', 'origin', 'main')
+const nativeBase = git(nativePrimary, 'rev-parse', 'HEAD').trim()
+/** A worktree as Claude Code makes one: `worktree-<name>`, untracked, under `.claude/worktrees/`. */
+const claudeWorktree = (name, from = 'origin/main') => {
+  const dir = join(nativePrimary, '.claude', 'worktrees', name)
+  git(nativePrimary, 'worktree', 'add', '-q', '--no-track', '-b', `worktree-${name}`, dir, from)
+  return dir
+}
+/** The setup script run in `dir`, from this checkout's copy unless `script` names another. */
+const setUp = (dir, args = [], { script = join(dir, 'scripts', 'setup-worktree.mjs'), env = {} } = {}) => {
+  const r = spawnSync('node', [script, ...args], { cwd: dir, env: { ...GIT_ENV, LIFETIME_HOURS: '2', ...env }, encoding: 'utf8' })
+  return { code: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
+}
+const setupWhy = (r) => `code=${r.code} ${JSON.stringify((r.stderr || r.stdout).slice(0, 400))}`
+const branchOf = (dir) => tryGit(dir, 'symbolic-ref', '--short', 'HEAD').out
+const hasBranch = (name) => tryGit(nativePrimary, 'rev-parse', '--verify', '--quiet', `refs/heads/${name}`).code === 0
+
+const entered = claudeWorktree('demo-1-fix')
+const first = setUp(entered)
+check(
+  'it renames worktree-<name> to agent/<name>, from the directory name, and the old branch is gone',
+  first.code === 0 && branchOf(entered) === 'agent/demo-1-fix' && !hasBranch('worktree-demo-1-fix'),
+  `${setupWhy(first)} branch=${branchOf(entered)}`,
+)
+check(
+  "it sets the App's bot as the commit identity there, and not in the primary checkout",
+  tryGit(entered, 'config', 'user.email').out === BOT.email && tryGit(nativePrimary, 'config', 'user.email').out === '',
+  tryGit(entered, 'config', 'user.email').out,
+)
+check(
+  'it renders the briefing, with the branch it named',
+  existsSync(join(entered, '.worktree', 'CONTEXT.md')) && readFileSync(join(entered, '.worktree', 'CONTEXT.md'), 'utf8').includes('agent/demo-1-fix cut at'),
+  setupWhy(first),
+)
+check('the guard that refused the worktree now allows a command there', guardFrom(entered, { hook: PROVISION_GUARD }).code === 0)
+const briefingWas = readFileSync(join(entered, '.worktree', 'CONTEXT.md'), 'utf8')
+const again = setUp(entered)
+check(
+  'run again, it changes nothing and keeps the briefing',
+  again.code === 0 && branchOf(entered) === 'agent/demo-1-fix' && again.stdout.includes('(already there, kept)') &&
+    readFileSync(join(entered, '.worktree', 'CONTEXT.md'), 'utf8') === briefingWas,
+  setupWhy(again),
+)
+const otherName = setUp(entered, ['demo-2-other'])
+check('run again with another name, it refuses', otherName.code === 1 && otherName.stderr.includes('already on agent/demo-1-fix'), setupWhy(otherName))
+
+const lane = claudeWorktree('agent-0a1b2c3d4e5f')
+const unnamed = setUp(lane)
+check(
+  "a subagent's worktree, named agent-<id>, is refused without a name, and stays as it was",
+  unnamed.code === 1 && unnamed.stderr.includes('names no issue') && branchOf(lane) === 'worktree-agent-0a1b2c3d4e5f',
+  setupWhy(unnamed),
+)
+const setupLock = join(nativePrimary, '.git', 'config.lock')
+writeFileSync(setupLock, '')
+const laneNamed = setUp(lane, ['demo-3-lane'])
+rmSync(setupLock, { force: true })
+check(
+  'given a name, and with .git/config.lock held, it renames the branch and sets the identity',
+  laneNamed.code === 0 && branchOf(lane) === 'agent/demo-3-lane' && tryGit(lane, 'config', 'user.email').out === BOT.email && !laneNamed.stderr.includes('could not'),
+  `${setupWhy(laneNamed)} branch=${branchOf(lane)}`,
+)
+const badName = setUp(claudeWorktree('demo-4-bad'), ['../escape'])
+check('a name that cannot be a branch is refused', badName.code === 1 && badName.stderr.includes('cannot name a branch'), setupWhy(badName))
+
+// The trunk moves on, and a worktree is cut from where it was: Claude Code fetches at most daily.
+writeFileSync(join(nativePrimary, 'later.txt'), 'the trunk moved on\n')
+git(nativePrimary, 'add', 'later.txt')
+git(nativePrimary, ...AS, 'commit', '-qm', 'the trunk moves on')
+git(nativePrimary, 'push', '-q', 'origin', 'main')
+const nativeTip = git(nativePrimary, 'rev-parse', 'HEAD').trim()
+const stale = claudeWorktree('demo-5-stale', nativeBase)
+const caughtUp = setUp(stale)
+check(
+  'a worktree cut behind origin/main is brought up to it',
+  caughtUp.code === 0 && git(stale, 'rev-parse', 'HEAD').trim() === nativeTip,
+  `${setupWhy(caughtUp)} head=${git(stale, 'rev-parse', '--short', 'HEAD').trim()}`,
+)
+const FAST_FORWARDS = "git(worktree, 'merge', '--ff-only', '--quiet', TRUNK_REMOTE)"
+check('negative: the doctoring reaches the fast-forward', setupSource.includes(FAST_FORWARDS), `no ${FAST_FORWARDS} in scripts/setup-worktree.mjs`)
+const noForwardSetup = join(nativeRoot, 'setup-worktree.no-forward.mjs')
+writeFileSync(noForwardSetup, setupSource.replace(FAST_FORWARDS, '{ ok: true }'))
+const left = claudeWorktree('demo-6-left', nativeBase)
+const leftBehindBase = setUp(left, [], { script: noForwardSetup })
+check(
+  'with the fast-forward taken out, the same worktree stays behind',
+  leftBehindBase.code === 0 && git(left, 'rev-parse', 'HEAD').trim() === nativeBase,
+  setupWhy(leftBehindBase),
+)
+
+git(nativePrimary, 'switch', '-q', '-c', 'side')
+git(nativePrimary, ...AS, 'commit', '-q', '--allow-empty', '-m', 'a commit origin/main does not hold')
+const side = git(nativePrimary, 'rev-parse', 'HEAD').trim()
+git(nativePrimary, 'switch', '-q', 'main')
+const offTrunk = claudeWorktree('demo-7-side', side)
+const refusedBase = setUp(offTrunk)
+check(
+  'a worktree cut from a commit origin/main does not hold is refused, and keeps its branch',
+  refusedBase.code === 1 && refusedBase.stderr.includes('which origin/main does not hold') && branchOf(offTrunk) === 'worktree-demo-7-side',
+  setupWhy(refusedBase),
+)
+
+// What Claude Code leaves when it removes an unchanged worktree after the rename: the branch.
+git(nativePrimary, 'branch', '--no-track', 'agent/demo-8-again', 'origin/main')
+const reused = setUp(claudeWorktree('demo-8-again'))
+check(
+  'an agent/<name> branch with no commit of its own is replaced',
+  reused.code === 0 && branchOf(join(nativePrimary, '.claude', 'worktrees', 'demo-8-again')) === 'agent/demo-8-again',
+  setupWhy(reused),
+)
+git(nativePrimary, 'branch', '--no-track', 'agent/demo-9-work', side)
+const worked = setUp(claudeWorktree('demo-9-work'))
+check(
+  'control: an agent/<name> branch that holds work is not replaced, and the setup refuses',
+  worked.code === 1 && worked.stderr.includes('exists and holds 1 commit(s)') && git(nativePrimary, 'rev-parse', 'agent/demo-9-work').trim() === side,
+  setupWhy(worked),
+)
+const inPrimary = setUp(nativePrimary)
+check('in the primary checkout it refuses', inPrimary.code === 1 && inPrimary.stderr.includes('this is the primary checkout'), setupWhy(inPrimary))
+
+/* --------------------------------------------------------------------------------------------- *
  * .claude/settings.json: every registered hook loads whatever the working directory is.
  *
  * THE INCIDENT. Every hook was registered as `node scripts/hooks/<name>.mjs`,
@@ -1253,7 +1235,7 @@ check(
  * Each registered command runs as the harness runs a command hook, through `sh -c` with
  * `CLAUDE_PROJECT_DIR` naming this checkout, from a subdirectory of it (the incident's shape) and
  * from a directory outside it. The `node` first on PATH is a stand-in that reports the script it was
- * handed and runs nothing, because `worktree-create.mjs` provisions a real worktree when it runs. So
+ * handed and runs nothing, so a hook that acts when it runs is never run by this case. So
  * every command must be `node <script>`: that is what lets this case test one without running it.
  *
  * The control is the old relative form from the checkout root, which must load; the negative is the

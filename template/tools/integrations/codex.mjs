@@ -15,7 +15,8 @@ export const codex = {
   skillDirectory: '.agents/skills',
   entryPoints: {},
   replacements: {
-    CLI_WORKTREE_CREATE: 'HARNESS_CLI=codex bash "$(git rev-parse --show-toplevel)/scripts/new-worktree.sh" <task-ref> <slug>',
+    CLI_WORKTREE_CREATE: 'run `HARNESS_CLI=codex bash "$(git rev-parse --show-toplevel)/scripts/new-worktree.sh" <task-ref> <slug>`, and work in the directory it prints',
+    CLI_LANE_LAUNCH: 'Make each lane\'s worktree with `HARNESS_CLI=codex bash "$(git rev-parse --show-toplevel)/scripts/new-worktree.sh" <task-ref> <slug>`, and start one session of this CLI in it for the lane (not verified against the CLI: where it cannot start one from here, work the lanes one after another).',
     CLI_WORKTREE_REMOVE: 'end the worktree session, then run `git worktree unlock <path>` and `git worktree remove <path>` from the primary checkout',
     CLI_WORKTREE_ISOLATION: '',
   },
@@ -34,7 +35,7 @@ export const codex = {
     for (const group of groups) {
       const mapping = events[group.event]
       if (!mapping) {
-        warnings.push('codex: unsupported ' + group.event + ' hook; provision with scripts/new-worktree.sh and remove worktrees explicitly after work finishes.')
+        warnings.push('codex: unsupported ' + group.event + ' hook.')
         continue
       }
       contents += '\n[[hooks.' + mapping.event + ']]\nmatcher = ' + quote(mapping.matcher) + '\n'

@@ -205,10 +205,8 @@ export function runGuards(root, fixtures) {
   const hooks = checkFixtureCoverage(join(root, '.claude/settings.json'), fixtures)
   const expectations = JSON.parse(readFileSync(join(fixtures, 'expectations.json')))
   const unprovisioned = join(dirname(root), 'unprovisioned')
-  const provisioned = join(root, '.claude/worktrees/probe')
-  const substitutions = { __BOB__: root, __UNPROVISIONED__: unprovisioned, __WORKTREE__: provisioned }
+  const substitutions = { __BOB__: root, __UNPROVISIONED__: unprovisioned }
   const failures = []
-  let created = false
   let trunkWas = null
   function verify(label, action) {
     try { action(); note('PASS', label) }
@@ -229,8 +227,7 @@ export function runGuards(root, fixtures) {
     // committed here, through plumbing: `git commit` would run Bob's pre-commit hook in a worktree
     // with no node_modules. Bob's own origin/main ref is then moved onto that commit, which is what a
     // merged listing looks like from a clone, and put back when the step ends. The origin itself is
-    // never written. The worktree-create fixture's fetch puts the ref back sooner, so the
-    // guard-delivery fixtures must run before it, as the order of the hooks in the settings has them.
+    // never written.
     const { protectedTestsFile } = JSON.parse(readFileSync(join(root, 'policy/delivery.json')))
     appendFileSync(join(unprovisioned, protectedTestsFile), 'tests/probe.test.mjs template-test-probe\n')
     git(unprovisioned, ['add', protectedTestsFile])
@@ -259,19 +256,8 @@ export function runGuards(root, fixtures) {
               throw new Error('expected refusal ' + expectation.exit + ' with ' + expectation.reason + ', got ' + result.status)
             }
             if (git(root, ['worktree', 'list', '--porcelain']) !== before) throw new Error('refused hook changed worktrees')
-          } else {
-            if (result.status !== 0) throw new Error('allow fixture exited ' + result.status)
-            if (hook.name === 'worktree-create') {
-              if (result.stdout.trim() !== provisioned || !existsSync(provisioned)) throw new Error('WorktreeCreate did not return its worktree path')
-              if (git(provisioned, ['branch', '--show-current']).trim() !== 'agent/probe') throw new Error('WorktreeCreate made the wrong branch')
-              created = true
-            }
-            if (hook.name === 'worktree-remove') {
-              if (!created || existsSync(provisioned) || git(root, ['worktree', 'list', '--porcelain']).includes('worktree ' + provisioned + '\n')) {
-                throw new Error('WorktreeRemove did not remove the created worktree')
-              }
-              git(root, ['rev-parse', '--verify', 'refs/heads/agent/probe'])
-            }
+          } else if (result.status !== 0) {
+            throw new Error('allow fixture exited ' + result.status)
           }
         })
       }
@@ -280,7 +266,6 @@ export function runGuards(root, fixtures) {
     if (trunkWas !== null) git(root, ['update-ref', 'refs/remotes/origin/main', trunkWas])
     git(root, ['worktree', 'remove', '--force', unprovisioned])
     git(root, ['branch', '-D', 'template-test/unprovisioned'])
-    if (created && !existsSync(provisioned)) git(root, ['branch', '-D', 'agent/probe'])
   }
   if (failures.length) throw new Error('Guards failed: ' + failures.join('; '))
 }

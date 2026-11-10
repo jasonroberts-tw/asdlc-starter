@@ -17,8 +17,9 @@ on it: where a row here and a header disagree, the header wins and the row is co
 | `doctor.mjs` | Probes this machine's setup and changes nothing, one line per probe, each warn and fail naming its fix. |
 | `git-hooks.mjs` | The git hook runner: runs each event's jobs from `git-hooks.yml`, installs the hooks, and runs `mise run gates`. |
 | `github-app-token.mjs` | Mints the agents' GitHub App token for `git` and `gh` in the dev container, and hands it out. |
-| `hooks/` | The in-session hooks: the guards and worktree hooks the CLI runs, and their selftest. |
-| `new-worktree.sh` | Creates one worktree per agent task: a branch off `origin/main`, added locked, with the App's bot account as its commit identity, its ports and its briefing. |
+| `hooks/` | The in-session hooks: the guards the CLI runs, and their selftest. |
+| `new-worktree.sh` | Makes one worktree per agent task for a CLI with no worktree tool: a branch off `origin/main`, added locked, then set up by `setup-worktree.mjs`. |
 | `render-integrations.mjs` | Renders the selected CLI integrations from `.harness/`, or compares them without writing. |
 | `render-worktree-context.mjs` | Allocates a worktree's ports and renders its briefing, `.worktree/CONTEXT.md`. |
+| `setup-worktree.mjs` | Sets up the worktree it runs in, as a session's first command there: names the branch `agent/<name>`, sets the App's bot account as the commit identity, copies the installed skills, renders the briefing and runs `npm ci`. |
 | `skill-sources.mjs` | Holds `policy/skill-sources.json` to its rules, and makes a machine's plugins and installed skills match it. |

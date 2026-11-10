@@ -6,8 +6,6 @@ import { generatedMarkdown, json } from './formats.mjs'
 const events = {
   'before-command': { event: 'PreToolUse', matcher: 'Bash' },
   'before-edit': { event: 'PreToolUse', matcher: 'Write|Edit' },
-  'worktree-create': { event: 'WorktreeCreate' },
-  'worktree-remove': { event: 'WorktreeRemove' },
 }
 
 export const claude = {
@@ -19,7 +17,8 @@ export const claude = {
     '.harness/worktree-CONTEXT.md.tmpl': '.claude/worktree-CONTEXT.md.tmpl',
   },
   replacements: {
-    CLI_WORKTREE_CREATE: 'EnterWorktree',
+    CLI_WORKTREE_CREATE: 'call `EnterWorktree` with the name `<issue id>-<slug>`',
+    CLI_LANE_LAUNCH: 'Launch each lane with the Agent tool\'s `isolation: "worktree"`, which gives it a worktree of its own.',
     CLI_WORKTREE_REMOVE: '`ExitWorktree`, action `remove`',
     CLI_WORKTREE_ISOLATION: "Claude Code's own worktree isolation refuses too (verified against the CLI, 2.1.322): a loop whose text holds the letters git anywhere, in a file name, a path or \`github\`; a \`$(…)\` that runs git or sits in a git command, but for a commit message's here-document; \`sh -c\` or \`bash -c\` with text that names git; and \`git -C\`. So run each git command plain, from this worktree: a pipe, \`&&\` and \`;\` pass. In place of a loop over such names, run the command once for each, or use \`xargs\` or \`find -exec\`. A step that still cannot pass is a person's (\`AGENTS.md\` § Guards).",
   },

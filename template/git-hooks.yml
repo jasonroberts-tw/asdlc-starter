@@ -82,6 +82,7 @@ pre-push:
       glob:
         - 'scripts/hooks/**'
         - 'scripts/new-worktree.sh'
+        - 'scripts/setup-worktree.mjs'
         - 'scripts/skill-sources.mjs'
         - 'scripts/render-worktree-context.mjs'
         - '.harness/**'
@@ -125,6 +126,7 @@ pre-push:
         - 'scripts/render-integrations.mjs'
         - 'scripts/hooks/**'
         - 'scripts/new-worktree.sh'
+        - 'scripts/setup-worktree.mjs'
         - 'scripts/render-worktree-context.mjs'
         - 'tasks.toml'
         - 'package.json'

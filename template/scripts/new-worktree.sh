@@ -1,39 +1,33 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # scripts/new-worktree.sh <task-ref> <slug>
 #
-# Creates one isolated worktree per agent task: a branch off origin/main, a checked pair of
-# ports, and a rendered .worktree/CONTEXT.md briefing that the committed AGENTS.md asks each session to read.
+# Makes one worktree for an agent task, for a CLI that has no worktree tool of its own: Codex,
+# Copilot and OpenCode. It cuts `agent/<task-ref>-<slug>` from origin/main, adds the worktree locked,
+# and runs that worktree's own scripts/setup-worktree.mjs, which sets the commit identity, copies
+# the installed skills and renders the briefing. Claude Code makes its own worktrees, and a session
+# there runs the same setup script as its first command, so everything a session relies on in a
+# worktree is set by one file (that file's header says what the hook this replaced cost).
 #
-# There is no database, container stack or .env to provision -- this repository is a Node/TypeScript
-# toolchain. An earlier version of this script copied .env, certs and appsettings.Development.json
-# and wrote COMPOSE_PROJECT_NAME/DB_NAME/DB_PORT into .env; none of those files or services exist
-# here, so every line of it was inert. The port pair is reserved so that two worktrees never
-# collide: the first is the PORT to give a server a person starts there, the second is unused.
-# scripts/render-worktree-context.mjs owns the pair.
-#
-# It also does not install dependencies. node_modules is gitignored and platform-native, so the new
-# checkout has none; `npm ci` is the first command inside the worktree, and both the summary printed
-# below and the rendered briefing say so.
+# It does not install dependencies. node_modules is gitignored and platform-native, and this script
+# can run on a host for a session that runs in a container, so the session installs: its first
+# command in the worktree is `node scripts/setup-worktree.mjs`, which runs `npm ci`. The summary
+# printed below and the rendered briefing both say so.
 #
 # The worktree is added LOCKED, so git itself refuses to remove or prune it, however the command is
-# spelt, until someone unlocks it (the block that adds it has the incident). Its commits carry the
-# GitHub App's bot account, set for this worktree alone, so an agent's commit is told from the
-# operator's by its author (the block that sets it says where that loses).
+# spelt, until someone unlocks it (the block that adds it has the incident).
 #
 # Several runs at once, as a fan-out sweep starts them, do not fail one another: a run that fails
 # deletes the branch it made, and only that one (the block that cuts the branch has the incident),
 # and no run writes the shared .git/config but the first to set a commit identity in a repository,
-# which turns on per-worktree config there, once.
+# which turns on per-worktree config there, once (scripts/setup-worktree.mjs).
 #
-# Run from the primary checkout.
+# POSIX sh. The prompts run it with `bash`, which runs it the same. Run from any checkout of the
+# repository: it finds the primary one itself.
 
-set -euo pipefail
+set -eu
 
-# Two calling conventions. `<task-ref> <slug>` is the orchestrator's, and the one the briefing's
-# prose is written around. The single-argument form takes an already-composed name, and exists for
-# scripts/hooks/worktree-create.mjs: the harness hands that hook one opaque worktree name with no way
-# to split it back into a bead ref and a slug. Both forms land on the same NAME, so there is one code
-# path below and no second way for a worktree to get provisioned.
+# Two calling conventions. `<task-ref> <slug>` is the one the prompts give. The single-argument form
+# takes an already-composed name. Both land on the same NAME, so there is one code path below.
 TASK_REF="${1:?usage: new-worktree.sh <task-ref> <slug> | new-worktree.sh <name>}"
 SLUG="${2:-}"
 if [ -n "$SLUG" ]; then NAME="${TASK_REF}-${SLUG}"; else NAME="$TASK_REF"; fi
@@ -43,13 +37,14 @@ if [ -n "$SLUG" ]; then NAME="${TASK_REF}-${SLUG}"; else NAME="$TASK_REF"; fi
 # as ../worktrees/worktrees/<name>. `--git-common-dir` is shared by every worktree and is always
 # `<primary>/.git`, so stripping that suffix gives the primary working tree from anywhere.
 REPO_ROOT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
-# Worktrees live inside the selected CLI's worktrees folder. Claude uses its native location;
-# Codex, Copilot and OpenCode invoke this script explicitly. HARNESS_CLI overrides the recorded selection when
-# several integrations are deployed. Each folder is gitignored to prevent phantom gitlinks.
+# Worktrees live inside the selected CLI's worktrees folder. HARNESS_CLI overrides the recorded
+# selection when several integrations are deployed. Each folder is gitignored to prevent phantom
+# gitlinks.
 HARNESS_CLI="$(node "$REPO_ROOT/tools/integrations/adapters.mjs" "$REPO_ROOT")"
 export HARNESS_CLI
 WORKTREE_ROOT="${WORKTREE_ROOT:-$REPO_ROOT/.$HARNESS_CLI/worktrees}"
 LIFETIME_HOURS="${LIFETIME_HOURS:-2}"
+export LIFETIME_HOURS
 
 BRANCH="agent/${NAME}"
 WORKTREE_PATH="${WORKTREE_ROOT}/${NAME}"
@@ -64,7 +59,7 @@ WORKTREE_PATH="${WORKTREE_ROOT}/${NAME}"
 BRANCH_MADE=0
 CREATED=0
 cleanup() {
-  local code=$?
+  code=$?
   if [ "$code" -ne 0 ] && [ "$CREATED" -eq 1 ]; then
     echo "provisioning failed (exit $code); removing the worktree" >&2
     # Twice --force: once for a worktree with changes in it, and once more for a locked one.
@@ -81,13 +76,15 @@ trap cleanup EXIT
 # The trunk is `main` -- see AGENTS.md § Git workflow. Overridable so a hotfix worktree can be cut
 # from a release branch without editing this script.
 TRUNK="${TRUNK_BRANCH:-main}"
+TRUNK_BRANCH="$TRUNK"
+export TRUNK_BRANCH
 
 # A failed fetch must not block provisioning. `set -e` used to abort here, which was tolerable when a
-# human ran the script and could retry, but scripts/hooks/worktree-create.mjs calls this from inside
-# the agent sandbox where the network is unreachable -- an aborted fetch there means the harness
-# cannot create a worktree at all. Basing off a local `origin/main` that is minutes stale is strictly
-# better than that, so the failure warns and continues. It is not silent: the base commit's date is
-# printed below, which is what tells the operator the ref is old.
+# human ran the script and could retry, but a session can run this from inside a sandbox where the
+# network is unreachable -- an aborted fetch there means no worktree at all. Basing off a local
+# `origin/main` that is minutes stale is strictly better than that, so the failure warns and
+# continues. It is not silent: the base commit's date is printed below, which is what tells the
+# operator the ref is old.
 if ! git -C "$REPO_ROOT" fetch origin "$TRUNK" --quiet 2>/dev/null; then
   echo "warning: could not fetch origin/$TRUNK (offline or sandboxed); using the local ref" >&2
 fi
@@ -125,82 +122,19 @@ LOCK_REASON="an agent's worktree for $BRANCH, in use until its work has merged; 
 git -C "$REPO_ROOT" worktree add --lock --reason "$LOCK_REASON" "$WORKTREE_PATH" "$BRANCH"
 CREATED=1
 
-# The GitHub App's bot account as THIS worktree's commit identity, and no other's. On a host, git's
-# identity is the operator's own, so an agent's commit and a commit the operator made by hand carry
-# one author, and nothing that reads history can tell which a person made: in a Target, a pull
-# request opened on 2026-11-07 carried three agent commits authored as the operator. The dev container sets
-# the bot's identity for its whole user (.devcontainer/entrypoint.sh); a host has no such place, so
-# it is set here, in the worktree's own config file, which needs `extensions.worktreeConfig` on in
-# the shared .git/config. That one key is the only shared write this script makes: once per
-# repository, tried again when a concurrent run holds the config's lock. A run that cannot set the
-# identity says so and still makes the worktree. A project Deployed with no App keeps the
-# operator's identity, as it chose. Where it loses: an operator who signs commits signs these with a
-# key the bot's address does not own, so GitHub shows them unverified; and a person who commits by
-# hand inside this worktree commits as the bot unless they name themselves with `git -c`.
-worktree_config_on() {
-  [ "$(git -C "$REPO_ROOT" config --type=bool --get extensions.worktreeConfig 2>/dev/null)" = "true" ]
-}
-enable_worktree_config() {
-  worktree_config_on && return 0
-  # With the key on, git stops applying a shared core.worktree or core.bare to the primary checkout
-  # alone (git-worktree(1), CONFIGURATION FILE), so a repository that holds either is left as it is.
-  if [ -n "$(git -C "$REPO_ROOT" config --local --get core.worktree 2>/dev/null)" ] ||
-    [ "$(git -C "$REPO_ROOT" config --local --type=bool --get core.bare 2>/dev/null)" = "true" ]; then
-    return 1
-  fi
-  local try
-  for try in 1 2 3; do
-    git -C "$REPO_ROOT" config --local extensions.worktreeConfig true 2>/dev/null && return 0
-    sleep 1
-    worktree_config_on && return 0
-  done
-  return 1
-}
-IDENTITY_LINE="yours"
-if [ ! -f "$WORKTREE_PATH/scripts/github-app-token.mjs" ]; then
-  :
-elif ! IDENTITY="$(node "$WORKTREE_PATH/scripts/github-app-token.mjs" identity 2>/dev/null)"; then
-  IDENTITY_LINE="yours (\`node scripts/github-app-token.mjs identity\` says why the App's is not used)"
-else
-  BOT_NAME="$(printf '%s\n' "$IDENTITY" | sed -n 's/^user\.name=//p')"
-  BOT_EMAIL="$(printf '%s\n' "$IDENTITY" | sed -n 's/^user\.email=//p')"
-  if [ -n "$BOT_NAME" ] && [ -n "$BOT_EMAIL" ] && enable_worktree_config &&
-    git -C "$WORKTREE_PATH" config --worktree user.name "$BOT_NAME" 2>/dev/null &&
-    git -C "$WORKTREE_PATH" config --worktree user.email "$BOT_EMAIL" 2>/dev/null; then
-    IDENTITY_LINE="$BOT_NAME <$BOT_EMAIL> (this worktree only)"
-  else
-    IDENTITY_LINE="yours (the App's could not be set for this worktree)"
-    echo "warning: could not set the App's commit identity for $WORKTREE_PATH, so commits there carry your own. Run \`git config extensions.worktreeConfig true\` in $REPO_ROOT once, then make the worktree again." >&2
-  fi
-fi
+echo "base:     $BASE_SHA, $BASE_DATE"
 
-# Installed skills (policy/skill-sources.json `installedSkills`) are untracked directories in the
-# primary checkout, so git does not bring them across; copy them from there, with no network. A
-# skill held by its audit is absent there, so it is not copied. A worktree cut before a change keeps
-# what it had. Diagnostics only, on stderr: the WorktreeCreate hook reads stdout as the path.
-if [ -f "$REPO_ROOT/scripts/skill-sources.mjs" ]; then
-  node "$REPO_ROOT/scripts/skill-sources.mjs" copy "$WORKTREE_PATH" >&2 \
-    || echo "warning: could not copy the installed skills into $WORKTREE_PATH" >&2
-fi
+# The identity, the installed skills, the ports and the briefing: the NEW worktree's own setup
+# script, never $REPO_ROOT's, and run from inside the worktree. This checkout's working tree can
+# trail the base, so running its copy handed a worktree cut from origin/main a briefing from the
+# checkout's older template (scripts/render-worktree-context.mjs's header, item 4, has the
+# incidents). The worktree's copy is the base's. `--no-install` because this script may run on
+# another platform than the session (the header says why); the setup prints the summary.
+(cd "$WORKTREE_PATH" && node scripts/setup-worktree.mjs --no-install --task "$TASK_REF" "$NAME")
 
-# Ports, timestamps and the briefing. See the renderer's header for why this is not another `sed`.
-# The NEW worktree's renderer, never $REPO_ROOT's: the renderer reads the template beside itself, and
-# this checkout's working tree can trail the base, so running its copy handed a worktree cut from
-# origin/main a briefing from the checkout's older template (the renderer's header, item 4, has
-# the incidents). The worktree's copy is the base's, template and all.
-RENDER="$(node "$WORKTREE_PATH/scripts/render-worktree-context.mjs" \
-  "$WORKTREE_PATH" "$BRANCH" "$BASE_SHA" "$TASK_REF" "$LIFETIME_HOURS")"
-
-value_of() { printf '%s\n' "$RENDER" | sed -n "s/^$1=//p"; }
-
-echo "worktree: $WORKTREE_PATH"
-echo "branch:   $BRANCH (from $BASE_SHA, $BASE_DATE)"
-echo "commits:  $IDENTITY_LINE"
-echo "ports:    $(value_of APP_PORT) / $(value_of SB_PORT) (reserved: the first for a server's PORT, the second unused)"
-echo "deadline: $(value_of DEADLINE)"
 echo
 echo "start the agent with:  cd '$WORKTREE_PATH' && $HARNESS_CLI"
 # node_modules is gitignored, so `git worktree add` does not bring it across and nothing here
 # installs it -- an unprovisioned checkout fails every gate on a missing binary. The briefing says
 # so too; this line is for whoever is reading the terminal instead.
-echo "first command there:   npm ci   (a fresh worktree has no node_modules)"
+echo "first command there:   node scripts/setup-worktree.mjs   (it runs npm ci: a fresh worktree has no node_modules)"

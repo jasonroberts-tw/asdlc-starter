@@ -30,16 +30,11 @@ Other agents and humans are editing this repository right now, in worktrees you 
 
 ## Environment
 
-### `npm ci` before any task
+### Packages
 
-**A fresh worktree has no `node_modules`.** Run:
-
-```bash
-npm ci
-```
-
-**before the first `mise run` of the session**, and before anything that shells out to one: the gates, the emitters.
-Skip it and they fail on a missing binary rather than on anything you changed.
+**A fresh worktree has no `node_modules`.** `node scripts/setup-worktree.mjs`, the first command here, ran `npm ci`.
+If its summary did not say `packages: installed`, run `npm ci` yourself **before the first `mise run` of the session**:
+without it the gates and the emitters fail on a missing binary rather than on anything you changed.
 
 `npm ci`, not `npm install` — `package-lock.json` is authoritative and CI installs the same way.
 Once per worktree is enough unless the lockfile changes under you in a rebase.
