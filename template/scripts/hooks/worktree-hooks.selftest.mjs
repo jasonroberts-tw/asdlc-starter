@@ -34,6 +34,7 @@ import {
 import { tmpdir } from 'node:os'
 import { delimiter, dirname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { activeIntegration, renderCliText } from '../../tools/integrations/adapters.mjs'
 import { renderIntegrations } from '../../tools/integrations/render.mjs'
 
 const HOOKS = resolve(dirname(fileURLToPath(import.meta.url)))
@@ -630,8 +631,12 @@ const renderedValues = {
   PRIMARY_CHECKOUT: rendered.checkout,
   ...HOSTILE,
 }
+// The renderer fills the CLI's substitutions first, and one of them, CLI_VIA_MERGE, holds briefing
+// placeholders of its own. So the count is taken from the template as that step leaves it, for the
+// CLI the renderer chose.
+const EXPANDED = renderCliText(TEMPLATE_TEXT, activeIntegration(rendered.checkout, GIT_ENV))
 for (const [key, value] of Object.entries(renderedValues)) {
-  const want = TEMPLATE_TEXT.split(`{{${key}}}`).length - 1
+  const want = EXPANDED.split(`{{${key}}}`).length - 1
   if (want === 0) continue
   exercised += 1
   const got = context.split(value).length - 1

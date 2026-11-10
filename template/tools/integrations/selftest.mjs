@@ -49,6 +49,19 @@ test('Claude remains the default and renders the existing hooks and licensed ski
   assert.ok(files.get('.claude/skills/work/SKILL.md').includes('`node scripts/setup-worktree.mjs`'))
   assert.ok(files.get('.claude/agents/fan-out-work.md').includes('isolation: "worktree"'))
   assert.ok(!files.get('.claude/skills/work/SKILL.md').includes('{{'))
+  // Inside a worktree it made, Claude Code refuses a git command aimed at the primary checkout, and
+  // `ExitWorktree` refuses action `remove` once the branch holds a commit (docs/adr/0008). On
+  // 2026-11-10 the briefing still gave `git -C <primary> merge`, and the Template test's Work run
+  // stopped there with its issue open. So both finishes leave the worktree first, and neither
+  // names a form the CLI refuses.
+  const briefing = files.get('.claude/worktree-CONTEXT.md.tmpl')
+  assert.ok(briefing.includes('call `ExitWorktree` with action `keep`'))
+  assert.ok(briefing.includes('run `git merge --ff-only {{BRANCH}}`'))
+  assert.ok(!briefing.includes('git -C {{PRIMARY_CHECKOUT}}'))
+  assert.ok(!briefing.includes('{{CLI_'))
+  const openPr = files.get('.claude/skills/open-pr/SKILL.md')
+  assert.ok(openPr.includes('call `ExitWorktree` with action `keep`, then run `git worktree remove <path>`'))
+  assert.ok(!openPr.includes('`ExitWorktree`, action `remove`'))
   assert.deepEqual(warnings, [])
   assert.ok([...files.keys()].every((file) => !file.startsWith('.codex/') && !file.startsWith('.agents/') && !file.startsWith('.github/')))
 })
@@ -447,6 +460,15 @@ for (const [cli, { skills, hookCommands, plugins = {} }] of Object.entries(provi
   assert.ok(!read(worktree, '.worktree/CONTEXT.md').includes("Claude Code's own worktree isolation"))
   assert.ok(!readdirSync(dir).includes('.claude'))
   assert.equal(git('status', '--short'), '')
+  // No session of this CLI is held inside its worktree, so its `via-merge` finish aims git at the
+  // primary checkout from there. The two commands are read from the rendered briefing and run, in
+  // a Target whose path holds spaces: unquoted, as they were until 2026-11-10, git read the path
+  // as three arguments.
+  const finish = [...read(worktree, '.worktree/CONTEXT.md').matchAll(/`(git -C "[^"`]+" (?:branch --show-current|merge --ff-only agent\/\S+))`/g)].map((match) => match[1])
+  assert.equal(finish.length, 2, read(worktree, '.worktree/CONTEXT.md'))
+  const [onBranch, merged] = finish.map((command) => spawnSync('sh', ['-c', command], { cwd: worktree, env, encoding: 'utf8' }))
+  assert.equal(onBranch.stdout.trim(), 'main', onBranch.stderr)
+  assert.equal(merged.status, 0, merged.stderr)
   // The script adds the worktree locked, so git refuses a bare remove, and the removal the open-pr
   // skill gives must be the one that works: its commands are read from the rendered skill and run.
   assert.throws(() => execFileSync('git', ['worktree', 'remove', worktree], { cwd: dir, env, encoding: 'utf8', stdio: 'pipe' }), /locked working tree/)

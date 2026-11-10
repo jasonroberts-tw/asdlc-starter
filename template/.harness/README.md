@@ -36,7 +36,8 @@ it. Copilot reads Claude's tool names there. The OpenCode adapter turns `tools` 
 rules that deny every tool except the listed ones.
 
 CLI substitutions are `{{CLI_WORKTREE_CREATE}}`, `{{CLI_WORKTREE_REMOVE}}`,
-`{{CLI_LANE_LAUNCH}}`, and `{{CLI_WORKTREE_ISOLATION}}`. Unknown CLI substitutions are errors. Briefing substitutions such
+`{{CLI_LANE_LAUNCH}}`, `{{CLI_VIA_MERGE}}`, and `{{CLI_WORKTREE_ISOLATION}}`. A substitution's value may hold a
+briefing substitution, which is filled later. Unknown CLI substitutions are errors. Briefing substitutions such
 as `{{WORKTREE_PATH}}` are filled later by `scripts/render-worktree-context.mjs`.
 
 Hook groups have an `event` and a nonempty `handlers` array. Each handler specifies `script`,
