@@ -20,8 +20,8 @@
  * session drops from its own copy protects the test still. Paths compare without case, since macOS
  * and Windows open `Tests/A.mjs` for `tests/a.mjs`. The hook refuses an edit to a path that list
  * holds, and an edit to the list that drops or moves one of its lines. A person's own editor runs
- * no hook, so the operator approves a change by making it, or by deleting the line in a commit of
- * their own.
+ * no hook, so the operator approves a change by deleting the line in a commit of their own, which
+ * `scripts/check-protected-tests.mjs` reports at the push.
  *
  * NOT FROM THE COMMIT THAT LISTS IT, which is what it read until 2026-11-10. In a Target, sessions
  * listed 21 tests over 47 hours, and the hook refused no weakening of one. It did stop one guard
@@ -42,8 +42,8 @@
  *
  * IT FAILS OPEN, like the in-session tier it sits in (AGENTS.md § The gate ladder): with no
  * policy, no git, no `bd`, a `bd` that errors, or a branch that names no issue, it allows the edit.
- * An edit made through the shell gets past it; `spec-reviewer` diffs each protected test against the
- * commit that listed it.
+ * An edit made through the shell gets past it; `scripts/check-protected-tests.mjs` refuses the
+ * branch at pre-push and in CI.
  *
  *   node scripts/hooks/guard-delivery.mjs < payload.json
  *
@@ -181,8 +181,8 @@ for (const { filePath } of editTargets(input)) {
       `${rel} is a protected test, listed in ${listFile} for ${protectedPaths.get(rel.toLowerCase()) || 'its issue'}.`,
       '',
       'Never modify, weaken, skip or delete it. If it or the contract behind it looks wrong, stop, say',
-      'why, and wait: the operator changes it, or approves the change by deleting its line in a commit',
-      'of their own (AGENTS.md § Delivery workflow).',
+      'why, and wait: the operator approves a change by deleting its line in a commit of their own',
+      '(AGENTS.md § Delivery workflow).',
     ])
   }
   if (rel.toLowerCase() === listFile.toLowerCase() && protectedPaths.size > 0) {

@@ -12,6 +12,7 @@ on it: where a row here and a header disagree, the header wins and the row is co
 | `check-deps.mjs` | The dependency gate: a package version with a known vulnerability on osv.dev in any tracked lockfile or manifest osv-scanner reads. |
 | `check-policy.mjs` | The policy gate: a record under `policy/` without its header, a constant without its `Means`, and a key two records define. |
 | `check-secrets.mjs` | The secrets gate: a secret Betterleaks finds in a commit, the unpushed ones at pre-push and every one reachable from HEAD in CI. |
+| `check-protected-tests.mjs` | The protected-tests gate: refuses a mistyped list line, a listed test HEAD does not hold, and a test `origin/main` protects that the branch changed; reports each lifted line and each test the branch listed. |
 | `check-trace.mjs` | One feature's traceability: a criterion no story, test plan entry or tracked test names, and a story that cites no criterion and names no enabler. |
 | `doctor.mjs` | Probes this machine's setup and changes nothing, one line per probe, each warn and fail naming its fix. |
 | `git-hooks.mjs` | The git hook runner: runs each event's jobs from `git-hooks.yml`, installs the hooks, and runs `mise run gates`. |

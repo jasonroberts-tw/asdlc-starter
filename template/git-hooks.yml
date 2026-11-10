@@ -96,6 +96,16 @@ pre-push:
         - 'policy/delivery.json'
         - 'tasks.toml'
       run: mise run guard-delivery:selftest
+    - name: protected-tests
+      run: mise run protected-tests:check
+    - name: protected-tests-selftest
+      glob:
+        - 'scripts/check-protected-tests.mjs'
+        - 'policy/**'
+        - 'tools/lib/policy.ts'
+        - 'tools/lib/git-env.ts'
+        - 'tasks.toml'
+      run: mise run protected-tests:selftest
     - name: trace-selftest
       glob:
         - 'scripts/check-trace.mjs'

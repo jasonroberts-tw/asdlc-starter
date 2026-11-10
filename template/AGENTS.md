@@ -60,8 +60,9 @@ commit that adds it, and so is a test that reproduces a product defect. Once tha
 may correct it, in a commit that says why. Never weaken, skip or delete a listed test: a test
 changed until it passes proves nothing. A selftest of the harness is never listed, because a
 guard's fix changes its selftest. If a protected test, or the contract behind it, looks wrong,
-stop, say why, and wait. Only the operator approves a change to one, by making it or by deleting
-its line in a commit of their own, and a changed contract changes the spec too.
+stop, say why, and wait. Only the operator approves a change to one, by deleting its line in a
+commit of their own, since `mise run protected-tests:check` refuses a branch that changes a test
+still listed. A changed contract changes the spec too.
 
 **New dependencies.** Before adding a third-party dependency, confirm that it exists in the official
 registry under that exact name, that it is maintained, that it is needed, and what licence it
