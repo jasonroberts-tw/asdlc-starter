@@ -102,6 +102,7 @@ Stop, write the current state into a note on the issue, and report to the operat
 - a contract or a protected test looks wrong;
 - a criterion turns out ambiguous, or contradicts another;
 - one failure has outlasted `rootCauseMaxFixes` failed fixes (the `root-cause` skill § 6);
+- a blocking gap has outlasted `reviewMaxRounds` reviews (§ 6);
 - the work needs a module or path that another in-progress story declared;
 - the approved spec would need to change.
 
@@ -114,10 +115,22 @@ As `AGENTS.md` § The gate ladder says.
 Hand the `spec-reviewer` agent the scope (story, defect, small change or harness task), the issue
 id, the feature's spec path when there is one, the diff range `origin/main...HEAD` and step 5's gate output.
 Withhold this session's transcript, because a reviewer who reads the implementer's reasoning
-inherits its blind spots. Fix each gap it reports that lies in the issue's scope, and review again.
-Any other gap goes to the operator, who decides it. MUST NOT decide on your own that a gap is
-acceptable. In an autonomous session, such a gap goes into a note on the issue, and the issue stays
-open.
+inherits its blind spots.
+
+Each gap it reports carries a severity, which decides what happens next:
+
+- **Blocking, in the issue's scope.** Fix it, run the gates, and review again. Pass the re-review
+  the earlier report and the range of the fixes.
+- **Minor, in the issue's scope.** Fix it in the same pass and run the gates. It earns no review of
+  its own, because a round spent on wording finds more wording.
+- **Outside the issue's scope.** It goes to the operator, who decides it.
+
+Stop after `reviewMaxRounds` reviews (`policy/agent-workflows.json`), the first included. When a
+blocking gap is open then, make no further fix: give the operator each open gap with its evidence
+and what each round changed, and wait, because a change that review does not converge on may have
+the wrong design or scope, which is the operator's call. MUST NOT decide on your own that a gap is
+acceptable, and MUST NOT lower a gap's severity. In an autonomous session, a gap that waits on the
+operator goes into a note on the issue, and the issue stays open.
 
 ## 7. Integrating with main
 

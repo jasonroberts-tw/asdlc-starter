@@ -35,7 +35,10 @@ own.
 The `spec-reviewer` agent checks a change against its spec without seeing the implementing session's
 transcript. A reviewer who reads the implementer's reasoning inherits its blind spots. The agent
 checks traceability, contracts, protected tests, fitness functions, and a mutation score of at
-least 80%. The operator decides each gap it reports. Before a branch is pushed, the
+least 80%. It marks each gap blocking or minor. Only a blocking gap earns another review, and
+after a set number of reviews the session stops and hands the open gaps to the operator. Without
+that bound, a review loop spends its late rounds on wording and never ends. The operator decides
+each gap the session may not fix itself. Before a branch is pushed, the
 `adversarial-verifier` agent tries to falsify each claim in the branch by re-deriving it from
 source. `AGENTS.md` also makes every agent re-derive any figure it states and cite where it came
 from, because a count taken from memory or an issue title is often stale.
@@ -57,7 +60,10 @@ Each agent task gets its own git worktree, on an `agent/<issue id>-<slug>` branc
 briefing to `.worktree/CONTEXT.md`. The briefing tells the agent that other agents are editing the
 repository at the same time. So the agent prefers additive changes, and it stops on a rebase
 conflict it did not expect. The `fan-out-work` agent splits the ready queue into lanes by the files
-each issue touches, so two lanes never rewrite the same lines. Before it pushes, the `open-pr` skill
+each issue touches, so two lanes never rewrite the same lines. It writes that split down before it
+claims anything, and the written list locks the sweep. An issue found during the sweep waits in the
+queue, and a second sweep starts only when the operator asks, because a sweep that takes on what it
+finds has no end. Before it pushes, the `open-pr` skill
 test-merges the branch against each open pull request that touches the same files. It then watches
 the checks, fixes a failing one a bounded number of times, waits for a person's approval and the merge,
 and removes the worktree after the merge.
