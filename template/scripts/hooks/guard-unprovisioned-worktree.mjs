@@ -31,7 +31,10 @@
  * IT REFUSES EVERY OTHER COMMAND, NOT JUST GIT: the agent is about to do real work, and every
  * command it runs deepens that. The one it lets through is the setup script, run plainly as
  * `node scripts/setup-worktree.mjs` with its arguments and nothing after it (`SETUP` below): a
- * command that chains anything onto it is not that command. Leaving does not need the shell either
+ * command that chains anything onto it is not that command. The refusal names the forms, a pipe, a
+ * redirect and a second command, because "as its own command" was not read that way: in the two
+ * Work runs of 2026-11-10 a session piped the setup into `tail`, once after being refused for a
+ * chain, and each try cost a refused call. Leaving does not need the shell either
  * -- `ExitWorktree` is a tool -- so refusing leaves a way out rather than a deadlock. With a payload
  * it cannot read it sees no setup command, and refuses.
  *
@@ -120,8 +123,9 @@ if (unprovisioned !== null && !(typeof command === 'string' && SETUP.test(comman
   process.stderr.write(
     'BLOCKED by repository policy: ' +
       `this worktree is on '${branch}', not an agent/* branch${distance}, so it has not been set up. ` +
-      'Run `node scripts/setup-worktree.mjs <issue id>-<slug>` as its own command, from the ' +
-      "worktree's root. It names the branch for its issue, sets the commit identity, installs " +
+      'Run `node scripts/setup-worktree.mjs <issue id>-<slug>` alone, from the ' +
+      "worktree's root, with no pipe, redirect or second command. " +
+      'It names the branch for its issue, sets the commit identity, installs ' +
       'the packages and writes the briefing .worktree/CONTEXT.md. No other command runs here ' +
       'until it has.\n',
   )

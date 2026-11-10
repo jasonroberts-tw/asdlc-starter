@@ -36,6 +36,9 @@ Run every check that the scope the parent passed names:
    or configuration. Each new dependency exists in the official registry under that exact name, is
    maintained, is needed, and has its reason in the spec or the story's notes.
 
+Run each check's command as its own call, with no `cd`, loop or `${…}` in it. You start where the
+parent works, and a CLI can refuse a long or compound command inside a worktree.
+
 Report:
 
 - one row per gap: its severity, what is missing or wrong, its evidence (file and line, or a command
