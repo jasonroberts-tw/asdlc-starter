@@ -29,8 +29,10 @@ than the spec. A test written from a spec's test plan is listed by the commit th
 so is a test that reproduces a product defect. A listed test is protected once that commit has
 merged. Until then its own branch may correct it, and the reviewer reads the change. A selftest of
 the harness is never listed, because a fix to a guard changes its selftest. The edit hook refuses an edit to a protected test, because a
-test changed until it passes proves nothing. Only the operator changes one, in a commit of their
-own.
+test changed until it passes proves nothing. An edit made through the shell gets past that hook,
+so the `protected-tests:check` gate refuses, at pre-push and in CI, a branch that changed a test
+still on the list. Only the operator lifts a protection, by deleting the test's line in a commit of
+their own.
 
 ### Review in a fresh context
 

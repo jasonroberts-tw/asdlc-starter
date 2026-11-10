@@ -3,5 +3,6 @@
 # in the commit that adds it (`AGENTS.md` § Delivery workflow). It is protected once that commit is on
 # `origin/main`: `scripts/hooks/guard-delivery.mjs` refuses an edit to a path this file lists as
 # `origin/main` has it, and an edit that drops one of those lines, so only the operator lifts a
-# protection. A selftest of the harness is never listed. `protectedTestsFile` in
+# protection. `mise run protected-tests:check` refuses a branch that changes a test still listed, and
+# a line that names no file. A selftest of the harness is never listed. `protectedTestsFile` in
 # `policy/delivery.json` names this file.

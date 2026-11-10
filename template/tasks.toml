@@ -145,6 +145,25 @@ own branch writing code; each beside a control that passes, and the guard failin
 and push would still pass.'''
 run = "node scripts/hooks/guard-delivery.selftest.mjs"
 
+["protected-tests:check"]
+description = '''
+The protected-tests gate over this checkout's HEAD and its `origin/main`: it refuses a line of the
+list that is not a path and an issue id, a listed path HEAD does not hold, and a test `origin/main`
+lists that this branch changed while it stayed on the list. It reports, and does not refuse, a line
+that left the list, with the commit and its author, and each test the branch listed, with the
+commits that changed it since. Without it, a protected test changed through the shell, or a line
+that names no file, passes every commit and push, and only a reviewer's own git commands see it.'''
+run = "node scripts/check-protected-tests.mjs"
+
+["protected-tests:selftest"]
+description = '''
+The protected-tests gate, negative-tested over a scratch checkout it builds: a mistyped line, a
+listed test that was moved, a merged test changed on the branch, each refused by its reason, beside
+a control that passes; a line the operator deleted, a test listed again for another issue and a
+test the branch listed, each reported and passed; and a checkout with no `origin/main`. Without it
+the gate could stop refusing a changed test, and every push would still pass.'''
+run = "node scripts/check-protected-tests.mjs --selftest"
+
 ["trace:selftest"]
 description = '''
 The traceability check, negative-tested: a criterion no story cites, one the test plan leaves out,
