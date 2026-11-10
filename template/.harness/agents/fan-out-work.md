@@ -29,9 +29,15 @@ An issue whose premise you cannot verify from the checkout is not dispatched; no
 Dispatch at most `fanOutMaxLanes` lanes (`policy/agent-workflows.json`), because each lane is a
 session that spends on its own; the rest wait for the next sweep.
 
-Write the partition down before you claim anything: one row per lane, with its issues, the files
-each touches, the overlap kind and the anchor. Claiming is the first step another session or a
-watching user would want to catch.
+Write the partition to `.scratch/sweep.md` before you claim anything: one row per lane, with its
+issues, the files each touches, the overlap kind and the anchor. Claiming is the first step another
+session or a watching user would want to catch.
+
+That file locks the sweep: its issues are the sweep's whole work. An issue filed after it is
+written, by you, a lane or a reviewer, at any priority, joins no lane and no round of fixes. It
+waits in the queue, because a sweep that takes on what it finds has no end. When such an issue
+blocks a locked one, the locked issue stops and is reported as blocked. After a restart or a
+compaction, read the file again, not the queue.
 
 ## 3. Pre-claim every issue in one tracker bracket
 
@@ -66,7 +72,10 @@ measured without the others' work, then run
 
 ## 6. Open the pull request and watch its checks
 
-Before it opens, the `work` skill § 6 reviews your branch once for each issue the lanes carried.
+Before it opens, the `work` skill § 6 reviews your branch once for each issue the lanes carried,
+and each issue's reviews count against `reviewMaxRounds` on their own. A lane fixes only the gaps
+§ 6 has it fix. An issue that reaches the bound with a blocking gap open goes to the operator, who
+decides whether the pull request carries it.
 Once `open-pr` reports the merge, close each issue the lanes carried as the
 `work` skill says.
 
@@ -75,4 +84,7 @@ Once `open-pr` reports the merge, close each issue the lanes carried as the
 | Lane | Issues | Branch | Gates (as measured) | Merged | Follow-ups filed |
 |---|---|---|---|---|---|
 
-Then: issues not dispatched and lanes kept, each with why.
+Then: issues not dispatched and lanes kept, each with why, and every issue filed during the sweep.
+
+The sweep ends with this report. Start no second sweep unless the operator asks for one, because a
+sweep's own findings refill the queue it was sent to empty.
